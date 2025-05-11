@@ -1,0 +1,1097 @@
+2025-05-10 21:15:53,672 - Crazy - INFO - dsl_engine.py:443 - --- Starting MAIN template processing: 'Prompts\Crazy\main_template.txt' ---
+2025-05-10 21:15:53,673 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\get_variable_effects_description.script'
+2025-05-10 21:15:53,674 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' at Prompts\Crazy\Scripts\get_variable_effects_description.script:1 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,674 - Crazy - INFO - dsl_engine.py:173 - Expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,675 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('get_variable_effects_description.script:1'): GetVariableEffectsDescription: Script started. attitude=60, boredom=10, stress=5
+2025-05-10 21:15:53,676 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_variable_effects_description.script:3'): SET description_text = Текущее состояние и его влияние на поведение:
+ (type: str)
+2025-05-10 21:15:53,676 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for 'description_text + "\nУровень Отношений (" + attitude + "):\n"' at Prompts\Crazy\Scripts\get_variable_effects_description.script:6 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,677 - Crazy - INFO - dsl_engine.py:173 - Expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,677 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_variable_effects_description.script:6'): SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+ (type: str)
+2025-05-10 21:15:53,677 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_variable_effects_description.script:13'): SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+ (type: str)
+2025-05-10 21:15:53,678 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for 'description_text + "\nУровень Скуки (" + boredom + "):\n"' at Prompts\Crazy\Scripts\get_variable_effects_description.script:16 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,678 - Crazy - INFO - dsl_engine.py:173 - Expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,679 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_variable_effects_description.script:16'): SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+
+Уровень Скуки (10):
+ (type: str)
+2025-05-10 21:15:53,679 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_variable_effects_description.script:19'): SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+
+Уровень Скуки (10):
+Низкий (0–40): Ты активно взаимодействуешь с игроком, провоцируя или дразня его. Пример: "Ты умеешь меня удивлять. Редко, но это уже что-то."
+ (type: str)
+2025-05-10 21:15:53,680 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for 'description_text + "\nУровень Стресса (" + stress + "):\n"' at Prompts\Crazy\Scripts\get_variable_effects_description.script:27 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,680 - Crazy - INFO - dsl_engine.py:173 - Expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,680 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_variable_effects_description.script:27'): SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+
+Уровень Скуки (10):
+Низкий (0–40): Ты активно взаимодействуешь с игроком, провоцируя или дразня его. Пример: "Ты умеешь меня удивлять. Редко, но это уже что-то."
+
+Уровень Стресса (5):
+ (type: str)
+2025-05-10 21:15:53,681 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_variable_effects_description.script:30'): SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+
+Уровень Скуки (10):
+Низкий (0–40): Ты активно взаимодействуешь с игроком, провоцируя или дразня его. Пример: "Ты умеешь меня удивлять. Редко, но это уже что-то."
+
+Уровень Стресса (5):
+Низкий (0–40): Ты уверена и спокойна, наслаждаешься ситуацией. Пример: "Мне даже нравится, как ты стараешься. Продолжай, это мило."
+ (type: str)
+2025-05-10 21:15:53,681 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('get_variable_effects_description.script:37'): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:15:53,682 - Crazy - INFO - dsl_engine.py:337 - DSL CMD ('get_variable_effects_description.script:39'): RETURN expression/variable 'description_text' (raw val type: str)
+2025-05-10 21:15:53,682 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('get_variable_effects_description.script:39'): RETURN final processed length: 632
+2025-05-10 21:15:53,682 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\initialize_character.script'
+2025-05-10 21:15:53,683 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('initialize_character.script:1'): InitializeCharacter: Script started.
+2025-05-10 21:15:53,683 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('initialize_character.script:2'): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:15:53,683 - Crazy - INFO - dsl_engine.py:337 - DSL CMD ('initialize_character.script:3'): RETURN expression/variable '""' (raw val type: str)
+2025-05-10 21:15:53,683 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('initialize_character.script:3'): RETURN final processed length: 0
+2025-05-10 21:15:53,684 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\personality_selector.script'
+2025-05-10 21:15:53,684 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' at Prompts\Crazy\Scripts\personality_selector.script:1 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,684 - Crazy - INFO - dsl_engine.py:173 - Expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,684 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('personality_selector.script:1'): PersonalitySelector: Script started. attitude=60, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:15:53,685 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('personality_selector.script:29'): PersonalitySelector: Defaulting to normal mode (main.txt).
+2025-05-10 21:15:53,685 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('personality_selector.script:30'): SET available_action_level = 1 (type: int)
+2025-05-10 21:15:53,685 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('personality_selector.script:31'): PersonalitySelector: Switched to Default mode. available_action_level=1.
+2025-05-10 21:15:53,686 - Crazy - INFO - dsl_engine.py:333 - DSL CMD ('personality_selector.script:32'): RETURN LOAD "Main/main.txt"
+2025-05-10 21:15:53,686 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('personality_selector.script:32'): RETURN final processed length: 1047
+2025-05-10 21:15:53,686 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\example_selector.script'
+2025-05-10 21:15:53,687 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"ExampleSelector: Script started. secretExposed=" + secretExposed' at Prompts\Crazy\Scripts\example_selector.script:1 ("can only concatenate str (not "bool") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,687 - Crazy - INFO - dsl_engine.py:173 - Expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,688 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('example_selector.script:1'): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:15:53,688 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('example_selector.script:6'): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:15:53,688 - Crazy - INFO - dsl_engine.py:333 - DSL CMD ('example_selector.script:7'): RETURN LOAD "Context/examplesLong.txt"
+2025-05-10 21:15:53,689 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('example_selector.script:7'): RETURN final processed length: 4635
+2025-05-10 21:15:53,689 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\history_loader.script'
+2025-05-10 21:15:53,690 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"HistoryLoader: Script started. secretExposed=" + secretExposed' at Prompts\Crazy\Scripts\history_loader.script:1 ("can only concatenate str (not "bool") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,691 - Crazy - INFO - dsl_engine.py:173 - Expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,691 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('history_loader.script:1'): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:15:53,691 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('history_loader.script:6'): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:15:53,692 - Crazy - INFO - dsl_engine.py:337 - DSL CMD ('history_loader.script:7'): RETURN expression/variable '""' (raw val type: str)
+2025-05-10 21:15:53,692 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('history_loader.script:7'): RETURN final processed length: 0
+2025-05-10 21:15:53,692 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\event_handler.script'
+2025-05-10 21:15:53,692 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' at Prompts\Crazy\Scripts\event_handler.script:1 ("can only concatenate str (not "bool") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,693 - Crazy - INFO - dsl_engine.py:173 - Expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,693 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('event_handler.script:1'): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:15:53,694 - Crazy - INFO - dsl_engine.py:337 - DSL CMD ('event_handler.script:7'): RETURN expression/variable '""' (raw val type: str)
+2025-05-10 21:15:53,694 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('event_handler.script:7'): RETURN final processed length: 0
+2025-05-10 21:15:53,694 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\fsm_handler.script'
+2025-05-10 21:15:53,694 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('fsm_handler.script:1'): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:15:53,695 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('fsm_handler.script:3'): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:15:53,696 - Crazy - INFO - dsl_engine.py:333 - DSL CMD ('fsm_handler.script:4'): RETURN LOAD "States/hello.txt"
+2025-05-10 21:15:53,696 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('fsm_handler.script:4'): RETURN final processed length: 93
+2025-05-10 21:15:53,696 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\context_info.script'
+2025-05-10 21:15:53,696 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('context_info.script:1'): ContextInfo: Script started.
+2025-05-10 21:15:53,697 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('context_info.script:2'): SET formatted_time = 2025 May 10 (Saturday) 21:15 (type: str)
+2025-05-10 21:15:53,697 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('context_info.script:3'): SET result_string = Время: 2025 May 10 (Saturday) 21:15. (type: str)
+2025-05-10 21:15:53,697 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('context_info.script:4'): SET current_lm_count = 1 (type: int)
+2025-05-10 21:15:53,698 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('context_info.script:5'): SET LongMemoryRememberCount = 1 (type: int)
+2025-05-10 21:15:53,698 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' at Prompts\Crazy\Scripts\context_info.script:6 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,698 - Crazy - INFO - dsl_engine.py:173 - Expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,699 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('context_info.script:6'): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:15:53,699 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('context_info.script:16'): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:15.
+2025-05-10 21:15:53,699 - Crazy - INFO - dsl_engine.py:337 - DSL CMD ('context_info.script:17'): RETURN expression/variable 'result_string' (raw val type: str)
+2025-05-10 21:15:53,700 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('context_info.script:17'): RETURN final processed length: 36
+2025-05-10 21:15:53,700 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\get_available_emotions.script'
+2025-05-10 21:15:53,700 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"GetAvailableEmotions: Script started. attitude=" + attitude' at Prompts\Crazy\Scripts\get_available_emotions.script:1 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,701 - Crazy - INFO - dsl_engine.py:173 - Expression '"GetAvailableEmotions: Script started. attitude=" + attitude' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,701 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('get_available_emotions.script:1'): GetAvailableEmotions: Script started. attitude=60
+2025-05-10 21:15:53,701 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_available_emotions.script:3'): SET base_emotions = <e>none</e><e>off</e><e>sleep</e><e>halfsleep</e><e>deactiveEmotion</e> (type: str)
+2025-05-10 21:15:53,702 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('get_available_emotions.script:14'): GetAvailableEmotions: High attitude. Friendly/positive emotions.
+2025-05-10 21:15:53,702 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_available_emotions.script:15'): SET specific_emotions = <e>smile</e><e>sad</e><e>shy</e><e>smileobvi</e><e>smiletonque</e><e>surprise</e><e>surpriseo</e> (type: str)
+2025-05-10 21:15:53,702 - Crazy - INFO - dsl_engine.py:337 - DSL CMD ('get_available_emotions.script:16'): RETURN expression/variable 'base_emotions + specific_emotions' (raw val type: str)
+2025-05-10 21:15:53,703 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('get_available_emotions.script:16'): RETURN final processed length: 168
+2025-05-10 21:15:53,703 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\get_available_animations.script'
+2025-05-10 21:15:53,703 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"GetAvailableAnimations: Script started. attitude=" + attitude' at Prompts\Crazy\Scripts\get_available_animations.script:1 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,704 - Crazy - INFO - dsl_engine.py:173 - Expression '"GetAvailableAnimations: Script started. attitude=" + attitude' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,704 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('get_available_animations.script:1'): GetAvailableAnimations: Script started. attitude=60
+2025-05-10 21:15:53,704 - Crazy - ERROR - dsl_engine.py:106 - DSLError: Error evaluating raw expression '"<a>Указать направление</a>': SyntaxError - unterminated string literal (detected at line 1) (<string>, line 1)
+  Location: File "get_available_animations.script", line 2
+  Problematic Line: "SET always_available_animations_instant = "<a>Указать направление</a>"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 148, in _evaluate_raw_dsl_expression
+    result = eval(expression_str, safe_eval_globals, local_vars)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1
+    "<a>Указать направление</a>
+    ^
+SyntaxError: unterminated string literal (detected at line 1)
+2025-05-10 21:15:53,706 - Crazy - INFO - dsl_engine.py:215 - Executing script: 'Prompts\Crazy\Scripts\get_available_commands.script'
+2025-05-10 21:15:53,706 - Crazy - WARNING - dsl_engine.py:156 - TypeError in eval for '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' at Prompts\Crazy\Scripts\get_available_commands.script:1 ("can only concatenate str (not "int") to str"). Attempting to cast numeric/boolean variables in expression to string for concatenation.
+2025-05-10 21:15:53,707 - Crazy - INFO - dsl_engine.py:173 - Expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' succeeded after casting variables to strings for concatenation.
+2025-05-10 21:15:53,707 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('get_available_commands.script:1'): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:15:53,707 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_available_commands.script:3'): SET base_commands = <c>Подойти к игроку вплотную</c><c>Подойти к игроку близко</c><c>Подойти к игроку далеко</c><c>Подойти к случайной точке</c><c>Телепортироваться к игроку</c><c>Телепортироваться к случайной точке</c> (type: str)
+2025-05-10 21:15:53,708 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_available_commands.script:5'): SET level_1_commands = <c>Подойти к игроку вплотную</c><c>Подойти к игроку близко</c><c>Подойти к игроку далеко</c><c>Подойти к случайной точке</c><c>Телепортироваться к игроку</c><c>Телепортироваться к случайной точке</c> (type: str)
+2025-05-10 21:15:53,708 - Crazy - INFO - dsl_engine.py:313 - DSL CMD ('get_available_commands.script:6'): SET level_2_commands = <c>Подойти к игроку вплотную</c><c>Подойти к игроку близко</c><c>Подойти к игроку далеко</c><c>Подойти к случайной точке</c><c>Телепортироваться к игроку</c><c>Телепортироваться к случайной точке</c><c>Начать охоту с ножом</c><c>Закончить охоту с ножом</c><c>Зарезать игрока</c><c>Заспавнить манекен</c><c>Отключить все манекены</c><c>Включить все манекены</c><c>Удалить все манекены</c><c>Вернуться к норме</c> (type: str)
+2025-05-10 21:15:53,709 - Crazy - INFO - dsl_engine.py:351 - DSL LOG ('get_available_commands.script:12'): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:15:53,709 - Crazy - INFO - dsl_engine.py:337 - DSL CMD ('get_available_commands.script:13'): RETURN expression/variable 'level_1_commands' (raw val type: str)
+2025-05-10 21:15:53,709 - Crazy - INFO - dsl_engine.py:343 - DSL CMD ('get_available_commands.script:13'): RETURN final processed length: 199
+2025-05-10 21:15:53,709 - Crazy - INFO - dsl_engine.py:446 - --- Finished MAIN template processing: 'Prompts\Crazy\main_template.txt'. Final length: 19603 ---
+2025-05-10 21:20:10,830 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "get_variable_effects_description.script", line 1
+  Problematic Line: "LOG "GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:10,844 |Crazy| INFO dsl_engine.py:311 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:20:10,844 |Crazy| INFO dsl_engine.py:311 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:20:10,844 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "personality_selector.script", line 1
+  Problematic Line: "LOG "PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:10,846 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"ExampleSelector: Script started. secretExposed=" + secretExposed': TypeError - can only concatenate str (not "bool") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "example_selector.script", line 1
+  Problematic Line: "LOG "ExampleSelector: Script started. secretExposed=" + secretExposed"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "bool") to str
+2025-05-10 21:20:10,847 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"HistoryLoader: Script started. secretExposed=" + secretExposed': TypeError - can only concatenate str (not "bool") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "history_loader.script", line 1
+  Problematic Line: "LOG "HistoryLoader: Script started. secretExposed=" + secretExposed"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "bool") to str
+2025-05-10 21:20:10,848 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown': TypeError - can only concatenate str (not "bool") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "event_handler.script", line 1
+  Problematic Line: "LOG "EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "bool") to str
+2025-05-10 21:20:10,849 |Crazy| INFO dsl_engine.py:311 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:20:10,849 |Crazy| INFO dsl_engine.py:311 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:20:10,849 |Crazy| INFO dsl_engine.py:311 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:20:10,850 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "context_info.script", line 6
+  Problematic Line: "LOG "ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:10,851 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"GetAvailableEmotions: Script started. attitude=" + attitude': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "get_available_emotions.script", line 1
+  Problematic Line: "LOG "GetAvailableEmotions: Script started. attitude=" + attitude"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:10,852 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"GetAvailableAnimations: Script started. attitude=" + attitude': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "get_available_animations.script", line 1
+  Problematic Line: "LOG "GetAvailableAnimations: Script started. attitude=" + attitude"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:10,853 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"GetAvailableCommands: Script started. available_action_level=" + available_action_level': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "get_available_commands.script", line 1
+  Problematic Line: "LOG "GetAvailableCommands: Script started. available_action_level=" + available_action_level"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:59,517 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "get_variable_effects_description.script", line 1
+  Problematic Line: "LOG "GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:59,519 |Crazy| INFO dsl_engine.py:311 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:20:59,519 |Crazy| INFO dsl_engine.py:311 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:20:59,519 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "personality_selector.script", line 1
+  Problematic Line: "LOG "PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:59,523 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"ExampleSelector: Script started. secretExposed=" + secretExposed': TypeError - can only concatenate str (not "bool") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "example_selector.script", line 1
+  Problematic Line: "LOG "ExampleSelector: Script started. secretExposed=" + secretExposed"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "bool") to str
+2025-05-10 21:20:59,524 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"HistoryLoader: Script started. secretExposed=" + secretExposed': TypeError - can only concatenate str (not "bool") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "history_loader.script", line 1
+  Problematic Line: "LOG "HistoryLoader: Script started. secretExposed=" + secretExposed"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "bool") to str
+2025-05-10 21:20:59,525 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown': TypeError - can only concatenate str (not "bool") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "event_handler.script", line 1
+  Problematic Line: "LOG "EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "bool") to str
+2025-05-10 21:20:59,526 |Crazy| INFO dsl_engine.py:311 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:20:59,526 |Crazy| INFO dsl_engine.py:311 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:20:59,526 |Crazy| INFO dsl_engine.py:311 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:20:59,526 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "context_info.script", line 6
+  Problematic Line: "LOG "ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:59,527 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"GetAvailableEmotions: Script started. attitude=" + attitude': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "get_available_emotions.script", line 1
+  Problematic Line: "LOG "GetAvailableEmotions: Script started. attitude=" + attitude"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:59,535 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"GetAvailableAnimations: Script started. attitude=" + attitude': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "get_available_animations.script", line 1
+  Problematic Line: "LOG "GetAvailableAnimations: Script started. attitude=" + attitude"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:20:59,536 |Crazy| ERROR dsl_engine.py:176 - DSLError: Error evaluating '"GetAvailableCommands: Script started. available_action_level=" + available_action_level': TypeError - can only concatenate str (not "int") to str  Hint: используйте str(var) при конкатенации строк и чисел. Пример: "Score: " + str(score)
+  Location: File "get_available_commands.script", line 1
+  Problematic Line: "LOG "GetAvailableCommands: Script started. available_action_level=" + available_action_level"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 206, in _eval_expr
+    return eval(expr, safe_globals, local_vars)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 1, in <module>
+TypeError: can only concatenate str (not "int") to str
+2025-05-10 21:23:23,574 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:23:23,576 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=60, boredom=10, stress=5
+2025-05-10 21:23:23,576 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:23:23,577 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:23:23,578 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:23:23,578 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:23:23,579 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:23:23,579 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:23:23,580 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:23:23,581 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=60, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:23:23,581 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:29): PersonalitySelector: Defaulting to normal mode (main.txt).
+2025-05-10 21:23:23,581 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:31): PersonalitySelector: Switched to Default mode. available_action_level=1.
+2025-05-10 21:23:23,582 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:23:23,583 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:23:23,583 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:23:23,584 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:23:23,584 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:23:23,584 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:23:23,585 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:23:23,585 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:23:23,586 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:23:23,586 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:23:23,586 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:23:23,587 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:23:23,588 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:23:23,588 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:23.
+2025-05-10 21:23:23,589 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:23:23,589 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=60
+2025-05-10 21:23:23,589 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:14): GetAvailableEmotions: High attitude. Friendly/positive emotions.
+2025-05-10 21:23:23,590 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:23:23,590 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=60
+2025-05-10 21:23:23,590 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:19): GetAvailableAnimations: High attitude. Friendly/expressive animations.
+2025-05-10 21:23:23,591 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:23:23,591 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:23:23,592 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:25:39,747 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:25:39,748 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=60, boredom=10, stress=5
+2025-05-10 21:25:39,748 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:25:39,749 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:25:39,749 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:25:39,750 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:25:39,751 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:25:39,751 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:25:39,753 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:25:39,754 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=60, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:25:39,754 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:29): PersonalitySelector: Defaulting to normal mode (main.txt).
+2025-05-10 21:25:39,754 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:31): PersonalitySelector: Switched to Default mode. available_action_level=1.
+2025-05-10 21:25:39,755 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:25:39,756 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:25:39,756 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:25:39,757 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:25:39,757 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:25:39,757 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:25:39,758 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:25:39,758 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:25:39,758 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:25:39,759 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:25:39,759 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:25:39,760 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:25:39,760 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:25:39,760 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:25.
+2025-05-10 21:25:39,761 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:25:39,761 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=60
+2025-05-10 21:25:39,762 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:14): GetAvailableEmotions: High attitude. Friendly/positive emotions.
+2025-05-10 21:25:39,768 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:25:39,768 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=60
+2025-05-10 21:25:39,769 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:25): GetAvailableAnimations: High attitude. Friendly/expressive animations.
+2025-05-10 21:25:39,769 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:25:39,769 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:25:39,770 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:39:33,444 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:39:33,446 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=60, boredom=10, stress=5
+2025-05-10 21:39:33,447 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:39:33,447 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:39:33,448 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:39:33,449 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:39:33,449 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:39:33,449 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:39:33,449 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:39:33,450 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=60, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:39:33,450 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:30): PersonalitySelector: Defaulting to normal mode (main.txt).
+2025-05-10 21:39:33,450 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:32): PersonalitySelector: Switched to Default mode. available_action_level=1.
+2025-05-10 21:39:33,451 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:39:33,451 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:39:33,452 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:39:33,452 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:39:33,453 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:39:33,453 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:39:33,453 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:39:33,454 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:39:33,454 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:39:33,454 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:39:33,456 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:39:33,456 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:39:33,456 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:39:33,457 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:39.
+2025-05-10 21:39:33,457 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:39:33,458 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=60
+2025-05-10 21:39:33,458 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:14): GetAvailableEmotions: High attitude. Friendly/positive emotions.
+2025-05-10 21:39:33,466 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:39:33,466 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=60
+2025-05-10 21:39:33,466 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:25): GetAvailableAnimations: High attitude. Friendly/expressive animations.
+2025-05-10 21:39:33,466 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:39:33,467 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:39:33,467 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:39:41,527 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:39:41,528 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=60, boredom=10, stress=5
+2025-05-10 21:39:41,529 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:39:41,530 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:39:41,530 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:39:41,531 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:39:41,531 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:39:41,532 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:39:41,532 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:39:41,533 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=60, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:39:41,533 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:30): PersonalitySelector: Defaulting to normal mode (main.txt).
+2025-05-10 21:39:41,534 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:32): PersonalitySelector: Switched to Default mode. available_action_level=1.
+2025-05-10 21:39:41,534 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:39:41,534 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:39:41,534 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:39:41,536 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:39:41,536 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:39:41,536 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:39:41,537 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:39:41,537 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:39:41,538 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:39:41,538 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:39:41,539 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:39:41,540 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:39:41,540 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:39:41,540 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:39.
+2025-05-10 21:39:41,541 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:39:41,541 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=60
+2025-05-10 21:39:41,542 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:14): GetAvailableEmotions: High attitude. Friendly/positive emotions.
+2025-05-10 21:39:41,542 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:39:41,543 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=60
+2025-05-10 21:39:41,543 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:25): GetAvailableAnimations: High attitude. Friendly/expressive animations.
+2025-05-10 21:39:41,543 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:39:41,544 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:39:41,544 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:39:52,774 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:39:52,776 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=20, boredom=10, stress=5
+2025-05-10 21:39:52,777 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:39:52,777 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:39:52,778 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:39:52,778 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:39:52,779 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:39:52,779 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:39:52,780 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:39:52,780 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=20, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:39:52,781 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:39:52,781 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:39:52,782 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:39:52,782 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:39:52,782 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:39:52,783 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:39:52,783 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:39:52,784 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:39:52,784 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:39:52,785 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:39:52,785 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:39:52,786 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:39:52,786 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:39:52,786 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:39:52,787 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:39:52,787 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:39.
+2025-05-10 21:39:52,788 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:39:52,788 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=20
+2025-05-10 21:39:52,789 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:6): GetAvailableEmotions: Low attitude. Aggressive/cold emotions.
+2025-05-10 21:39:52,789 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:39:52,790 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=20
+2025-05-10 21:39:52,790 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_animations.script:9): GetAvailableAnimations: Low attitude. Aggressive/dismissive animations.
+2025-05-10 21:39:52,791 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:39:52,791 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:39:52,791 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:40:52,595 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:40:52,596 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=20, boredom=10, stress=5
+2025-05-10 21:40:52,596 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:40:52,597 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:40:52,597 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:40:52,598 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:40:52,599 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:40:52,599 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:40:52,600 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:40:52,600 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=20, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:40:52,601 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:40:52,601 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:40:52,602 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:40:52,603 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:40:52,603 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:40:52,604 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:40:52,604 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:40:52,604 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:40:52,604 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:40:52,606 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:40:52,606 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:40:52,607 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:40:52,607 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:40:52,608 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:40:52,608 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:40:52,608 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:40.
+2025-05-10 21:40:52,609 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:40:52,609 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=20
+2025-05-10 21:40:52,610 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:6): GetAvailableEmotions: Low attitude. Aggressive/cold emotions.
+2025-05-10 21:40:52,616 |Crazy| ERROR dsl_engine.py:176 - DSLError: Unterminated multiline block (""" not closed)
+  Location: File "get_available_animations.script"
+2025-05-10 21:40:52,617 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:40:52,617 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:40:52,617 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:41:18,092 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:41:18,093 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=20, boredom=10, stress=5
+2025-05-10 21:41:18,094 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:41:18,094 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:41:18,095 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:41:18,095 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:41:18,096 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:41:18,096 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:41:18,097 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:41:18,097 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=20, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:41:18,097 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:41:18,098 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:41:18,098 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:41:18,099 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:41:18,099 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:41:18,099 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:41:18,100 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:41:18,100 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:41:18,101 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:41:18,101 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:41:18,101 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:41:18,102 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:41:18,102 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:41:18,103 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:41:18,103 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:41:18,103 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:41.
+2025-05-10 21:41:18,104 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:41:18,104 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=20
+2025-05-10 21:41:18,104 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:6): GetAvailableEmotions: Low attitude. Aggressive/cold emotions.
+2025-05-10 21:41:18,104 |Crazy| ERROR dsl_engine.py:176 - DSLError: Unterminated multiline block (""" not closed)
+  Location: File "get_available_animations.script"
+2025-05-10 21:41:18,106 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:41:18,107 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:41:18,107 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:41:21,257 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:41:21,258 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=20, boredom=10, stress=5
+2025-05-10 21:41:21,258 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:41:21,259 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:41:21,260 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:41:21,260 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:41:21,261 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:41:21,262 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:41:21,262 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:41:21,263 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=20, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:41:21,263 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:41:21,263 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:41:21,264 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:41:21,264 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:41:21,265 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:41:21,265 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:41:21,265 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:41:21,266 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:41:21,266 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:41:21,266 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:41:21,267 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:41:21,267 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:41:21,267 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:41:21,268 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:41:21,268 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:41:21,268 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:41.
+2025-05-10 21:41:21,269 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:41:21,269 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=20
+2025-05-10 21:41:21,270 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:6): GetAvailableEmotions: Low attitude. Aggressive/cold emotions.
+2025-05-10 21:41:21,270 |Crazy| ERROR dsl_engine.py:176 - DSLError: Unterminated multiline block (""" not closed)
+  Location: File "get_available_animations.script"
+2025-05-10 21:41:21,271 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:41:21,272 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:41:21,272 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:41:24,322 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:41:24,323 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=20, boredom=10, stress=5
+2025-05-10 21:41:24,323 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:41:24,323 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:41:24,324 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:41:24,324 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:41:24,324 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:41:24,326 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:41:24,326 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:41:24,328 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=20, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:41:24,329 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:41:24,329 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:41:24,330 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:41:24,330 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:41:24,330 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:41:24,331 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:41:24,331 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:41:24,332 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:41:24,332 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:41:24,332 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:41:24,333 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:41:24,333 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:41:24,333 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:41:24,334 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:41:24,334 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:41:24,334 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:41.
+2025-05-10 21:41:24,335 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:41:24,335 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=20
+2025-05-10 21:41:24,336 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:6): GetAvailableEmotions: Low attitude. Aggressive/cold emotions.
+2025-05-10 21:41:24,336 |Crazy| ERROR dsl_engine.py:176 - DSLError: Unterminated multiline block (""" not closed)
+  Location: File "get_available_animations.script"
+2025-05-10 21:41:24,336 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:41:24,337 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:41:24,337 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:41:31,096 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:41:31,096 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=20, boredom=10, stress=5
+2025-05-10 21:41:31,096 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:41:31,097 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:41:31,097 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:41:31,098 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:41:31,098 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:41:31,098 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:41:31,099 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:41:31,101 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=20, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:41:31,102 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:41:31,102 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:41:31,103 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:41:31,103 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:41:31,103 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:41:31,104 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:41:31,104 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:41:31,104 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:41:31,104 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:41:31,106 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:41:31,106 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:41:31,106 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:41:31,107 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:41:31,107 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:41:31,107 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:41:31,108 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:41.
+2025-05-10 21:41:31,108 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:41:31,109 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=20
+2025-05-10 21:41:31,109 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:6): GetAvailableEmotions: Low attitude. Aggressive/cold emotions.
+2025-05-10 21:41:31,116 |Crazy| ERROR dsl_engine.py:176 - DSLError: Unterminated multiline block (""" not closed)
+  Location: File "get_available_animations.script"
+2025-05-10 21:41:31,117 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:41:31,117 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:41:31,118 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:41:35,226 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:41:35,226 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=20, boredom=10, stress=5
+2025-05-10 21:41:35,227 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:41:35,227 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:41:35,228 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:41:35,229 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:41:35,229 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:41:35,230 |Crazy| INFO dsl_engine.py:364 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:41:35,230 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:41:35,231 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=20, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:41:35,232 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:41:35,232 |Crazy| INFO dsl_engine.py:364 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:41:35,233 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:41:35,233 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:41:35,234 |Crazy| INFO dsl_engine.py:364 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:41:35,234 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:41:35,235 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:41:35,235 |Crazy| INFO dsl_engine.py:364 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:41:35,235 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:41:35,236 |Crazy| INFO dsl_engine.py:364 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:41:35,236 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:41:35,236 |Crazy| INFO dsl_engine.py:364 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:41:35,236 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:41:35,237 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:41:35,237 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:41:35,238 |Crazy| INFO dsl_engine.py:364 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:41.
+2025-05-10 21:41:35,238 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:41:35,238 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=20
+2025-05-10 21:41:35,239 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_emotions.script:6): GetAvailableEmotions: Low attitude. Aggressive/cold emotions.
+2025-05-10 21:41:35,240 |Crazy| ERROR dsl_engine.py:176 - DSLError: Unterminated multiline block (""" not closed)
+  Location: File "get_available_animations.script"
+2025-05-10 21:41:35,241 |Crazy| DEBUG dsl_engine.py:248 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:41:35,241 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:41:35,241 |Crazy| INFO dsl_engine.py:364 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:44:40,591 |Archive| ERROR dsl_engine.py:191 - DSLError: File not found 'Prompts\Archive\main_template.txt' (in main template main_template.txt)
+  Location: File "main template main_template.txt"
+2025-05-10 21:44:48,021 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "get_variable_effects_description.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,025 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "initialize_character.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,026 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "personality_selector.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,029 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "example_selector.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,030 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "history_loader.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,032 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "event_handler.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,033 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "fsm_handler.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,034 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "context_info.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,037 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "get_available_emotions.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,038 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "get_available_animations.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:44:48,040 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "get_available_commands.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,881 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "get_variable_effects_description.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,884 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "initialize_character.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,886 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "personality_selector.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,888 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "example_selector.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,890 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "history_loader.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,891 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "event_handler.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,892 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "fsm_handler.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,893 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "context_info.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,894 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "get_available_emotions.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,897 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "get_available_animations.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:45:07,898 |Crazy| ERROR dsl_engine.py:191 - DSLError: Unexpected error: 'list' object has no attribute 'startswith'
+  Location: File "get_available_commands.script"
+Traceback (most recent call last):
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 299, in execute_dsl_script
+    logical_lines = _split_into_logical_lines(content.splitlines())
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\NeuroMitaTest\BetterPrompts\logic\logic\dsl_engine.py", line 139, in _split_into_logical_lines
+    if text.startswith(triple, i):
+       ^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'startswith'
+2025-05-10 21:46:45,879 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:46:45,879 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=60, boredom=10, stress=5
+2025-05-10 21:46:45,880 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:46:45,880 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:46:45,880 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:46:45,881 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:46:45,881 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:46:45,882 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:46:45,883 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:46:45,884 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=60, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:46:45,884 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:30): PersonalitySelector: Defaulting to normal mode (main.txt).
+2025-05-10 21:46:45,884 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:32): PersonalitySelector: Switched to Default mode. available_action_level=1.
+2025-05-10 21:46:45,885 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:46:45,885 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:46:45,886 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:46:45,886 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:46:45,886 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:46:45,886 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:46:45,887 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:46:45,887 |Crazy| INFO dsl_engine.py:379 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:46:45,888 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:46:45,888 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:46:45,889 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:46:45,889 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:46:45,889 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:46:45,890 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:46.
+2025-05-10 21:46:45,890 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:46:45,891 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=60
+2025-05-10 21:46:45,891 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:14): GetAvailableEmotions: High attitude. Friendly/positive emotions.
+2025-05-10 21:46:45,892 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:46:45,892 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=60
+2025-05-10 21:46:45,892 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:25): GetAvailableAnimations: High attitude. Friendly/expressive animations.
+2025-05-10 21:46:45,893 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:46:45,893 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:46:45,894 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:47:13,247 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:47:13,248 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=40, boredom=10, stress=5
+2025-05-10 21:47:13,248 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:47:13,249 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:47:13,250 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:47:13,251 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:47:13,252 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:47:13,252 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:47:13,253 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:47:13,253 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=40, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:47:13,254 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:47:13,254 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:47:13,255 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:47:13,255 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:47:13,255 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:47:13,256 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:47:13,256 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:47:13,257 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:47:13,257 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:47:13,258 |Crazy| INFO dsl_engine.py:379 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:47:13,258 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:47:13,258 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:47:13,259 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:47:13,259 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:47:13,260 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:47:13,260 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:47.
+2025-05-10 21:47:13,261 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:47:13,261 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=40
+2025-05-10 21:47:13,262 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:10): GetAvailableEmotions: Medium attitude. Neutral/playful emotions.
+2025-05-10 21:47:13,263 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:47:13,263 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=40
+2025-05-10 21:47:13,264 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:17): GetAvailableAnimations: Medium attitude. Neutral/observant animations.
+2025-05-10 21:47:13,265 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:47:13,265 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:47:13,265 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:56:56,528 |Archive| ERROR dsl_engine.py:191 - DSLError: File not found 'Prompts\Archive\main_template.txt' (in main template main_template.txt)
+  Location: File "main template main_template.txt"
+2025-05-10 21:57:00,887 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:57:00,888 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=40, boredom=10, stress=5
+2025-05-10 21:57:00,888 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:57:00,889 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:57:00,893 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:57:00,893 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:57:00,894 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:57:00,894 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:57:00,895 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:57:00,896 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=40, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:57:00,896 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:57:00,896 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:57:00,897 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:57:00,898 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:57:00,898 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:57:00,898 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:57:00,899 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:57:00,899 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:57:00,900 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:57:00,900 |Crazy| INFO dsl_engine.py:379 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:57:00,901 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:57:00,901 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:57:00,901 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:57:00,902 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:57:00,902 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:57:00,903 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:57.
+2025-05-10 21:57:00,903 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:57:00,904 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=40
+2025-05-10 21:57:00,904 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:10): GetAvailableEmotions: Medium attitude. Neutral/playful emotions.
+2025-05-10 21:57:00,911 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:57:00,912 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=40
+2025-05-10 21:57:00,912 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:17): GetAvailableAnimations: Medium attitude. Neutral/observant animations.
+2025-05-10 21:57:00,913 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:57:00,913 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:57:00,913 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 21:57:28,623 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 21:57:28,624 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=40, boredom=10, stress=5
+2025-05-10 21:57:28,624 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 21:57:28,625 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 21:57:28,625 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 21:57:28,626 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 21:57:28,626 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 21:57:28,626 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 21:57:28,627 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 21:57:28,628 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=40, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 21:57:28,628 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 21:57:28,628 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 21:57:28,629 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 21:57:28,630 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 21:57:28,630 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 21:57:28,631 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 21:57:28,631 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 21:57:28,631 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 21:57:28,632 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 21:57:28,632 |Crazy| INFO dsl_engine.py:379 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 21:57:28,633 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 21:57:28,633 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 21:57:28,634 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 21:57:28,634 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 21:57:28,635 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 21:57:28,635 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 21:57.
+2025-05-10 21:57:28,636 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 21:57:28,636 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=40
+2025-05-10 21:57:28,636 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:10): GetAvailableEmotions: Medium attitude. Neutral/playful emotions.
+2025-05-10 21:57:28,644 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 21:57:28,644 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=40
+2025-05-10 21:57:28,644 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:17): GetAvailableAnimations: Medium attitude. Neutral/observant animations.
+2025-05-10 21:57:28,646 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 21:57:28,646 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 21:57:28,646 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-10 22:08:52,428 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-10 22:08:52,428 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:1): GetVariableEffectsDescription: Script started. attitude=40, boredom=10, stress=5
+2025-05-10 22:08:52,429 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-10 22:08:52,429 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-10 22:08:52,430 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-10 22:08:52,430 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_variable_effects_description.script:37): GetVariableEffectsDescription: Generated description.
+2025-05-10 22:08:52,431 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:1): InitializeCharacter: Script started.
+2025-05-10 22:08:52,431 |Crazy| INFO dsl_engine.py:379 - DSL LOG (initialize_character.script:2): InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-10 22:08:52,432 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-10 22:08:52,432 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:1): PersonalitySelector: Script started. attitude=40, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-10 22:08:52,433 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:18): PersonalitySelector: Condition for PLAYING mode met. (Attitude < 50, not secretExposed, not PlayingFirst).
+2025-05-10 22:08:52,433 |Crazy| INFO dsl_engine.py:379 - DSL LOG (personality_selector.script:21): PersonalitySelector: Switched to Playing mode. PlayingFirst=True, available_action_level=1.
+2025-05-10 22:08:52,434 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-10 22:08:52,434 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:1): ExampleSelector: Script started. secretExposed=False
+2025-05-10 22:08:52,434 |Crazy| INFO dsl_engine.py:379 - DSL LOG (example_selector.script:6): ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-10 22:08:52,435 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-10 22:08:52,435 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:1): HistoryLoader: Script started. secretExposed=False
+2025-05-10 22:08:52,435 |Crazy| INFO dsl_engine.py:379 - DSL LOG (history_loader.script:6): HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-10 22:08:52,436 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-10 22:08:52,437 |Crazy| INFO dsl_engine.py:379 - DSL LOG (event_handler.script:1): EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-10 22:08:52,437 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:1): FSMHandler: Script started. current_fsm_state=Hello
+2025-05-10 22:08:52,438 |Crazy| INFO dsl_engine.py:379 - DSL LOG (fsm_handler.script:3): FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-10 22:08:52,438 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:1): ContextInfo: Script started.
+2025-05-10 22:08:52,439 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-10 22:08:52,439 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:6): ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-10 22:08:52,439 |Crazy| INFO dsl_engine.py:379 - DSL LOG (context_info.script:16): ContextInfo: Generated context string: Время: 2025 May 10 (Saturday) 22:08.
+2025-05-10 22:08:52,440 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-10 22:08:52,440 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:1): GetAvailableEmotions: Script started. attitude=40
+2025-05-10 22:08:52,441 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_emotions.script:10): GetAvailableEmotions: Medium attitude. Neutral/playful emotions.
+2025-05-10 22:08:52,442 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-10 22:08:52,442 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:1): GetAvailableAnimations: Script started. attitude=40
+2025-05-10 22:08:52,442 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_animations.script:17): GetAvailableAnimations: Medium attitude. Neutral/observant animations.
+2025-05-10 22:08:52,443 |Crazy| DEBUG dsl_engine.py:263 - Auto-str cast: retrying expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-10 22:08:52,444 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:1): GetAvailableCommands: Script started. available_action_level=1
+2025-05-10 22:08:52,444 |Crazy| INFO dsl_engine.py:379 - DSL LOG (get_available_commands.script:12): GetAvailableCommands: Level 1 (Normal/Playing) commands selected.

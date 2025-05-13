@@ -110,14 +110,21 @@ class Character:
         self.variables[name] = value
 
 
-    def get_full_prompt(self) -> str:
-        """Собирает полный промпт для персонажа, обрабатывая его main_template.txt."""
+    def get_full_prompt(self, tags: dict[str, object] | None = None) -> str:
+        """Возвращает финальный prompt, автоматически подставляя теги из `tags`."""
+
         self.set_variable("SYSTEM_DATETIME", datetime.datetime.now().strftime("%Y %B %d (%A) %H:%M"))
+
         try:
             interpreter = DslInterpreter(self)
+
+            if tags:
+                for tag_name, value in tags.items():
+                    interpreter.set_tag(tag_name, value)
+
             return interpreter.process_main_template_file(self.main_template_path_relative)
-        except Exception as e: # Общий перехватчик на случай, если что-то пойдет не так на этом уровне
-            logger.error(f"Critical error during get_full_prompt for {self.char_id}: {e}", exc_info=True)
+
+        except Exception as e:
             print(f"{RED_COLOR}Critical error in get_full_prompt for {self.char_id}: {e}{RESET_COLOR}\n{traceback.format_exc()}", file=sys.stderr)
             return f"[CRITICAL PYTHON ERROR GETTING PROMPT FOR {self.char_id} - CHECK LOGS]"
 

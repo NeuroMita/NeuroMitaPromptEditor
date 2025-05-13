@@ -6,6 +6,7 @@ from PySide6.QtGui import (
     QTextCharFormat,
     QTextFormat,
     QColor,
+    QFont,
 )
 
 from app.syntax.styles import HIGHLIGHTING_RULES_DARK_TUPLES
@@ -68,6 +69,15 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
             self.rules.append((regex, fmt, is_link_rule, pattern_str))
 
         # если среди правил не нашёлся string-format ‒ создаём дефолтный
+        tag_fmt = QTextCharFormat()
+        tag_fmt.setForeground(QColor("#FFAC33"))   # ярко-оранжевый
+        tag_fmt.setFontWeight(QFont.Bold)
+
+        tag_regex = QRegularExpression(r"\{\{[A-Z0-9_]+\}\}")  # {{SYS_INFO}}, {{ANY_TAG}}
+        self.rules.append(
+            (tag_regex, tag_fmt, False, "{{TAG}}")             # False → это не ссылка
+        )
+
         if self._triple_quote_format is None:
             self._triple_quote_format = QTextCharFormat()
             self._triple_quote_format.setForeground(QColor("#FFA500"))  # оранжевый

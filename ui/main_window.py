@@ -176,7 +176,9 @@ class PromptEditorWindow(QMainWindow):
         vars_dict = self._parse_vars()
         char = CharacterClass(self.selected_char, self.selected_char, vars_dict)
         try:
-            prompt = char.get_full_prompt()
+            sys_info_fake = ["[SYS_INFO]: Пример Системного Сообщения.", "[SYS_INFO]_2 Пример второго системного сообщения."]
+            tags = {"SYS_INFO": sys_info_fake}
+            prompt = char.get_full_prompt(tags)
             DslResultDialog(f"DSL: {self.selected_char}", prompt, self).show()
         except Exception as e:
             QMessageBox.critical(self, "DSL-ошибка", str(e))

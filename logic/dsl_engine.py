@@ -7,6 +7,7 @@ import sys
 import traceback
 from typing import List
 from contextlib import contextmanager
+from typing import Any
 
 RED = "\033[91m"
 YEL = "\033[93m"
@@ -19,6 +20,11 @@ MAX_RECURSION = 10
 MULTILINE_DELIM = '"""'
 MAX_LOG_BYTES = 2_000_000
 BACKUP_COUNT = 3
+
+# ------------- TAG system -------------------------------------------------
+TAG_PATTERN = re.compile(r"\{\{([A-Z0-9_]+)\}\}")   #  {{TAG_NAME}}
+MANDATORY_TAGS: set[str] = {"SYS_INFO"}             #  обязательные теги
+# --------------------------------------------------------------------------
 
 dsl_execution_logger = logging.getLogger("dsl_execution")
 dsl_script_logger = logging.getLogger("dsl_script")
@@ -170,6 +176,11 @@ class DslInterpreter:
         char_ctx_filter.set_character_id(getattr(character, "char_id", "NO_CHAR_INIT"))
         
         self._context_dir_stack: list[str] = []
+
+        # --- TAGS --------------------------------------------------------
+        # set_tag("SYS_INFO", "…") запишет значение,
+        # которое потом подставится вместо {{SYS_INFO}}
+        self._tag_values: dict[str, str] = {}
 
     @contextmanager
     def _use_base(self, base_dir: str):
@@ -587,6 +598,48 @@ class DslInterpreter:
             text += f"\n[DSL ERROR: MAX RECURSION {MAX_RECURSION} REACHED IN '{ctx}']"
         return text
 
+    # region Теги
+    # ------------------------------------------------------------------ #
+    #                           T A G S                                  #
+    # ------------------------------------------------------------------ #
+    def set_tag(self, tag_name: str, content: Any | None):
+        """
+        content может быть:
+            • str  – берётся как есть
+            • list/tuple – склеиваем \n между элементами
+            • всё остальное – str(content)
+        """
+        if content is None:
+            return
+
+        if isinstance(content, (list, tuple)):
+            content = "\n".join(map(str, content))
+
+        self._tag_values[tag_name.upper()] = str(content)
+
+    def _apply_tags(self, text: str, *, ctx: str = "") -> str:
+        """
+        Подставляет значения тегов в текст и предупреждает,
+        если в шаблоне отсутствуют обязательные теги.
+        """
+        # --- подмена ----------------------------------------------------
+        def _replace(match: re.Match):
+            tag = match.group(1).upper()
+            return self._tag_values.get(tag, match.group(0))  # нет значения – не трогаем
+
+        processed = TAG_PATTERN.sub(_replace, text)
+
+        # --- проверка обязательных тегов -------------------------------
+        for mandatory in MANDATORY_TAGS:
+            placeholder = f"{{{{{mandatory}}}}}"
+            if placeholder not in text:
+                dsl_execution_logger.warning(
+                    f"Mandatory tag {placeholder} not found while processing {ctx or 'template'}"
+                )
+
+        return processed
+    # endregion
+
     def process_main_template_file(self, rel_path: str) -> str:
         full_resolved_path = ""
         try:
@@ -594,7 +647,10 @@ class DslInterpreter:
             dsl_execution_logger.info(f"Processing main template file: {rel_path} for character {self.character.char_id}")
             full_resolved_path = self._resolve_path(rel_path)
             raw_template_content = self._load_text(full_resolved_path, f"main template {rel_path}")
-            final_prompt = self.process_template_content(raw_template_content, f"main template {rel_path}")
+            final_prompt = self.process_template_content(
+                raw_template_content, f"main template {rel_path}"
+            )
+            final_prompt = self._apply_tags(final_prompt, ctx=f"main template {rel_path}")
             dsl_execution_logger.info(f"Successfully processed main template: {rel_path}")
             return final_prompt
         except DslError as e:

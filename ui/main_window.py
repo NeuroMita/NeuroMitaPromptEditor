@@ -169,12 +169,21 @@ class PromptEditorWindow(QMainWindow):
             ed.clear()
             self.vars_dock.setWindowTitle("Параметры DSL")
 
-    # ------------------------- DSL ----------------------------
     def _run_dsl(self):
-        if not (DSL_ENGINE_AVAILABLE and self.selected_char):
+        if not DSL_ENGINE_AVAILABLE:
+            QMessageBox.warning(self, "DSL", "DSL-движок недоступен.")
             return
+        if not self.selected_char:
+            QMessageBox.warning(self, "DSL", "Персонаж не выбран.")
+            return
+        if not self.prompts_root: # <<< НОВАЯ ПРОВЕРКА
+            editor_logger.error("Prompts root directory is not set. Cannot run DSL.")
+            QMessageBox.warning(self, "DSL Ошибка", "Корневая папка Prompts не установлена.")
+            return
+
         vars_dict = self._parse_vars()
-        char = CharacterClass(self.selected_char, self.selected_char, vars_dict)
+        # <<< ИЗМЕНЕНО: передаем self.prompts_root в конструктор CharacterClass
+        char = CharacterClass(self.selected_char, self.selected_char, self.prompts_root, vars_dict)
         try:
             sys_info_fake = ["[SYS_INFO]: Пример Системного Сообщения.", "[SYS_INFO]_2 Пример второго системного сообщения."]
             tags = {"SYS_INFO": sys_info_fake}
@@ -182,6 +191,7 @@ class PromptEditorWindow(QMainWindow):
             DslResultDialog(f"DSL: {self.selected_char}", prompt, self).show()
         except Exception as e:
             QMessageBox.critical(self, "DSL-ошибка", str(e))
+            editor_logger.error(f"Error running DSL for {self.selected_char}: {e}", exc_info=True) # Добавим логирование
 
     def _parse_vars(self) -> dict:
         out = {}

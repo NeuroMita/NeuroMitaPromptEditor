@@ -38,10 +38,11 @@ class Character:
         """Копия базовых дефолтов (без риска изменить оригинал)."""
         return cls.BASE_DEFAULTS.copy()
 
-    def __init__(self, char_id: str, name: str, initial_vars: dict | None = None):
+    def __init__(self, char_id: str, name: str, prompts_root_path: str = "Prompts", initial_vars: dict | None = None):
         self.char_id = char_id
         self.name = name
-        self.base_data_path = os.path.join("Prompts", self.char_id)
+        self.prompts_root = os.path.abspath(prompts_root_path) # <<< НОВОЕ: сохраняем актуальный prompts_root
+        self.base_data_path = os.path.join(self.prompts_root, self.char_id) # <<< ИЗМЕНЕНО: используем self.prompts_root
         self.main_template_path_relative = "main_template.txt"
 
         # ----------------------------------------------------------

@@ -7,13 +7,13 @@ import sys
 import traceback
 from typing import List
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 RED = "\033[91m"
 YEL = "\033[93m"
 RST = "\033[0m"
 
-PROMPTS_ROOT = os.path.abspath("Prompts")
+
 LOG_DIR = "Logs"
 LOG_FILE = os.path.join(LOG_DIR, "dsl_execution.log")
 MAX_RECURSION = 10
@@ -127,9 +127,14 @@ class DslError(Exception):
 
 
 def secure_join(base: str, *paths: str) -> str:
-    full = os.path.normpath(os.path.join(base, *paths))
+
+    normalized_base = os.path.normpath(os.path.abspath(base))
+    full = os.path.normpath(os.path.join(normalized_base, *paths))
     if os.path.commonpath([base, full]) != base:
         raise DslError(f"SecurityError: '{full}' is outside '{base}'", script_path=full)
+    
+    if not (full.startswith(normalized_base + os.sep) or full == normalized_base):
+        raise DslError(f"SecurityError: Path '{full}' is outside the allowed base directory '{normalized_base}'.", script_path=full)
     return full
 
 
@@ -175,6 +180,10 @@ class DslInterpreter:
         self.character = character
         char_ctx_filter.set_character_id(getattr(character, "char_id", "NO_CHAR_INIT"))
         
+        if not hasattr(character, 'prompts_root') or not character.prompts_root:
+            raise ValueError("DslInterpreter: Character object must have a valid 'prompts_root' attribute.")
+        self.actual_prompts_root = os.path.abspath(character.prompts_root)
+
         self._context_dir_stack: list[str] = []
 
         # --- TAGS --------------------------------------------------------
@@ -184,12 +193,7 @@ class DslInterpreter:
 
     @contextmanager
     def _use_base(self, base_dir: str):
-        """
-        Временно добавляет base_dir в стек «текущих» директорий.
-        Нужно для корректного резолва относительных путей внутри
-        вложенных .script/.txt, включая рекурсивные PLACEHOLDER’ы.
-        """
-        self._context_dir_stack.append(base_dir)
+        self._context_dir_stack.append(os.path.abspath(base_dir))
         try:
             yield
         finally:
@@ -197,19 +201,19 @@ class DslInterpreter:
 
     def _resolve_path(self, rel_path: str) -> str:
         # --- 0. Всегда пользуемся абсолютным PROMPTS_ROOT
-        prompts_root_abs = PROMPTS_ROOT  # он уже os.path.abspath()
+        prompts_root_abs = self.actual_prompts_root  # он уже os.path.abspath()
 
         # --- 1. Общие расшаренные каталоги ----------------------------------
         if rel_path.startswith(("_CommonPrompts/", "_CommonScripts/")):
             return secure_join(prompts_root_abs, rel_path)
 
         # Текущий «рабочий» каталог (директория файла, в котором мы сейчас)
-        current_dir = (
+        current_dir_candidate = (
             self._context_dir_stack[-1]
             if self._context_dir_stack
-            else self.character.base_data_path
+            else self.character.base_data_path 
         )
-        current_dir = os.path.abspath(current_dir)  # гарантируем абсолютный
+        current_dir = os.path.abspath(current_dir_candidate)  # гарантируем абсолютный
 
         # --- 2. Пути вида ./something.txt -----------------------------------
         if rel_path.startswith("./"):
@@ -219,28 +223,31 @@ class DslInterpreter:
         # --- 3. Пути вида ../something.txt ----------------------------------
         if rel_path.startswith("../"):
             tentative = os.path.abspath(os.path.normpath(os.path.join(current_dir, rel_path)))
+            
+            # Безопасность: не выходим за пределы prompts_root_abs
+            # Используем нормализованные пути для проверки startswith
+            norm_prompts_root_abs = os.path.normpath(prompts_root_abs)
+            norm_tentative = os.path.normpath(tentative)
 
-            # Безопасность: не выходим за пределы PROMPTS_ROOT
-            try:
-                if os.path.commonpath([prompts_root_abs, tentative]) != prompts_root_abs:
+            if not (norm_tentative.startswith(norm_prompts_root_abs + os.sep) or norm_tentative == norm_prompts_root_abs):
+                 # Проверка через commonpath как дополнительная мера, если startswith не сработал как ожидалось
+                try:
+                    if os.path.commonpath([prompts_root_abs, tentative]) != prompts_root_abs:
+                        raise DslError(
+                            f"SecurityError: Path '{tentative}' attempts to go outside the designated Prompts root '{prompts_root_abs}'.",
+                            script_path=tentative,
+                        )
+                except ValueError: # Обработка случая разных дисков
                     raise DslError(
-                        f"SecurityError: '{tentative}' is outside '{prompts_root_abs}'",
+                        f"SecurityError: Path '{tentative}' cannot be safely combined with Prompts root '{prompts_root_abs}' (e.g., different drives or invalid path structure).",
                         script_path=tentative,
                     )
-            except ValueError:
-                # Разные диски или абсолютный+относительный путь —
-                # считаем это нарушением границ
-                raise DslError(
-                    f"SecurityError: '{tentative}' cannot be combined with '{prompts_root_abs}'",
-                    script_path=tentative,
-                )
-
             return tentative
 
-        # --- 4. Старый (по умолчанию) режим ---------------------------------
-        # base_data_path может быть относительным → делаем абсолютным
-        base_abs = os.path.abspath(self.character.base_data_path)
-        return secure_join(base_abs, rel_path)
+        # --- 4. Пути по умолчанию (относительно base_data_path персонажа) ---
+        # self.character.base_data_path уже абсолютный (actual_prompts_root/char_id)
+        # secure_join использует его как базу.
+        return secure_join(self.character.base_data_path, rel_path)
 
     def _load_text(self, abs_path: str, ctx="") -> str:
         try:

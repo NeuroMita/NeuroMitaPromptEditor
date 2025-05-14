@@ -121,7 +121,7 @@ class Character:
 
             if tags:
                 for tag_name, value in tags.items():
-                    interpreter.set_tag(tag_name, value)
+                    interpreter.set_insert(tag_name, value)
 
             return interpreter.process_main_template_file(self.main_template_path_relative)
 

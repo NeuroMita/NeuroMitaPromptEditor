@@ -16,7 +16,10 @@ from app.utils.logger import editor_logger
 class PromptSyntaxHighlighter(QSyntaxHighlighter):
     """
     Подсветка DSL-файлов + гиперссылки на placeholders.
-    Теперь умеет раскрашивать многострочные строки \"\"\" … \"\"\".
+    Теперь умеет:
+        • раскрашивать многострочные строки \"\"\" … \"\"\"
+        • распознавать команду:   LOAD <TAG> FROM "file.txt"
+        • НЕ подсвечивать DSL-ключевые слова в обычных .txt-файлах
     """
 
     # Property-id, в котором будем хранить QUrl (для кликабельных ссылок)
@@ -24,11 +27,11 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
 
     # ключевые слова DSL, которые должны подсвечиваться без учёта регистра
     _DSL_KEYWORDS_RE = re.compile(
-        r"\\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|AND|OR|TRUE|FALSE|NONE)\\b",
+        r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|AND|OR|TRUE|FALSE|NONE)\b",
         re.IGNORECASE,
     )
 
-    TRIPLE_QUOTE = '"""'          # маркер начала/конца многострочной строки
+    TRIPLE_QUOTE = '"""'   # маркер начала/конца многострочной строки
 
     # ───────────────────────────────────────────────────────
     #                         CTOR
@@ -43,10 +46,10 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
         super().__init__(parent)
 
         self.current_doc_path_resolver = current_doc_path_resolver
-        self.prompts_root_resolver = prompts_root_resolver
-        self.hyperlink_resolver = hyperlink_resolver
+        self.prompts_root_resolver     = prompts_root_resolver
+        self.hyperlink_resolver        = hyperlink_resolver
 
-        # ----------- загружаем правила подписи -------------
+        # ---------- загружаем правила подсветки ----------
         self.rules: list[
             tuple[QRegularExpression, QTextCharFormat, bool, str]
         ] = []
@@ -68,19 +71,46 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
 
             self.rules.append((regex, fmt, is_link_rule, pattern_str))
 
-        # если среди правил не нашёлся string-format ‒ создаём дефолтный
+        # ────────────────────────────────────────────────────────
+        #      ДОБАВЛЯЕМ 2 НОВЫХ ПРАВИЛА ПОДСВЕТКИ
+        # ────────────────────────────────────────────────────────
+
+        # 1) LOAD <TAG> FROM "file.txt"
+        load_tag_fmt = QTextCharFormat()
+        load_tag_fmt.setForeground(QColor("#569CD6"))         # синий
+        load_tag_fmt.setFontWeight(QFont.Bold)
+
+        load_tag_regex = QRegularExpression(
+            r"\bLOAD\s+[A-Z0-9_]+\s+FROM\s+['\"][^'\"]+['\"]",
+            QRegularExpression.CaseInsensitiveOption,
+        )
+        self.rules.append((load_tag_regex, load_tag_fmt, False, "LOAD TAG FROM"))
+
+        # 2) Маркеры секций тегов  [#TAG]  [/TAG]
+        section_fmt = QTextCharFormat()
+        section_fmt.setForeground(QColor("#C586C0"))          # сиреневый
+        section_fmt.setFontWeight(QFont.Bold)
+
+        section_regex = QRegularExpression(
+            r"\[(?:#|/)\s*[A-Z0-9_]+\s*]",
+            QRegularExpression.CaseInsensitiveOption,
+        )
+        self.rules.append((section_regex, section_fmt, False, "[#TAG]/[/TAG]"))
+
+        # ────────────────────────────────────────────────────────
+        #          {{INSERTS}} (бывшие {{TAGS}})
+        # ────────────────────────────────────────────────────────
         tag_fmt = QTextCharFormat()
-        tag_fmt.setForeground(QColor("#FFAC33"))   # ярко-оранжевый
+        tag_fmt.setForeground(QColor("#FFAC33"))              # ярко-оранжевый
         tag_fmt.setFontWeight(QFont.Bold)
 
-        tag_regex = QRegularExpression(r"\{\{[A-Z0-9_]+\}\}")  # {{SYS_INFO}}, {{ANY_TAG}}
-        self.rules.append(
-            (tag_regex, tag_fmt, False, "{{TAG}}")             # False → это не ссылка
-        )
+        tag_regex = QRegularExpression(r"\{\{[A-Z0-9_]+\}\}")
+        self.rules.append((tag_regex, tag_fmt, False, "{{TAG}}"))
 
+        # --- дефолтный цвет для \"\"\"…\"\"\" (если не найден выше) ----
         if self._triple_quote_format is None:
             self._triple_quote_format = QTextCharFormat()
-            self._triple_quote_format.setForeground(QColor("#FFA500"))  # оранжевый
+            self._triple_quote_format.setForeground(QColor("#FFA500"))  # оранж.
 
     # ───────────────────────────────────────────────────────
     #                    ВСПОМОГАТ. МЕТОД
@@ -130,33 +160,43 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
     #                     highlightBlock
     # ───────────────────────────────────────────────────────
     def highlightBlock(self, text: str):
-        # 1) обычные правила + гиперссылки
+        # --------- определяем тип файла (.script / .txt) ---------------
         current_doc_path = (
             self.current_doc_path_resolver()
             if self.current_doc_path_resolver
             else None
         )
+        is_txt_file = (
+            current_doc_path is not None
+            and current_doc_path.lower().endswith(".txt")
+        )
+
         prompts_root_path = (
             self.prompts_root_resolver()
             if self.prompts_root_resolver
             else None
         )
 
+        # --------- применяем все правила -------------------------------
         for regex, base_fmt, is_link_rule, pattern_dbg in self.rules:
+            #  ❗️Отключаем DSL-ключевые слова внутри .txt-файла
+            if is_txt_file and self._DSL_KEYWORDS_RE.search(regex.pattern()):
+                continue
+
             it = regex.globalMatch(text)
             while it.hasNext():
-                match = it.next()
-                start = match.capturedStart()
+                match  = it.next()
+                start  = match.capturedStart()
                 length = match.capturedLength()
 
-                # копируем формат
+                # копируем формат (иначе PySide иногда даёт shared-ссылку)
                 try:
                     applied_fmt = QTextCharFormat(base_fmt)
                 except TypeError:
                     applied_fmt = QTextCharFormat()
                     applied_fmt.merge(base_fmt)
 
-                # ----- гиперссылки на placeholders -----
+                # ---------- гиперссылки на placeholders ----------------
                 if is_link_rule and self.hyperlink_resolver:
                     rel_path = ""
                     if match.lastCapturedIndex() >= 2 and match.captured(2):
@@ -182,5 +222,5 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
 
                 self.setFormat(start, length, applied_fmt)
 
-        # 2) поверх всего наносим подсветку многострочных \"\"\" … \"\"\" строк
+        # --------- поверх всего — раскраска \"\"\" … \"\"\" -------------
         self._apply_multiline_string_highlighting(text)

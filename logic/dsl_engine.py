@@ -22,8 +22,8 @@ MAX_LOG_BYTES = 2_000_000
 BACKUP_COUNT = 3
 
 # ------------- TAG system -------------------------------------------------
-TAG_PATTERN = re.compile(r"\{\{([A-Z0-9_]+)\}\}")   #  {{TAG_NAME}}
-MANDATORY_TAGS: set[str] = {"SYS_INFO"}             #  обязательные теги
+INSERT_PATTERN    = re.compile(r"\{\{([A-Z0-9_]+)\}\}")   # {{PLACEHOLDER}}
+MANDATORY_INSERTS: set[str] = {"SYS_INFO"}               # обязательные вставки
 # --------------------------------------------------------------------------
 
 dsl_execution_logger = logging.getLogger("dsl_execution")
@@ -179,17 +179,17 @@ class DslInterpreter:
     def __init__(self, character: "Character"):
         self.character = character
         char_ctx_filter.set_character_id(getattr(character, "char_id", "NO_CHAR_INIT"))
-        
+
         if not hasattr(character, 'prompts_root') or not character.prompts_root:
             raise ValueError("DslInterpreter: Character object must have a valid 'prompts_root' attribute.")
         self.actual_prompts_root = os.path.abspath(character.prompts_root)
 
         self._context_dir_stack: list[str] = []
 
-        # --- TAGS --------------------------------------------------------
-        # set_tag("SYS_INFO", "…") запишет значение,
-        # которое потом подставится вместо {{SYS_INFO}}
-        self._tag_values: dict[str, str] = {}
+        # ----------  В С Т А В К И  ------------------------------------
+        # set_insert("SYS_INFO", "...") запоминает данные, подставляемые
+        # затем вместо {{SYS_INFO}}
+        self._insert_values: dict[str, str] = {}
 
     @contextmanager
     def _use_base(self, base_dir: str):
@@ -337,84 +337,165 @@ class DslInterpreter:
                 script_path=script_path, line_num=line_num, line_content=line_content, original_exception=e
             )
 
+    _INLINE_LOAD_RE = re.compile(
+        r"""\bLOAD                      # ключевое слово
+             (?:\s+([A-Z0-9_]+))?       # ①  TAG   (опц.)
+             \s+FROM\s+                 #   FROM
+             (['"])(.+?)\2              # ② "path/to/file"
+        """,
+        re.IGNORECASE | re.VERBOSE,
+    )
+
+    def _expand_inline_loads(
+        self,
+        expr: str,
+        *,
+        script_path: str,
+        line_num: int,
+        line_content: str,
+    ) -> str:
+        """
+        Находит в expr все вхождения
+            LOAD  TAG?  FROM  "file"
+        и заменяет их на Python-литералы с уже загруженным текстом.
+        Возвращает ИЗМЕНЁННУЮ строку-выражение, готовую к eval().
+        """
+
+        def _handle_single(match: re.Match) -> str:
+            tag_name = match.group(1)          # может быть None
+            path     = match.group(3)
+
+            abs_path = self._resolve_path(path)
+
+            # --- целиком файл -----------------------------------------
+            if tag_name is None:
+                raw = self._load_text(abs_path, f"inline LOAD in {script_path}:{line_num}")
+
+            # --- секция [#TAG]/[/TAG] ---------------------------------
+            else:
+                raw = self._extract_tag_section(abs_path, tag_name)
+
+            processed = self.process_template_content(
+                raw,
+                f"inline LOAD ({tag_name or 'FULL'}) FROM {path} in {os.path.basename(script_path)}:{line_num}",
+            )
+
+            # превращаем в валидный python-литерал
+            return repr(processed)
+
+        # заменяем ВСЕ inline-LOAD’ы на готовые строковые литералы
+        try:
+            return self._INLINE_LOAD_RE.sub(_handle_single, expr)
+        except DslError:
+            raise                                 # уже залогировано
+        except Exception as e:
+            raise DslError(
+                f"Cannot expand inline LOADs inside expression '{expr}': {e}",
+                script_path=script_path,
+                line_num=line_num,
+                line_content=line_content,
+                original_exception=e,
+            ) from e
 
     def execute_dsl_script(self, rel_script: str) -> str:
         """
-        Полностью прежняя логика + обёртка _use_base, чтобы всё,
-        что встречается ВНУТРИ этого скрипта, считалось относительным
-        к директории текущего скрипта.
+        Выполняет .script-файл и возвращает строку результата.
+        Поддерживает:
+            • RETURN <expr>
+            • RETURN LOAD_REL "path"
+            • RETURN LOAD     "path"
+            • RETURN LOAD <TAG_NAME> FROM "path"
         """
         full_script_path = ""
-        returned_value_for_log = None
+        returned_value_for_log: bool | None = None
         try:
-            # Сначала получаем абсолютный путь, после чего «запоминаем» его dir
+            # --- абсолютный путь скрипта --------------------------------
             full_script_path = self._resolve_path(rel_script)
+
+            # --- локальный «рабочий» каталог для вложенных путей ---------
             with self._use_base(os.path.dirname(full_script_path)):
                 dsl_execution_logger.info(
                     f"Executing DSL script: {rel_script} (resolved: {full_script_path})"
                 )
+
+                # --- читаем файл и режем на логические строки -------------
                 content = self._load_text(full_script_path, f"script {rel_script}")
                 logical_lines = _split_into_logical_lines(content)
 
-                if_stack = []
-                returned = None
+                if_stack: list[dict[str, Any]] = []   # стек IF-блоков
+                returned: str | None = None
 
+                # =========================================================
+                #             ГЛАВНЫЙ ЦИКЛ ПО СТРОКАМ СКРИПТА
+                # =========================================================
                 for num, raw in enumerate(logical_lines, 1):
                     stripped = raw.strip()
+
+                    # --- пустые строки / комментарии ---------------------
                     if not stripped or stripped.startswith("//"):
                         continue
 
-                    skipping = any(level['skip'] for level in if_stack)
+                    skipping = any(level["skip"] for level in if_stack)
                     cmd_for_log = stripped.split(maxsplit=1)[0].upper()
 
-                    # ---------------  IF / ELSEIF / ELSE / ENDIF -------------
+                    # -----------------------------------------------------
+                    #                 IF / ELSEIF / ELSE / ENDIF
+                    # -----------------------------------------------------
                     if cmd_for_log == "IF":
                         cond_str = stripped[3:].rstrip()
                         if cond_str.upper().endswith(" THEN"):
                             cond_str = cond_str[:-5].rstrip()
-                        parent_skip = skipping
-                        cond_met = False
+
+                        parent_skip  = skipping
+                        cond_met     = False
                         if not parent_skip:
-                            cond_met = self._eval_condition(cond_str, full_script_path, num, raw)
+                            cond_met = self._eval_condition(
+                                cond_str, full_script_path, num, raw
+                            )
                         dsl_execution_logger.debug(
-                            f"IF condition '{cond_str}' evaluated to {cond_met} in {os.path.basename(full_script_path)}:{num}. Skipping: {parent_skip}"
+                            f"IF '{cond_str}' → {cond_met}  "
+                            f"({os.path.basename(full_script_path)}:{num}), skip={parent_skip}"
                         )
-                        if_stack.append({"branch_taken": cond_met, "skip": parent_skip or not cond_met})
+                        if_stack.append(
+                            {"branch_taken": cond_met, "skip": parent_skip or not cond_met}
+                        )
                         continue
 
                     if cmd_for_log == "ELSEIF":
                         if not if_stack:
                             raise DslError("ELSEIF without IF", full_script_path, num, raw)
-                        level = if_stack[-1]
-                        parent_skip = any(l['skip'] for l in if_stack[:-1])
-                        cond_met_elseif = False
-                        if not parent_skip and not level['branch_taken']:
-                            cond_str_elseif = stripped[7:].rstrip()
-                            if cond_str_elseif.upper().endswith(" THEN"):
-                                cond_str_elseif = cond_str_elseif[:-5].rstrip()
-                            cond_met_elseif = self._eval_condition(cond_str_elseif, full_script_path, num, raw)
-                            level['branch_taken'] = cond_met_elseif
-                            level['skip'] = not cond_met_elseif
+
+                        lvl          = if_stack[-1]
+                        parent_skip  = any(l["skip"] for l in if_stack[:-1])
+                        cond_met_els = False
+                        if not parent_skip and not lvl["branch_taken"]:
+                            cond_str = stripped[7:].rstrip()
+                            if cond_str.upper().endswith(" THEN"):
+                                cond_str = cond_str[:-5].rstrip()
+                            cond_met_els      = self._eval_condition(
+                                cond_str, full_script_path, num, raw
+                            )
+                            lvl["branch_taken"] = cond_met_els
+                            lvl["skip"]         = not cond_met_els
                         else:
-                            level['skip'] = True
+                            lvl["skip"] = True
                         dsl_execution_logger.debug(
-                            f"ELSEIF evaluated. Branch taken: {level.get('branch_taken', False)}, "
-                            f"Skip: {level['skip']} in {os.path.basename(full_script_path)}:{num}. "
-                            f"Parent skip: {parent_skip}"
+                            f"ELSEIF, branch_taken={lvl['branch_taken']} "
+                            f"skip={lvl['skip']} ({os.path.basename(full_script_path)}:{num})"
                         )
                         continue
 
                     if cmd_for_log == "ELSE":
                         if not if_stack:
                             raise DslError("ELSE without IF", full_script_path, num, raw)
-                        level = if_stack[-1]
-                        parent_skip = any(l['skip'] for l in if_stack[:-1])
-                        level['skip'] = parent_skip or level['branch_taken']
-                        if not level['skip']:
-                            level['branch_taken'] = True
+
+                        lvl         = if_stack[-1]
+                        parent_skip = any(l["skip"] for l in if_stack[:-1])
+                        lvl["skip"] = parent_skip or lvl["branch_taken"]
+                        if not lvl["skip"]:
+                            lvl["branch_taken"] = True
                         dsl_execution_logger.debug(
-                            f"ELSE evaluated. Skip: {level['skip']} in {os.path.basename(full_script_path)}:{num}. "
-                            f"Parent skip: {parent_skip}"
+                            f"ELSE skip={lvl['skip']} ({os.path.basename(full_script_path)}:{num})"
                         )
                         continue
 
@@ -422,73 +503,128 @@ class DslInterpreter:
                         if not if_stack:
                             raise DslError("ENDIF without IF", full_script_path, num, raw)
                         if_stack.pop()
-                        dsl_execution_logger.debug(f"ENDIF in {os.path.basename(full_script_path)}:{num}")
+                        dsl_execution_logger.debug(
+                            f"ENDIF ({os.path.basename(full_script_path)}:{num})"
+                        )
                         continue
-                    # ---------------------------------------------------------
+                    # -----------------------------------------------------
 
                     if skipping:
+                        # Находимся в «пропускаемом» IF-блоке
                         continue
 
-                    parts = stripped.split(maxsplit=1)
+                    # -----------------------------------------------------
+                    #                  ОБЫЧНЫЕ КОМАНДЫ
+                    # -----------------------------------------------------
+                    parts   = stripped.split(maxsplit=1)
                     command = parts[0].upper()
-                    args = parts[1] if len(parts) > 1 else ""
+                    args    = parts[1] if len(parts) > 1 else ""
 
-                    # ---------- SET -----------------------------------------
+                    # ---------- SET --------------------------------------
                     if command == "SET":
                         if "=" not in args:
                             raise DslError("SET requires '='", full_script_path, num, raw)
                         var, expr = [s.strip() for s in args.split("=", 1)]
+                        expr = self._expand_inline_loads(
+                                    expr,
+                                    script_path=full_script_path,
+                                    line_num=num,
+                                    line_content=raw,
+                        )
                         value = self._eval_expr(expr, full_script_path, num, raw)
                         self.character.variables[var] = value
                         dsl_execution_logger.debug(
-                            f"SET {var} = {value} in {os.path.basename(full_script_path)}:{num}"
+                            f"SET {var} = {value} "
+                            f"({os.path.basename(full_script_path)}:{num})"
                         )
                         continue
 
-                    # ---------- LOG -----------------------------------------
+                    # ---------- LOG --------------------------------------
                     if command == "LOG":
-                        val = self._eval_expr(args, full_script_path, num, raw)
-                        prefix = f"{os.path.basename(full_script_path)}:{num}"
-                        COLUMN = 40
-                        formatted = f"{prefix.ljust(COLUMN)}| {val}"
-                        dsl_script_logger.info(formatted)
+                        val     = self._eval_expr(args, full_script_path, num, raw)
+                        prefix  = f"{os.path.basename(full_script_path)}:{num}"
+                        COLUMN  = 40
+                        message = f"{prefix.ljust(COLUMN)}| {val}"
+                        dsl_script_logger.info(message)
                         continue
 
-                    # ---------- RETURN / LOAD / LOAD_REL --------------------
+                    # ---------- RETURN -----------------------------------
                     if command == "RETURN":
                         raw_arg = args.strip()
-                        # Новая команда LOAD_REL
+
+                        # ───────── раскрываем inline LOAD'ы ────────────
+                        raw_arg_expanded = self._expand_inline_loads(
+                            raw_arg,
+                            script_path=full_script_path,
+                            line_num=num,
+                            line_content=raw,
+                        )
+
+                        # 1) RETURN LOAD_REL ...
                         if raw_arg.upper().startswith(("LOAD_REL ", "LOADREL ")):
                             rel = raw_arg.split(None, 1)[1].strip().strip('"').strip("'")
                             txt = self._load_text(
-                                self._resolve_path(rel), f"LOAD_REL in {rel_script}:{num}"
+                                self._resolve_path(rel),
+                                f"LOAD_REL in {rel_script}:{num}",
                             )
-                        # Старая команда LOAD
-                        elif raw_arg.upper().startswith("LOAD "):
-                            rel = raw_arg[5:].strip().strip('"').strip("'")
-                            txt = self._load_text(
-                                self._resolve_path(rel), f"LOAD in {rel_script}:{num}"
-                            )
-                        else:
-                            txt = str(self._eval_expr(raw_arg, full_script_path, num, raw))
+                            txt = self._remove_tag_markers(txt)          # ← добавлено
 
+                        # 2) RETURN LOAD <TAG> FROM "path"
+                        elif raw_arg.upper().startswith("LOAD "):
+                            after_load = raw_arg[5:].strip()
+                            m = re.match(
+                                r"([A-Z0-9_]+)\s+FROM\s+(.+)", after_load, re.IGNORECASE
+                            )
+                            if m:
+                                tag_name = m.group(1).upper()
+                                path_str = m.group(2).strip().strip('"').strip("'")
+                                abs_path = self._resolve_path(path_str)
+                                raw_tag  = self._extract_tag_section(abs_path, tag_name)
+                                txt = self.process_template_content(
+                                    raw_tag,
+                                    f"LOAD {tag_name} FROM {path_str} in {rel_script}:{num}",
+                                )
+                            else:
+                                # 3) RETURN LOAD "whole_file.txt"
+                                rel_file = after_load.strip().strip('"').strip("'")
+                                txt = self._load_text(
+                                    self._resolve_path(rel_file),
+                                    f"LOAD in {rel_script}:{num}",
+                                )
+                                txt = self._remove_tag_markers(txt)      # ← добавлено
+
+                        # 4) RETURN <expression>  (уже с inline LOAD'ами)
+                        else:
+                            txt = str(
+                                self._eval_expr(
+                                    raw_arg_expanded, full_script_path, num, raw
+                                )
+                            )
+
+                        # --- рекурсивная обработка шаблонов/вставок --------
                         returned = self.process_template_content(
                             txt, f"RETURN in {rel_script}:{num}"
                         )
                         returned_value_for_log = returned is not None
                         dsl_execution_logger.debug(
-                            f"RETURN in {os.path.basename(full_script_path)}:{num}. "
-                            f"Value exists: {returned_value_for_log}"
+                            f"RETURN (value exists={returned_value_for_log}) "
+                            f"({os.path.basename(full_script_path)}:{num})"
                         )
                         return returned
 
-                    # ---------- Неизвестная команда ------------------------
+                    # ---------- НЕИЗВЕСТНАЯ КОМАНДА -----------------------
                     dsl_execution_logger.error(
-                        f"Unknown DSL command '{command}' in {os.path.basename(full_script_path)}:{num} "
+                        f"Unknown DSL command '{command}' in "
+                        f"{os.path.basename(full_script_path)}:{num} "
                         f"Line: \"{raw.strip()}\""
                     )
-                    raise DslError(f"Unknown DSL command '{command}'", full_script_path, num, raw)
+                    raise DslError(
+                        f"Unknown DSL command '{command}'", full_script_path, num, raw
+                    )
 
+                # =====================================================
+                #          КОНЕЦ ФАЙЛА (IF-стек пуст?  Возврат)
+                # =====================================================
                 if if_stack:
                     dsl_execution_logger.warning(
                         f"Script {rel_script} ended with unterminated IF block(s)."
@@ -497,28 +633,39 @@ class DslInterpreter:
                 returned_value_for_log = returned is not None
                 return returned or ""
 
+        # ----------------------------------------------------------------
+        #                         ОБРАБОТКА ОШИБОК
+        # ----------------------------------------------------------------
         except DslError as e:
             dsl_execution_logger.error(
-                f"DslError during execution of {rel_script} (resolved: {e.script_path or full_script_path}): "
+                f"DslError during execution of {rel_script} "
+                f"(resolved: {e.script_path or full_script_path}): "
                 f"{e.message} at line {e.line_num}",
-                exc_info=False
+                exc_info=False,
             )
             print(f"{RED}{str(e)}{RST}", file=sys.stderr)
-            return f"[DSL ERROR IN {os.path.basename(e.script_path or full_script_path or rel_script)}]"
+            return (
+                f"[DSL ERROR IN "
+                f"{os.path.basename(e.script_path or full_script_path or rel_script)}]"
+            )
+
         except Exception as e:
             dsl_execution_logger.error(
                 f"Unexpected Python error during execution of {rel_script} "
-                f"(resolved: {full_script_path}): {e}", exc_info=True
+                f"(resolved: {full_script_path}): {e}",
+                exc_info=True,
             )
             print(
-                f"{RED}Unexpected Python error in {rel_script}: {e}{RST}\n{traceback.format_exc()}",
-                file=sys.stderr
+                f"{RED}Unexpected Python error in {rel_script}: {e}{RST}\n"
+                f"{traceback.format_exc()}",
+                file=sys.stderr,
             )
             return f"[PY ERROR IN {os.path.basename(full_script_path or rel_script)}]"
+
         finally:
             dsl_execution_logger.info(
                 f"Finished DSL script: {rel_script}. Returned value: "
-                f"{returned_value_for_log if returned_value_for_log is not None else (returned is not None)}"
+                f"{returned_value_for_log if returned_value_for_log is not None else False}"
             )
 
     def process_template_content(self, text: str, ctx="template") -> str:
@@ -605,15 +752,16 @@ class DslInterpreter:
             text += f"\n[DSL ERROR: MAX RECURSION {MAX_RECURSION} REACHED IN '{ctx}']"
         return text
 
-    # region Теги
+    # region Вставки
     # ------------------------------------------------------------------ #
-    #                           T A G S                                  #
+    #                       В С Т А В К И                                #
     # ------------------------------------------------------------------ #
-    def set_tag(self, tag_name: str, content: Any | None):
+    def set_insert(self, name: str, content: Any | None):
         """
+        Сохраняет содержимое «вставки».
         content может быть:
-            • str  – берётся как есть
-            • list/tuple – склеиваем \n между элементами
+            • str           – берётся как есть
+            • list / tuple  – объединяется через '\n'
             • всё остальное – str(content)
         """
         if content is None:
@@ -622,29 +770,54 @@ class DslInterpreter:
         if isinstance(content, (list, tuple)):
             content = "\n".join(map(str, content))
 
-        self._tag_values[tag_name.upper()] = str(content)
+        self._insert_values[name.upper()] = str(content)
 
-    def _apply_tags(self, text: str, *, ctx: str = "") -> str:
+    def _apply_inserts(self, text: str, *, ctx: str = "") -> str:
         """
-        Подставляет значения тегов в текст и предупреждает,
-        если в шаблоне отсутствуют обязательные теги.
+        Подставляет значения «вставок» в текст и предупреждает,
+        если в шаблоне отсутствуют обязательные вставки.
         """
-        # --- подмена ----------------------------------------------------
+        # ---------- замена --------------------------------------------
         def _replace(match: re.Match):
-            tag = match.group(1).upper()
-            return self._tag_values.get(tag, match.group(0))  # нет значения – не трогаем
+            placeholder = match.group(1).upper()
+            return self._insert_values.get(placeholder, match.group(0))
 
-        processed = TAG_PATTERN.sub(_replace, text)
+        processed = INSERT_PATTERN.sub(_replace, text)
 
-        # --- проверка обязательных тегов -------------------------------
-        for mandatory in MANDATORY_TAGS:
-            placeholder = f"{{{{{mandatory}}}}}"
-            if placeholder not in text:
+        # ---------- проверка обязательных вставок ----------------------
+        for mandatory in MANDATORY_INSERTS:
+            token = f"{{{{{mandatory}}}}}"
+            if token not in text:
                 dsl_execution_logger.warning(
-                    f"Mandatory tag {placeholder} not found while processing {ctx or 'template'}"
+                    f"Mandatory insert {token} not found while processing {ctx or 'template'}"
                 )
 
         return processed
+    # endregion
+
+    # region Теги (настоящие)
+    def _extract_tag_section(self, abs_path: str, tag_name: str) -> str:
+        raw = self._load_text(abs_path, f"extract tag {tag_name}")
+
+        tag_up  = tag_name.upper()
+        pattern = re.compile(
+            rf"\[#\s*{tag_up}\s*](.*?)\[/\s*{tag_up}\s*]",
+            re.IGNORECASE | re.DOTALL,
+        )
+        m = pattern.search(raw)
+        if not m:
+            raise DslError(
+                f"Tag section [#{tag_name}] not found in '{abs_path}'",
+                script_path=abs_path,
+            )
+
+        content = m.group(1)
+
+        # --- убираем *один* перевод после [#TAG] (если он есть) --------
+        if content.startswith("\n"):
+            content = content[1:]
+
+        return content   # БЕЗ strip()/rstrip() – всё сохраняем как есть
     # endregion
 
     def process_main_template_file(self, rel_path: str) -> str:
@@ -657,7 +830,9 @@ class DslInterpreter:
             final_prompt = self.process_template_content(
                 raw_template_content, f"main template {rel_path}"
             )
-            final_prompt = self._apply_tags(final_prompt, ctx=f"main template {rel_path}")
+            final_prompt = self._apply_inserts(
+                final_prompt, ctx=f"main template {rel_path}"
+            )
             dsl_execution_logger.info(f"Successfully processed main template: {rel_path}")
             return final_prompt
         except DslError as e:

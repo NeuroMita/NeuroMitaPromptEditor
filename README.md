@@ -30,3 +30,95 @@
 ---
 
 ## 3. Команды DSL (в `.script`)
+
+```
+SET   <var> = <expr>             # присвоение
+LOG   <expr>                     # вывод в лог
+IF / ELSEIF / ELSE / ENDIF       # условные блоки
+RETURN <expr | LOAD ... | LOAD_REL ...>
+```
+
+* `<expr>` — строка, число, f-строка, операция `+`, вызов `str()` и т. д.  
+* Inline-LOAD разворачивается в строковой литерал на этапе обработки.
+
+---
+
+## 4. Правила поиска путей
+
+1. `_CommonPrompts/`, `_CommonScripts/` — общие каталоги.
+2. `./` и `../` — относительно текущего файла.
+3. Иначе — относительно корневой папки персонажа.
+4. Безопасность: выход за пределы каталога `Prompts/` блокируется.
+
+---
+
+## 5. Пример структуры
+
+```
+Prompts/
+└── Hero/
+    ├── main_template.txt
+    ├── Main/
+    │   └── hero_core.txt
+    ├── Scripts/
+    │   └── build_mood.script
+    └── Context/
+        └── examples.txt
+```
+
+### main_template.txt
+
+```text
+[<Main/hero_core.txt>]
+
+[#DIALOGUE]
+[<Context/examples.txt>]
+[/DIALOGUE]
+
+Current mood:
+[<Scripts/build_mood.script>]
+
+{{SYS_INFO}}
+```
+
+### build_mood.script
+
+```dsl
+IF bravery > 50
+    RETURN "Fearless"
+ELSE
+    RETURN "Cautious"
+ENDIF
+```
+
+---
+
+## 6. Использование из Python
+
+```python
+interp = DslInterpreter(hero_character)
+
+# Вставки {{...}}
+interp.set_insert("SYS_INFO",
+                  "[SYSTEM]: demo information")
+
+# Генерация полного промпта
+prompt_text = interp.process_main_template_file("main_template.txt")
+print(prompt_text)
+```
+
+---
+
+## 7. Отладка
+
+* `LOG` — вывод в логи (`Logs/dsl_execution.log`, панель редактора).
+* Пошагово проверять ветки `IF`, значения переменных.
+* Командой «Скомпоновать промпт» в редакторе можно сразу увидеть итоговый текст.
+
+---
+
+## 8. Рекомендации
+
+* Хранить длинные тексты в `.txt`, логику — в `.script`.
+* Делить проект на мелкие файлы; переиспользуемые блоки— в `_CommonPrompts`/`_CommonScripts`.
+* Следить, чтобы хотя бы один файл содержал `{{SYS_INFO}}` (обязательная вставка).

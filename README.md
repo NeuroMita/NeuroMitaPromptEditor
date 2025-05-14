@@ -1,199 +1,153 @@
-# Конструктор промптов (DSL) — короткое руководство для промптеров
+# DSL-Конструктор промптов  
+легкое руководство для промптеров
 
-Конструктор собирает большой финальный промпт из множества файлов
-(текста и логики).  Всё выполняется **до** того, как строка уходит в
-LLM, поэтому в ответ модели попадает только «чистый» текст.
-
----
-
-## 1. Основные элементы
-
-| Файл / сущность | Что это | Как выглядит |
-|-----------------|---------|--------------|
-| **Текстовый шаблон** (`*.txt`) | Обычный текст, может включать другие файлы. | `common.txt`, `player.txt` |
-| **Скрипт** (`*.script`) | Небольшой файл с командами, который возвращает строку. | `fsm_handler.script` |
-| **Плейсхолдер** | Вставка другого файла (текста или результата скрипта). | `[<Main/common.txt>]` |
-| **Вставка** (`insert`) | Метка `{{NAME}}`, заполняется из Python-кода. | `{{SYS_INFO}}` |
-| **Секция** | Часть `.txt`, выделенная `[ #TAG ] … [ /TAG ]`. | `[ #GREETING ]` … |
+> Система собирает **готовый текст** из кусочков-файлов.  
+> Всё «волшебство» происходит заранее — в модель уходит чистый итог.
 
 ---
 
-## 2. Как всё склеивается
+## 1. Что есть что
 
-1. Точка входа — `main_template.txt` персонажа.  
-2. Конструктор читает его сверху вниз, встречает плейсхолдеры `[<…>]`.  
-3. Если путь ведёт на `.txt` — файл вставляется.  
-4. Если путь ведёт на `.script` — скрипт исполняется, что он вернёт —
-   то и будет подставлено.  
-5. После обхода всех файлов метки `{{…}}` меняются на свои значения.  
-6. Итоговый текст отправляется в модель.
+| Объект                     | Файл | Зачем нужен                                  |
+|----------------------------|------|----------------------------------------------|
+| Текстовый блок             | `.txt`   | Простой текст. Может подтягивать другие файлы. |
+| Скрипт                     | `.script`| Принимает решения: «какой блок взять?», «что вернуть?». |
+| Плейсхолдер                | —    | `[<path/file.ext>]` — вставить файл или результат скрипта. |
+| Вставка (insert)           | —    | `{{NAME}}` — заполняется извне (например, `{{SYS_INFO}}`). |
+| Секция в `.txt`            | —    | `[ #TAG ] … [ /TAG ]` — именованный кусок внутри файла. |
 
 ---
 
-## 3. Плейсхолдеры `[< … >]`
+## 2. Коротко о сборке
 
-```text
-[<Main/common.txt>]            # подставит текст
-[<Scripts/get_emotions.script>]# выполнит скрипт и вставит результат
+```
+main_template.txt ──► читает плейсхолдеры
+                    ├──► вставляет .txt
+                    ├──► запускает .script → RETURN
+                    └──► меняет {{INSERTS}}
+результат  ──► уходит в LLM
 ```
 
-*Пути работают как в обычной файловой системе: `./`, `../`,
-или из общих папок `_CommonPrompts/`, `_CommonScripts/`.*
+---
+
+## 3. Синтаксис вставок
+
+| Хотим …                                  | Пишем                                   |
+|------------------------------------------|-----------------------------------------|
+| Вставить файл целиком                    | `[<Main/common.txt>]`                   |
+| Выполнить скрипт и подставить ответ      | `[<Scripts/build_mood.script>]`         |
+| Вставить **секцию** из файла             | `LOAD GREETING FROM "Main/phrases.txt"` |
+| Вставить файл внутри выражения           | `SET txt = LOAD FULL FROM "x.txt" + "!"`|
+| Вставка-метка                            | `{{SYS_INFO}}`                          |
+
+*Если путь начинается с `./` или `../` — он считается от текущего файла.  
+`_CommonPrompts/` и `_CommonScripts/` доступны для общих ресурсов.*
 
 ---
 
-## 4. Вставки `{{ … }}`
+## 4. Команды в `.script`
 
-```text
-{{SYS_INFO}}
-{{PLAYER_NAME}}
-```
+| Команда                                | Что делает                                                                        | Быстрый пример |
+|----------------------------------------|-----------------------------------------------------------------------------------|----------------|
+| `SET var = выражение`                  | Сохраняет значение.                                                               | `SET mood = "happy"` |
+| `LOG выражение`                        | Пишет в лог (для отладки).                                                        | `LOG mood` |
+| `IF / ELSEIF / ELSE / ENDIF`           | Условные блоки.                                                                   | `IF score>50 THEN … ENDIF` |
+| `RETURN …`                             | Завершает скрипт и отдаёт строку.                                                 | `RETURN "готово"` |
+| `LOAD`, `LOAD <TAG> FROM "file"`       | Часть `RETURN` или выражения: берёт файл целиком либо секцию.                     | `RETURN LOAD "Main/a.txt"` |
 
-Заполняются из Python:
-
-```python
-interp.set_insert("PLAYER_NAME", "Алиса")
-```
-
-`{{SYS_INFO}}` — обязательная системная вставка.
+Выражения поддерживают `+`, арифметику, f-строки, булевы операции
+(`AND`, `OR`).
 
 ---
 
-## 5. Секции внутри `.txt`
+## 5. Мини-пример «до / после»
 
-```text
-[#GREETING]
-Привет, путник!
-[/GREETING]
-```
-
-Скрипт может вернуть именно эту часть:
+### Скрипт `example_selector.script`
 
 ```dsl
-RETURN LOAD GREETING FROM "Main/phrases.txt"
+LOG "ExampleSelector: start. secretExposed=" + secretExposed
+
+IF secretExposed == TRUE THEN
+    RETURN LOAD "Context/examplesLongCrazy.txt"
+ELSE
+    RETURN LOAD "Context/examplesLong.txt"
+ENDIF
 ```
 
-Если нужен весь файл:
+### В `main_template.txt`
 
-```dsl
-RETURN LOAD "Main/phrases.txt"   # маркеры секций будут убраны
+```text
+[<Scripts/example_selector.script>]
+```
+
+### Что получится
+
+```
+(предположим secretExposed == FALSE)
+
+Файл Context/examplesLong.txt будет вставлен целиком,
+а маркеры [#…]/[/…] — удалены.
 ```
 
 ---
 
-## 6. Команды в `.script`
-
-| Команда | Описание | Пример |
-|---------|----------|--------|
-| `SET var = выражение` | Записывает значение. | `SET mood = "happy"` |
-| `LOG выражение` | Пишет в лог. | `LOG "mood=" + mood` |
-| `IF / ELSEIF / ELSE / ENDIF` | Условные блоки. | `IF score > 50 THEN … ENDIF` |
-| `RETURN …` | Завершает скрипт и отдаёт строку. | `RETURN "Готово!"` |
-
-### 6.1 Что можно положить в `RETURN`
-
-```
-RETURN "Просто текст"
-RETURN LOAD "Main/core.txt"
-RETURN LOAD GREETING FROM "Main/phrases.txt"
-RETURN LOAD A FROM "file.txt" + "\n" + LOAD B FROM "file.txt"
-```
-
-Последний пример показывает **inline-LOAD** —
-загрузка секций прямо внутри выражения.
-
----
-
-## 7. Как ищутся файлы
-
-1. `_CommonPrompts/`, `_CommonScripts/` — общие ресурсы.  
-2. `./` и `../` — вокруг текущего файла.  
-3. Всё остальное — внутри папки персонажа.  
-Конструктор не даст выйти за пределы папки `Prompts/`.
-
----
-
-## 8. Живой пример — персонаж CrazyMita
+## 6. Большой практический пример — CrazyMita
 
 ```
 Prompts/
 └── Crazy/
     ├── main_template.txt
-    ├── Main/
-    │   ├── common.txt
-    │   ├── main.txt
-    │   ├── mainCrazy.txt
-    │   └── mainPlaying.txt
-    ├── Context/
-    │   ├── examplesLong.txt
-    │   ├── examplesLongCrazy.txt
-    │   └── mita_history.txt
-    ├── Events/
-    │   └── SecretExposed.txt
-    ├── Scripts/
-    │   ├── personality_selector.script
-    │   ├── example_selector.script
-    │   ├── get_available_emotions.script
-    │   └── … (другие файлы логики)
-    └── Structural/
-        └── response_structure.txt
+    ├── Main/          — основные личности
+    ├── Context/       — длинные фразы и история
+    ├── Events/        — тексты событий
+    ├── Scripts/       — логика выбора и генерации
+    └── Structural/    — шаблон ответа и справка
 ```
 
-### 8.1 `main_template.txt`
+**Главный шаблон**
 
 ```text
 [<Structural/response_structure.txt>]
 [<../Common/Dialogue.txt>]
 
 [<Scripts/get_variable_effects_description.script>]
-[<Scripts/initialize_character.script>]
-[<Scripts/personality_selector.script>]
-
+[<Scripts/personality_selector.script>]   # решает, какую «Миту» взять
 [<Main/player.txt>]
 
-[<Scripts/example_selector.script>]
-[<Scripts/history_loader.script>]
-[<Scripts/event_handler.script>]
-[<Scripts/context_info.script>]
+[<Scripts/example_selector.script>]       # длинные примеры фраз
+[<Scripts/history_loader.script>]         # история
+[<Scripts/event_handler.script>]          # редкие события
+[<Scripts/context_info.script>]           # текущее время и счётчики
 
 [<Main/common.txt>]
-[<Scripts/fsm_handler.script>]
+[<Scripts/fsm_handler.script>]            # состояние finite-state-machine
 ```
 
-*Каждая строка включает файл или отдаёт результат скрипта — из
-этого «каркаса» собирается финальный промпт.*
-
-### 8.2 Фрагмент `personality_selector.script`
-
-```dsl
-LOG "PersonalitySelector: started. attitude=" + attitude
-
-IF (attitude <= 10 OR secretExposed == True) THEN
-    SET available_action_level = 2
-    RETURN LOAD "Main/mainCrazy.txt"
-ENDIF
-
-IF attitude < 50 AND secretExposed == False THEN
-    SET available_action_level = 1
-    RETURN LOAD "Main/mainPlaying.txt"
-ENDIF
-
-RETURN LOAD "Main/main.txt"
-```
-
-Скрипт решает, какую версию личности подставить, и просто возвращает
-нужный файл через `LOAD`.
+*Весь «кирпичный» текст лежит в `.txt`, а выбор и условия — в `.script`.
+Менять поведение означает поменять лишь скрипты.*
 
 ---
 
-## 9. Советы
+## 7. Быстрый тест из Python
 
-1. **Делите** большой текст на мелкие `.txt`.  
-2. **Логи** (`LOG`) помогут понять, почему скрипт выбрал ту или иную ветку.  
-3. Длинный текст → `.txt`, проверка условий → `.script`.  
-4. Файлы, которые нужны многим персонажам, кладите в `_CommonPrompts` /
-   `_CommonScripts`.  
-5. Убедитесь, что `{{SYS_INFO}}` встречается хотя бы один раз, если он
-   нужен системе.  
-6. Проверяйте результат — кнопка «Скомпоновать промпт» в редакторе
-   покажет финальный текст, который увидит модель.
+```python
+char = CrazyMitaCharacter()              # объект вашего персонажа
+dsl  = DslInterpreter(char)
+
+dsl.set_insert("SYS_INFO",
+               "[SYSTEM]: demo info")    # заполняем вставку
+
+prompt_text = dsl.process_main_template_file("main_template.txt")
+print(prompt_text)                       # готовая строка
+```
+
+---
+
+## 8. Полезные советы
+
+* **Делите** длинные описания на `.txt`.  
+* **Логи** (`LOG ...`) помогают понять, куда пошёл скрипт.  
+* Общие материалы кладите в `_CommonPrompts` / `_CommonScripts`.  
+* Проверяйте итог с помощью «Скомпоновать промпт» — увидите финальный текст.  
+* Держите хотя бы одну метку `{{SYS_INFO}}`, если система планирует её
+  заполнять.

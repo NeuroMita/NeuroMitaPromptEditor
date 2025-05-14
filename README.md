@@ -114,7 +114,7 @@ interp.set_insert("PlayerName", "Алиса")
 
 ```dsl
 // разный текст в зависимости от настроения
-IF mood > 70
+IF mood > 70 THEN
     RETURN "Настроение отличное!"
 ELSE
     RETURN "Настроение так себе…"
@@ -149,7 +149,7 @@ Current mood:
 ### build_mood.script
 
 ```dsl
-IF bravery > 50
+IF bravery > 50 THEN
     RETURN "Fearless"
 ELSE
     RETURN "Cautious"

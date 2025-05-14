@@ -48,27 +48,28 @@ def select_prompts_directory_dialog(parent_widget, settings, prompts_dir_name, t
     return None
 
 def find_or_ask_prompts_root(parent_widget, settings, prompts_dir_name, app_config_module_path):
-    # Используем app_config_module_path для определения базового пути, если скрипт в app/
-    # Это более надежно, чем os.path.abspath(__file__) если __file__ не там где ожидается
-    
-    # Пытаемся найти относительно скрипта main.py в app/
-    # project_root будет на один уровень выше, чем папка, где main.py
-    app_dir = Path(app_config_module_path).parent # app/config.py -> app/
-    project_root_candidate = app_dir.parent      # app/ -> project_root/
+    app_dir = Path(app_config_module_path).parent
+    project_root_candidate = app_dir.parent      
     
     prompts_in_project_root = project_root_candidate / prompts_dir_name
     if prompts_in_project_root.is_dir():
-        return str(prompts_in_project_root.resolve())
+        found_path = str(prompts_in_project_root.resolve())
+        editor_logger.info(f"Папка '{prompts_dir_name}' найдена автоматически в корне проекта: {found_path}")
+        settings.setValue("lastPromptsDir", found_path)
+        return found_path
 
-    # Пробуем найти рядом с CWD (менее надежно, но как запасной вариант)
     current_dir_cwd = Path.cwd()
     prompts_in_cwd = current_dir_cwd / prompts_dir_name
     if prompts_in_cwd.is_dir():
-         return str(prompts_in_cwd.resolve())
+        found_path = str(prompts_in_cwd.resolve())
+        editor_logger.info(f"Папка '{prompts_dir_name}' найдена автоматически в текущей рабочей директории: {found_path}")
+        settings.setValue("lastPromptsDir", found_path)
+        return found_path
     
     editor_logger.warning(f"Папка '{prompts_dir_name}' не найдена автоматически.")
     chosen_dir = select_prompts_directory_dialog(parent_widget, settings, prompts_dir_name,
                                                  title_msg=f"Папка {prompts_dir_name} не найдена. Пожалуйста, выберите ее:")
+    # select_prompts_directory_dialog уже сохраняет в настройки, если пользователь выбрал
     if chosen_dir:
         return chosen_dir
     return None

@@ -61,6 +61,33 @@ class FileTreePanel(QTreeView):
             QAbstractItemView.SelectedClicked
         )
 
+    def update_prompts_root(self, new_prompts_root: str | None):
+        _log.info(f"FileTreePanel: Обновление корневой папки Prompts на '{new_prompts_root}'")
+        self._prompts_root = new_prompts_root # Обновляем внутренний _prompts_root
+        
+        actual_root_path_for_model = new_prompts_root if new_prompts_root else QDir.homePath()
+        
+        # Временно отключаем обработку сигнала изменения выделения, чтобы избежать побочных эффектов
+        # во время сброса модели. Это необязательно, но может предотвратить гонки состояний.
+        selection_model = self.selectionModel()
+        try_disconnect = True
+        if selection_model:
+            try:
+                selection_model.currentChanged.disconnect(self._on_select_changed)
+            except RuntimeError: 
+                try_disconnect = False
+        else:
+            try_disconnect = False
+
+        self._model.setRootPath(actual_root_path_for_model)
+        new_root_index = self._model.index(actual_root_path_for_model)
+        self.setRootIndex(new_root_index)
+        
+        self.clearSelection() 
+
+        if try_disconnect and selection_model:
+            selection_model.currentChanged.connect(self._on_select_changed)
+
     # ------------------------------------------------------------------ #
     #                             СЛОТЫ
     # ------------------------------------------------------------------ #

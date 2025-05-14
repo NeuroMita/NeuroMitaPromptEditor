@@ -56,31 +56,56 @@ class PromptEditorWindow(QMainWindow):
         super().__init__()
         self.resize(1280, 840)
         self.setMinimumSize(960, 600)
-        self.setWindowTitle(f"Редактор Промптов — {SETTINGS_APP_NAME}")
+        # Заголовок окна установим после определения prompts_root
 
         self.settings = QSettings(SETTINGS_ORG_NAME, SETTINGS_APP_NAME)
         self.selected_char: str | None = None
+        self.prompts_root: str | None = None # Инициализируем prompts_root
 
-        # --- root Prompts
-        try:
-            import app.config as cfg_mod
-            cfg_path = cfg_mod.__file__
-        except Exception:
-            cfg_path = os.getcwd()
-        self.prompts_root = find_or_ask_prompts_root(
-            self, self.settings, PROMPTS_DIR_NAME, cfg_path
-        )
+        # --- Определяем окончательный prompts_root ---
+        # 1. Пытаемся загрузить из настроек
+        last_dir_from_settings = self.settings.value("lastPromptsDir")
+        if last_dir_from_settings and os.path.isdir(last_dir_from_settings):
+            self.prompts_root = str(Path(last_dir_from_settings).resolve())
+            editor_logger.info(f"Используется папка Prompts из настроек: {self.prompts_root}")
+        else:
+            # 2. Если нет в настройках или путь недействителен, пытаемся найти/запросить
+            if last_dir_from_settings:
+                editor_logger.warning(f"Сохраненный путь Prompts '{last_dir_from_settings}' недействителен.")
+            else:
+                editor_logger.info("Путь к папке Prompts не найден в настройках.")
+            
+            editor_logger.info("Попытка автоматического определения папки Prompts или запрос у пользователя.")
+            try:
+                import app.config as cfg_mod
+                cfg_path = cfg_mod.__file__
+            except Exception:
+                cfg_path = os.getcwd()
+            
+            # find_or_ask_prompts_root теперь сохранит в настройки, если найдет автоматически или пользователь выберет
+            self.prompts_root = find_or_ask_prompts_root(
+                self, self.settings, PROMPTS_DIR_NAME, cfg_path
+            )
 
-        # --- build UI
-        self._build_ui()
-        self._load_settings()
+        self.setWindowTitle(f"Редактор Промптов — {SETTINGS_APP_NAME}") # Устанавливаем базовый заголовок
+
+        # --- Строим UI (FileTreePanel получит уже определенный self.prompts_root) ---
+        self._build_ui() 
+
+        # --- Загружаем остальные настройки UI (состояние окна, разделителя) ---
+        self._load_window_layout_settings() # Новый метод вместо части старого _load_settings
+
         self._setup_loggers()
-        self._update_title()
+        self._update_title() # Обновит заголовок, если символ выбран (маловероятно на этом этапе)
 
         if not self.prompts_root:
-            QMessageBox.warning(self, "Prompts", "Корневая папка не выбрана.")
+            QMessageBox.warning(self, "Prompts", "Корневая папка Prompts не выбрана. Функциональность будет ограничена.")
         if not DSL_ENGINE_AVAILABLE:
-            QMessageBox.warning(self, "DSL", "DSL-движок недоступен.")
+            QMessageBox.warning(self, "DSL", "DSL-движок недоступен. Функциональность будет ограничена.")
+
+    def _load_window_layout_settings(self): # Новый метод
+        if (st := self.settings.value("windowState")): self.restoreState(st)
+        if (sp := self.settings.value("splitter")):    self.splitter.restoreState(sp)
 
     # --------------------- UI construction ----------------------
     def _build_ui(self):
@@ -220,11 +245,22 @@ class PromptEditorWindow(QMainWindow):
     # ------------------------ helpers -------------------------
     def _change_prompts_dir(self):
         if self.tabs.count() and not self._ask_close_all_tabs(): return
-        new = select_prompts_directory_dialog(self, self.settings, PROMPTS_DIR_NAME, "Выберите папку Prompts")
-        if new:
-            self.prompts_root = new
-            self.tree.setRootIndex(self.tree.model().setRootPath(new))
-            self.settings.setValue("lastPromptsDir", new)
+        
+        # Запрашиваем новую директорию
+        new_prompts_path = select_prompts_directory_dialog(self, self.settings, PROMPTS_DIR_NAME, "Выберите папку Prompts")
+        
+        if new_prompts_path:
+            self.prompts_root = new_prompts_path #
+            
+            if hasattr(self.tree, 'update_prompts_root'):
+                self.tree.update_prompts_root(new_prompts_path)
+            else:
+                self.tree.model().setRootPath(new_prompts_path)
+                self.tree.setRootIndex(self.tree.model().index(new_prompts_path))
+                editor_logger.warning("FileTreePanel.update_prompts_root() не найден, используется старый метод обновления.")
+
+            self._on_char_selected("") 
+
 
     def _ask_close_all_tabs(self):
         return QMessageBox.question(self, "Закрыть вкладки", "Закрыть все открытые вкладки?",

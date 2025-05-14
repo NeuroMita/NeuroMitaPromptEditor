@@ -796,6 +796,19 @@ class DslInterpreter:
     # endregion
 
     # region Теги (настоящие)
+    _SECTION_MARKER_RE = re.compile(
+        r"^[ \t]*\[(?:#|/)\s*[A-Z0-9_]+\s*][ \t]*\r?\n?",  # вся строка
+        re.IGNORECASE | re.MULTILINE,
+    )
+
+    def _remove_tag_markers(self, text: str) -> str:
+        """
+        Удаляет ВСЕ строки, содержащие только
+            [#TAG_NAME]   или   [/TAG_NAME]
+        (регистр не важен).  Остальной текст остаётся нетронутым.
+        """
+        return self._SECTION_MARKER_RE.sub("", text)
+
     def _extract_tag_section(self, abs_path: str, tag_name: str) -> str:
         raw = self._load_text(abs_path, f"extract tag {tag_name}")
 
@@ -818,6 +831,55 @@ class DslInterpreter:
             content = content[1:]
 
         return content   # БЕЗ strip()/rstrip() – всё сохраняем как есть
+    
+    
+    _INLINE_LOAD_RE = re.compile(
+        r"""\bLOAD                      # ключевое слово
+             (?:\s+([A-Z0-9_]+))?       # ① TAG (опц.)
+             \s+FROM\s+                 #   FROM
+             (['"])(.+?)\2              # ② "path/to/file"
+        """,
+        re.IGNORECASE | re.VERBOSE,
+    )
+
+    def _expand_inline_loads(
+        self,
+        expr: str,
+        *,
+        script_path: str,
+        line_num: int,
+        line_content: str,
+    ) -> str:
+        """
+        Заменяет все вхождения
+            LOAD [TAG] FROM "file"
+        в expr на python-литералы с уже подставленным содержимым.
+        """
+
+        def _handle_single(match: re.Match) -> str:
+            tag_name = match.group(1)          # None => грузим ВЕСЬ файл
+            path     = match.group(3)
+            abs_path = self._resolve_path(path)
+
+            # ---------- берём целиком файл -----------------------------
+            if tag_name is None:
+                raw = self._load_text(
+                    abs_path, f"inline LOAD in {script_path}:{line_num}"
+                )
+                raw = self._remove_tag_markers(raw)   # <<< НОВОЕ
+            # ---------- или конкретную секцию --------------------------
+            else:
+                raw = self._extract_tag_section(abs_path, tag_name)
+
+            processed = self.process_template_content(
+                raw,
+                f"inline LOAD ({tag_name or 'FULL'}) FROM {path} "
+                f"in {os.path.basename(script_path)}:{line_num}",
+            )
+            return repr(processed)  # превращаем в python-литерал
+
+        return self._INLINE_LOAD_RE.sub(_handle_single, expr)
+
     # endregion
 
     def process_main_template_file(self, rel_path: str) -> str:

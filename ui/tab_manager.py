@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, QFile, QTextStream, QStringConverter, QFileInfo, 
 from PySide6.QtWidgets import (
     QTabWidget, QMessageBox, QFileDialog
 )
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QTextCursor
 from app.widgets.custom_text_edit import CustomTextEdit
 from app.syntax.styles import SyntaxStyleDark
 from app.syntax.highlighter import PromptSyntaxHighlighter
@@ -30,26 +30,30 @@ class TabManager(QTabWidget):
     def modified_paths(self): return self._modified_paths
 
     def open_file(self, file_path: str):
-        # если открыт — фокус
         for i in range(self.count()):
             ed = self._editor(i)
             if ed and os.path.normpath(ed.get_tab_file_path()) == os.path.normpath(file_path):
                 self.setCurrentIndex(i)
                 return
-
         try:
             qf = QFile(file_path)
             if not qf.open(QFile.ReadOnly | QFile.Text):
                 QMessageBox.warning(self, "Открытие", f"Не удалось открыть:\n{file_path}")
                 return
-            stream = QTextStream(qf); stream.setEncoding(QStringConverter.Encoding.Utf8)
-            content = stream.readAll(); qf.close()
+            stream = QTextStream(qf)
+            stream.setEncoding(QStringConverter.Encoding.Utf8)
+            content = stream.readAll()
+            qf.close()
+            content = content.replace('\x00', '').rstrip()
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", str(e)); return
+            QMessageBox.critical(self, "Ошибка", str(e))
+            return
 
         ed = CustomTextEdit()
         ed.setFont(QFont("Consolas", 11))
         ed.set_tab_file_path(file_path)
+        ed.setLineWrapMode(CustomTextEdit.LineWrapMode.NoWrap)
+        ed.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         ed.setStyleSheet(f"""
             CustomTextEdit {{
                 background: {SyntaxStyleDark.TextEditBackground.name()};
@@ -67,10 +71,16 @@ class TabManager(QTabWidget):
 
         idx = self.addTab(ed, QFileInfo(file_path).fileName())
         self.setCurrentIndex(idx)
-        ed.document().modificationChanged.connect(
-            lambda m, e=ed: self._on_mod(e, m)
-        )
+        ed.document().modificationChanged.connect(lambda m, e=ed: self._on_mod(e, m))
         ed.setPlainText(content)
+
+        cursor = ed.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        ed.setTextCursor(cursor)
+
+        ed.verticalScrollBar().setValue(ed.verticalScrollBar().minimum())
+        ed.horizontalScrollBar().setValue(ed.horizontalScrollBar().minimum())
+
         ed.document().setModified(False)
 
     def save_current(self):    self._save_idx(self.currentIndex(), False)
@@ -110,25 +120,32 @@ class TabManager(QTabWidget):
     # --- save helpers
     def _save_idx(self, idx, as_mode): self._save_editor(self._editor(idx), as_mode)
 
-    def _save_editor(self, ed: CustomTextEdit|None, save_as) -> bool:
-        if not ed: return False
+    def _save_editor(self, ed: CustomTextEdit | None, save_as) -> bool:
+        if not ed:
+            return False
         path = ed.get_tab_file_path()
-
         if save_as or not path:
-            new_path, _ = QFileDialog.getSaveFileName(self, "Сохранить как", path or "",
-                "Текстовые файлы (*.txt);;Файлы скриптов (*.script);;Все файлы (*)")
-            if not new_path: return False
-            path = new_path; ed.set_tab_file_path(path)
+            new_path, _ = QFileDialog.getSaveFileName(
+                self, "Сохранить как", path or "",
+                "Текстовые файлы (*.txt);;Файлы скриптов (*.script);;Все файлы (*)"
+            )
+            if not new_path:
+                return False
+            path = new_path
+            ed.set_tab_file_path(path)
             for i in range(self.count()):
                 if self.widget(i) == ed:
-                    self.setTabText(i, QFileInfo(path).fileName()); break
-
+                    self.setTabText(i, QFileInfo(path).fileName())
+                    break
         try:
             qf = QFile(path)
             if not qf.open(QFile.WriteOnly | QFile.Text | QFile.Truncate):
                 raise RuntimeError(qf.errorString())
-            s = QTextStream(qf); s.setEncoding(QStringConverter.Encoding.Utf8)
-            s << ed.toPlainText(); qf.close()
+            s = QTextStream(qf)
+            s.setEncoding(QStringConverter.Encoding.Utf8)
+            clean_text = ed.toPlainText().replace('\x00', '')
+            s << clean_text
+            qf.close()
             ed.document().setModified(False)
             return True
         except Exception as e:

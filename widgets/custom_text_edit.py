@@ -31,6 +31,15 @@ class CustomTextEdit(QPlainTextEdit):
     TAB_SPACES = 4
     COMMENT_PREFIX = "// "
     COMMENT_PREFIX_NO_SPACE = "//"
+    _IGNORED_CTRL_CHARS = "\x00"
+
+    @classmethod
+    def _sanitize(cls, text):
+        if isinstance(text, bytes):
+            text = text.decode("utf-8", errors="replace")
+        return text.translate({ord(c): None for c in cls._IGNORED_CTRL_CHARS})
+
+    
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -351,8 +360,6 @@ class CustomTextEdit(QPlainTextEdit):
             self._reselect_blocks(s, e)
 
     # ───────────  auto-indent  ───────────
-        # ───────────  auto-indent  ───────────
-        # ───────────  auto-indent  ───────────
     def apply_auto_indent_after_enter(self, event):
         prev_block = self.textCursor().block()
         prev_text  = prev_block.text()

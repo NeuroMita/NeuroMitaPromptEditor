@@ -1,0 +1,4 @@
+prompt-editor-web
+__pycache__
+node_modules
+package-lock.json

@@ -1,5 +1,5 @@
 // File: frontend\src\pages\EditorPage.js
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { useSwipeable } from 'react-swipeable';
 
@@ -17,6 +17,8 @@ import {
 import '../styles/EditorPage.css';
 
 const MOBILE_PANELS = ['explorer', 'editor', 'variables', 'logs'];
+const MIN_LOG_PANEL_HEIGHT = 60; // Minimum height for the log panel in pixels
+const DEFAULT_LOG_PANEL_HEIGHT = 200;
 
 function EditorPage() {
     const { promptsRoot, selectedCharacterId, setSelectedCharacterId, isLoading: appContextLoading, error: appContextError } = useAppContext();
@@ -37,6 +39,14 @@ function EditorPage() {
     const activeMobilePanel = useMemo(() => MOBILE_PANELS[activeMobilePanelIndex], [activeMobilePanelIndex]);
 
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+
+    // Log panel resizing state
+    const [logPanelHeight, setLogPanelHeight] = useState(DEFAULT_LOG_PANEL_HEIGHT);
+    const [isResizingLogPanel, setIsResizingLogPanel] = useState(false);
+    const initialMouseYRef = useRef(0);
+    const initialLogHeightRef = useRef(0);
+    const editorPageRef = useRef(null); // Ref for the main editor page container
+    const headerRef = useRef(null); // Ref for the header element
 
     useEffect(() => {
         const handleResize = () => {
@@ -63,7 +73,7 @@ function EditorPage() {
             }
         },
         preventScrollOnSwipe: true,
-        trackMouse: false // Can enable for desktop testing of swipes
+        trackMouse: false
     });
 
 
@@ -281,6 +291,48 @@ function EditorPage() {
         };
     }, [activeFilePath, handleSaveFile, handleSaveAllFiles]);
 
+    // Log panel resize handlers
+    const handleLogPanelResizeStart = useCallback((e) => {
+        e.preventDefault();
+        setIsResizingLogPanel(true);
+        initialMouseYRef.current = e.clientY;
+        initialLogHeightRef.current = logPanelHeight;
+        document.body.style.cursor = 'ns-resize'; // Optional: change cursor globally
+        document.body.style.userSelect = 'none'; // Disable text selection during resize
+    }, [logPanelHeight]);
+
+    useEffect(() => {
+        const handleMouseMove = (e) => {
+            if (!isResizingLogPanel) return;
+            const deltaY = e.clientY - initialMouseYRef.current;
+            let newHeight = initialLogHeightRef.current - deltaY;
+
+            const maxLogPanelHeight = editorPageRef.current 
+                ? editorPageRef.current.offsetHeight - (headerRef.current?.offsetHeight || 60) - 150 // 150 as min main content height
+                : window.innerHeight * 0.7;
+
+            newHeight = Math.max(MIN_LOG_PANEL_HEIGHT, newHeight);
+            newHeight = Math.min(newHeight, maxLogPanelHeight);
+            
+            setLogPanelHeight(newHeight);
+        };
+
+        const handleMouseUp = () => {
+            setIsResizingLogPanel(false);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+
+        if (isResizingLogPanel) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+            return () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+            };
+        }
+    }, [isResizingLogPanel]);
+
 
     if (appContextLoading) return <div className="loading-text">Loading application configuration...</div>;
     if (appContextError) return <div className="error-text">Error loading application: {appContextError}<br/>Prompts Root: {promptsRoot}</div>;
@@ -290,7 +342,7 @@ function EditorPage() {
     const canSaveAll = openFiles.some(f => f.isModified);
 
     const renderDesktopLayout = () => (
-        <>
+        <div className="desktopContentWrapper">
             <div className="mainContent">
                 <div className="leftPanelContainer">
                     <FileTreePanel
@@ -321,10 +373,15 @@ function EditorPage() {
                     />
                 </div>
             </div>
-            <div className="bottomPanelContainer">
+            <div 
+                className="logPanelResizeHandle" 
+                onMouseDown={handleLogPanelResizeStart}
+                title="Drag to resize log panel"
+            />
+            <div className="bottomPanelContainer" style={{ height: `${logPanelHeight}px` }}>
                 <LogPanel logs={logs} onClearLogs={handleClearLogs} />
             </div>
-        </>
+        </div>
     );
 
     const renderMobileLayout = () => (
@@ -336,12 +393,11 @@ function EditorPage() {
                         className="swipePage"
                         style={{
                             transform: `translateX(${(index - activeMobilePanelIndex) * 100}%)`,
-                            // visibility: index === activeMobilePanelIndex ? 'visible' : 'hidden' // Optimization
                         }}
                     >
                         {panelId === 'explorer' && (
                             <FileTreePanel
-                                key={fileTreeKey} // Ensure re-render on key change
+                                key={fileTreeKey} 
                                 onFileSelect={handleOpenFile}
                                 onCharacterSelect={setSelectedCharacterId}
                                 promptsRoot={promptsRoot}
@@ -389,8 +445,8 @@ function EditorPage() {
     );
 
     return (
-        <div className="editorPage">
-            <header className="header">
+        <div className="editorPage" ref={editorPageRef}>
+            <header className="header" ref={headerRef}>
                 <h1 className="headerTitle">Prompt Editor</h1>
                 <div className="headerActions">
                     {isPageLoading && <span className="pageStatus loading">Loading...</span>}
@@ -400,20 +456,26 @@ function EditorPage() {
                         disabled={!canSaveCurrent || isPageLoading}
                         title="Save current file (Ctrl+S)"
                     >
-                        Save
+                        {isMobileView ? "💾" : "Save"}
                     </button>
                     <button
                         onClick={handleSaveAllFiles}
                         disabled={!canSaveAll || isPageLoading}
                         title="Save all modified files (Ctrl+Alt+S)"
                     >
-                        Save All
+                        {isMobileView ? "💾∀" : "Save All"}
                     </button>
                     <button
                         onClick={handleRunDsl}
                         disabled={!selectedCharacterId || isPageLoading}
                     >
-                        Generate{selectedCharacterId ? ` for ${selectedCharacterId}` : "..."}
+                        {isMobileView 
+                            ? (selectedCharacterId 
+                                ? `▶ ${selectedCharacterId.length > 10 ? selectedCharacterId.slice(0, 10) + '…' : selectedCharacterId}` 
+                                : "▶ Gen") 
+                            : (selectedCharacterId 
+                                ? `Generate for ${selectedCharacterId}` 
+                                : "Generate...")}
                     </button>
                 </div>
             </header>

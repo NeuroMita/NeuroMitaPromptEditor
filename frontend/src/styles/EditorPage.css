@@ -3,9 +3,9 @@
   display: flex;
   flex-direction: column;
   height: 100vh; /* Full viewport height */
-  overflow: hidden; /* Prevent scrolling of the page itself */
-  background-color: var(--bg-primary);
+  background-color: var(--bg-main);
   color: var(--text-primary);
+  overflow: hidden; /* Prevent body scrollbars */
 }
 
 .header {
@@ -13,176 +13,194 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 15px;
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-header);
   border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0; 
+  flex-shrink: 0; /* Header should not shrink */
 }
 
 .headerTitle {
+  font-size: 1.4em;
   margin: 0;
-  font-size: 1.2em;
   font-weight: 600;
 }
 
 .headerActions {
   display: flex;
   gap: 10px;
-  align-items: center;
 }
-.headerActions .pageStatus {
+
+.headerActions button {
+  padding: 6px 12px;
+  background-color: var(--bg-button-accent);
+  color: var(--text-button-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.headerActions button:hover:not(:disabled) {
+  background-color: var(--bg-button-accent-hover);
+}
+
+.headerActions button:disabled {
+  background-color: var(--bg-button-disabled);
+  color: var(--text-button-disabled);
+  cursor: not-allowed;
+}
+
+.pageStatus {
   font-size: 0.9em;
+  padding: 6px 0;
   margin-right: 10px;
 }
-.headerActions .pageStatus.loading {
-  color: var(--warning-color);
+.pageStatus.loading {
+  color: var(--info-color);
 }
-.headerActions .pageStatus.error {
+.pageStatus.error {
   color: var(--error-color);
-}
-
-
-.mainContent { /* Used for Desktop Layout */
-  display: flex;
-  flex-grow: 1;
-  overflow: hidden; 
-}
-
-.leftPanelContainer,
-.centerPanelContainer,
-.rightPanelContainer {
-  display: flex; /* Ensure children (panels) fill the container */
-  flex-direction: column; /* Panels inside usually stack vertically */
-  overflow: hidden; /* Allow panels to manage their own scroll */
-}
-
-.leftPanelContainer {
-  width: 250px; /* Default width for file tree */
-  min-width: 200px;
-  flex-shrink: 0;
-}
-
-.centerPanelContainer {
-  flex-grow: 1; /* Editor takes remaining space */
-}
-
-.rightPanelContainer {
-  width: 300px; /* Default width for variables panel */
-  min-width: 250px;
-  flex-shrink: 0;
-}
-
-.bottomPanelContainer { /* Used for Desktop Layout */
-  height: 200px;
-  min-height: 150px; /* Ensure it's not too small */
-  flex-shrink: 0; /* Prevent shrinking */
-  display: flex; /* To make LogPanel fill it */
-  border-top: 1px solid var(--border-color); /* Border for the container itself */
-  background-color: var(--bg-secondary); /* Background for the container */
-}
-
-/* --- Mobile Specific Styles --- */
-
-.mobileToggleBar {
-  display: flex; /* Will be flex for mobile */
-  background-color: var(--bg-tertiary);
-  padding: 5px;
-  border-top: 1px solid var(--border-color); /* Placed at bottom now */
-  flex-shrink: 0; /* Prevent shrinking */
-  order: 3; /* Place it after the swipeViewContainer in flex order */
-}
-
-.mobileToggleBar button {
-  flex-grow: 1;
-  padding: 8px 5px;
-  font-size: 0.8em;
-  margin: 0 2px;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  border-radius: 3px;
-  text-transform: capitalize;
-}
-
-.mobileToggleBar button.active {
-  background-color: var(--accent-primary);
-  color: var(--text-on-accent);
-  border-color: var(--accent-primary);
   font-weight: bold;
 }
 
 
-.swipeViewContainer {
-  display: none; /* Hidden by default, shown on mobile */
+/* Desktop Layout Specifics */
+.desktopContentWrapper {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Takes remaining vertical space */
+  overflow: hidden; /* Important for nested scroll/flex behavior */
+}
+
+.mainContent {
+  display: flex;
   flex-grow: 1;
+  overflow: hidden; /* Children panels should manage their own scroll */
+}
+
+.leftPanelContainer,
+.rightPanelContainer {
+  width: 280px; /* Example fixed width */
+  flex-shrink: 0;
+  overflow-y: auto;
+  background-color: var(--bg-panel);
+  border-right: 1px solid var(--border-color); /* For left panel */
+  /* border-left: 1px solid var(--border-color); For right panel if needed */
+}
+.rightPanelContainer {
+   border-left: 1px solid var(--border-color);
+   border-right: none;
+}
+
+
+.centerPanelContainer {
+  flex-grow: 1;
+  display: flex; /* To allow TabManager to fill space */
+  flex-direction: column; /* TabManager is usually column-oriented */
   overflow: hidden;
-  position: relative;
-  order: 2; /* Place it before the toggle bar */
+}
+
+.logPanelResizeHandle {
+  height: 8px;
+  background-color: var(--border-color);
+  cursor: ns-resize;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+}
+.logPanelResizeHandle:hover {
+  background-color: var(--accent-color);
+}
+
+.bottomPanelContainer {
+  flex-shrink: 0; /* Log panel should not shrink beyond its set height */
+  overflow: hidden; /* Children should manage scrolling */
+  /* height is set by style prop from state in EditorPage.js */
+  background-color: var(--bg-panel); /* Match panel background */
+}
+
+
+/* Mobile Layout Specifics */
+.swipeViewContainer {
+  flex-grow: 1;
+  display: flex;
+  overflow: hidden; /* Crucial for swipe effect */
+  position: relative; /* For absolute positioning of swipePage */
 }
 
 .swipePage {
   width: 100%;
   height: 100%;
-  position: absolute;
+  flex-shrink: 0;
+  overflow-y: auto; /* Allow individual panels to scroll */
+  transition: transform 0.3s ease-out;
+  position: absolute; /* All pages occupy same space, transform moves them */
   top: 0;
   left: 0;
-  transition: transform 0.3s ease-in-out;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--bg-secondary);
-  overflow-y: auto; /* Allow individual pages to scroll if content overflows */
-  /* visibility: hidden; */ /* Optimization: uncomment if performance is an issue */
+  background-color: var(--bg-main); /* Ensure background for pages */
 }
-/* .swipePage[style*="translateX(0%)"] {
-  visibility: visible;
-} */
-
-
-/* Adjustments for smaller screens */
-@media (max-width: 768px) {
-  .editorPage {
-    /* Ensure the mobile layout uses flex to position header, swipe area, and toggle bar */
+/* Ensure child components fill the swipePage */
+.swipePage > div { /* e.g. FileTreePanel, TabManager etc. */
+    height: 100%;
     display: flex;
     flex-direction: column;
-  }
+}
 
+
+.mobileToggleBar {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0;
+  background-color: var(--bg-header);
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.mobileToggleBar button {
+  padding: 8px 5px; /* Reduced padding for mobile */
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em; /* Smaller font for mobile tabs */
+  flex-grow: 1; /* Distribute space */
+  text-align: center;
+}
+
+.mobileToggleBar button.active {
+  background-color: var(--accent-color-subtle);
+  color: var(--accent-color);
+  font-weight: bold;
+}
+
+/* Loading/Error text styling */
+.loading-text, .error-text {
+    padding: 20px;
+    text-align: center;
+    font-size: 1.1em;
+}
+.error-text {
+    color: var(--error-color);
+}
+
+/* Responsive adjustments for header actions on mobile */
+@media (max-width: 768px) {
   .headerTitle {
-    font-size: 1em;
+    font-size: 1.2em;
   }
   .headerActions button {
-    padding: 5px 8px;
-    font-size: 0.9em;
+    padding: 6px 8px; /* Slightly reduce padding */
+    font-size: 0.9em; /* Slightly reduce font size */
   }
   .headerActions .pageStatus {
-    display: none; /* Hide status text on small screens to save space */
-  }
-   .headerActions button:nth-child(1), /* Save */
-   .headerActions button:nth-child(2)  /* Save All */
-   {
-    display: none; /* Hide Save/Save All on mobile, rely on editor actions or context menus */
-   }
-
-
-  /* Hide desktop layout containers */
-  .mainContent,
-  .bottomPanelContainer {
-    display: none !important; /* Ensure they are hidden on mobile */
-  }
-
-  /* Show mobile specific containers */
-  .swipeViewContainer {
-    display: flex; /* Activate swipe container */
-  }
-  .mobileToggleBar {
-    display: flex; /* Activate toggle bar */
+    display: none; /* Hide status text on small mobile to save space */
   }
 }
-
-/* If you want to hide specific panel borders in swipe view as they are full page */
-.swipePage > .fileTreeContainer,
-.swipePage > .dslVariablesPanel {
-  border-left: none;
-  border-right: none;
-}
-.swipePage > .logPanel {
-  border-top: none;
+@media (max-width: 480px) {
+    .headerActions button span.buttonText { /* If we wrap text in span to hide on mobile */
+        display: none;
+    }
+     .headerActions button {
+        min-width: 36px; /* Ensure buttons have some width for tap target if only icon */
+     }
 }

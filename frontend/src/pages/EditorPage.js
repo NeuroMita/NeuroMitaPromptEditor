@@ -1,3 +1,4 @@
+// File: frontend\src\pages\EditorPage.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 
@@ -11,133 +12,41 @@ import {
     generatePrompt,
     getFileContent,
     saveFileContent as apiSaveFile,
-    // createItem, renameItem, deleteItem are handled in FileTreePanel for now
 } from '../services/api';
-
-// Basic styling for layout (you'll want to use CSS for this properly)
-const editorPageStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", // A more standard font
-};
-
-const headerStyle = {
-    padding: '10px 15px',
-    borderBottom: '1px solid #ccc',
-    backgroundColor: '#f8f9fa',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexShrink: 0,
-};
-
-const headerTitleStyle = {
-    margin: 0,
-    fontSize: '1.2em',
-};
-
-const headerActionsStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px', // Space between buttons
-};
-
-const mainContentStyle = {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
-};
-
-const leftPanelStyle = {
-    width: '280px',
-    minWidth: '200px', // Prevent excessive shrinking
-    borderRight: '1px solid #ccc',
-    overflowY: 'auto',
-    backgroundColor: '#fff', // Lighter background for file tree
-    // padding: '10px', // FileTreePanel will handle its own padding
-    display: 'flex',
-    flexDirection: 'column',
-};
-
-const centerPanelStyle = {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    backgroundColor: '#e9ecef', // Slightly different background for tab area
-};
-
-const rightPanelStyle = {
-    width: '320px',
-    minWidth: '250px',
-    borderLeft: '1px solid #ccc',
-    overflowY: 'auto',
-    backgroundColor: '#fff',
-    // padding: '10px', // DslVariablesPanel will handle its own padding
-    display: 'flex',
-    flexDirection: 'column',
-};
-
-const bottomPanelStyle = {
-    height: '250px',
-    minHeight: '150px', // Prevent excessive shrinking
-    borderTop: '1px solid #ccc',
-    overflowY: 'auto',
-    backgroundColor: '#fff',
-    // padding: '10px', // LogPanel will handle its own padding
-    display: 'flex',
-    flexDirection: 'column',
-};
-
-const buttonStyle = {
-    padding: '8px 12px',
-    border: '1px solid #007bff',
-    backgroundColor: '#007bff',
-    color: 'white',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.9em',
-};
-
-const buttonDisabledStyle = {
-    ...buttonStyle,
-    backgroundColor: '#6c757d',
-    borderColor: '#6c757d',
-    cursor: 'not-allowed',
-};
+import '../styles/EditorPage.css';
 
 
 function EditorPage() {
     const { promptsRoot, selectedCharacterId, setSelectedCharacterId, isLoading: appContextLoading, error: appContextError } = useAppContext();
 
-    // File and Tab State
-    const [openFiles, setOpenFiles] = useState([]); // { path: string, content: string, name: string, isModified: bool, originalContent: string }
+    const [openFiles, setOpenFiles] = useState([]);
     const [activeFilePath, setActiveFilePath] = useState(null);
-    const [fileTreeKey, setFileTreeKey] = useState(Date.now()); // To force re-render/re-fetch of FileTree
+    const [fileTreeKey, setFileTreeKey] = useState(Date.now());
 
-    // DSL State
     const [dslVariables, setDslVariables] = useState({});
     const [dslResult, setDslResult] = useState({ show: false, title: '', content: '' });
 
-    // Log State
     const [logs, setLogs] = useState([]);
 
-    // Loading/Error State for page-specific actions
     const [isPageLoading, setIsPageLoading] = useState(false);
     const [pageError, setPageError] = useState(null);
 
+    // State for mobile panel visibility: 'explorer', 'editor', 'variables', 'logs'
+    const [activeMobilePanel, setActiveMobilePanel] = useState('editor');
 
-    // --- File Operations ---
-    const handleOpenFile = useCallback(async (fileNode) => { // fileNode: { name, path, is_dir }
+    const handleMobilePanelToggle = (panel) => {
+        setActiveMobilePanel(panel);
+    };
+
+    const handleOpenFile = useCallback(async (fileNode) => {
         if (fileNode.is_dir) {
-            // Navigation within FileTreePanel is handled by its own state now
             return;
         }
 
         const existingFile = openFiles.find(f => f.path === fileNode.path);
         if (existingFile) {
             setActiveFilePath(fileNode.path);
+            if (window.innerWidth <= 768) setActiveMobilePanel('editor'); // Switch to editor on mobile after file select
             return;
         }
 
@@ -151,11 +60,12 @@ function EditorPage() {
                     path: fileData.path,
                     name: fileNode.name,
                     content: fileData.content,
-                    originalContent: fileData.content, // Store original for isModified check
+                    originalContent: fileData.content,
                     isModified: false
                 }
             ]);
             setActiveFilePath(fileData.path);
+            if (window.innerWidth <= 768) setActiveMobilePanel('editor'); // Switch to editor on mobile after file open
         } catch (err) {
             console.error("Error opening file:", err);
             setPageError(`Failed to open ${fileNode.name}: ${err.message}`);
@@ -192,7 +102,6 @@ function EditorPage() {
                     f.path === fileToSave.path ? { ...f, isModified: false, originalContent: f.content } : f
                 )
             );
-            // No alert needed for single save, visual indication (asterisk removal) is enough
             console.log(`${fileToSave.name} saved successfully.`);
         } catch (err) {
             console.error("Error saving file:", err);
@@ -216,7 +125,6 @@ function EditorPage() {
         try {
             for (const fileToSave of modifiedFiles) {
                 await apiSaveFile(fileToSave.path, fileToSave.content);
-                // Update state individually to reflect changes immediately if one fails
                 setOpenFiles(prevFiles =>
                     prevFiles.map(f =>
                         f.path === fileToSave.path ? { ...f, isModified: false, originalContent: f.content } : f
@@ -240,27 +148,25 @@ function EditorPage() {
 
         if (fileToClose && fileToClose.isModified && !forceClose) {
             if (!window.confirm(`File ${fileToClose.name} has unsaved changes. Close anyway?`)) {
-                return false; // Indicate closure was cancelled
+                return false;
             }
         }
 
         setOpenFiles(prevFiles => prevFiles.filter(file => file.path !== filePathToClose));
 
         if (activeFilePath === filePathToClose) {
-            const newOpenFiles = openFiles.filter(file => file.path !== filePathToClose); // Re-filter to get the correct list
-            setActiveFilePath(newOpenFiles.length > 0 ? newOpenFiles[newOpenFiles.length - 1].path : null); // Activate last opened or null
+            const newOpenFiles = openFiles.filter(file => file.path !== filePathToClose);
+            setActiveFilePath(newOpenFiles.length > 0 ? newOpenFiles[newOpenFiles.length - 1].path : null);
         }
-        return true; // Indicate successful closure
+        return true;
     }, [activeFilePath, openFiles]);
 
-    // --- File Tree Callbacks ---
     const refreshFileTree = useCallback(() => {
-        setFileTreeKey(Date.now()); // Changing the key forces FileTreePanel to re-mount or re-fetch
+        setFileTreeKey(Date.now());
     }, []);
 
     const handleFileRenamedInTree = useCallback((oldPath, newPath, newName) => {
         refreshFileTree();
-        // Update open files if the renamed file was open
         setOpenFiles(prevOpenFiles => {
             return prevOpenFiles.map(file => {
                 if (file.path === oldPath) {
@@ -276,20 +182,17 @@ function EditorPage() {
 
     const handleFileDeletedInTree = useCallback((deletedPath) => {
         refreshFileTree();
-        // Close tab if the deleted file was open
         if (openFiles.some(f => f.path === deletedPath)) {
-            handleCloseTab(deletedPath, true); // Force close without prompt
+            handleCloseTab(deletedPath, true);
         }
     }, [openFiles, handleCloseTab, refreshFileTree]);
 
 
-    // --- DSL Operations ---
     const handleRunDsl = useCallback(async () => {
         if (!selectedCharacterId) {
             alert("Please select a character first.");
             return;
         }
-        // Check for unsaved changes and prompt to save
         const modifiedFile = openFiles.find(f => f.isModified);
         if (modifiedFile) {
             if (window.confirm("You have unsaved changes. Save them before generating the prompt?")) {
@@ -309,9 +212,9 @@ function EditorPage() {
 
         setIsPageLoading(true);
         setPageError(null);
-        setLogs([]); // Clear previous logs
+        setLogs([]);
         try {
-            const tags = { SYS_INFO: "Generated from Web Editor." }; // Example
+            const tags = { SYS_INFO: "Generated from Web Editor." };
             const result = await generatePrompt(selectedCharacterId, dslVariables, tags);
             setDslResult({ show: true, title: `DSL Result: ${selectedCharacterId}`, content: result.generated_prompt });
             setLogs(result.logs || []);
@@ -326,13 +229,10 @@ function EditorPage() {
     }, [selectedCharacterId, dslVariables, openFiles, handleSaveAllFiles]);
 
 
-    // --- Log Operations ---
     const handleClearLogs = useCallback(() => {
         setLogs([]);
     }, []);
 
-    // --- Effects ---
-    // Save on Ctrl+S / Cmd+S
     useEffect(() => {
         const handleKeyDown = (event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 's') {
@@ -353,24 +253,23 @@ function EditorPage() {
     }, [activeFilePath, handleSaveFile, handleSaveAllFiles]);
 
 
-    if (appContextLoading) return <div style={{padding: '20px'}}>Loading application configuration...</div>;
-    if (appContextError) return <div style={{ color: 'red', padding: '20px' }}>Error loading application: {appContextError}<br/>Prompts Root: {promptsRoot}</div>;
+    if (appContextLoading) return <div className="loading-text">Loading application configuration...</div>;
+    if (appContextError) return <div className="error-text">Error loading application: {appContextError}<br/>Prompts Root: {promptsRoot}</div>;
 
     const activeFileObject = openFiles.find(f => f.path === activeFilePath);
     const canSaveCurrent = activeFileObject && activeFileObject.isModified;
     const canSaveAll = openFiles.some(f => f.isModified);
 
     return (
-        <div style={editorPageStyle}>
-            <header style={headerStyle}>
-                <h1 style={headerTitleStyle}>Prompt Editor (Web)</h1>
-                <div style={headerActionsStyle}>
-                    {isPageLoading && <span style={{marginRight: '10px'}}>Loading...</span>}
-                    {pageError && <span style={{color: 'red', marginRight: '10px', fontSize: '0.9em'}}>Error: {pageError}</span>}
+        <div className="editorPage">
+            <header className="header">
+                <h1 className="headerTitle">Prompt Editor (Web)</h1>
+                <div className="headerActions">
+                    {isPageLoading && <span className="pageStatus loading">Loading...</span>}
+                    {pageError && <span className="pageStatus error">Error: {pageError}</span>}
                     <button
                         onClick={() => handleSaveFile(activeFilePath)}
                         disabled={!canSaveCurrent || isPageLoading}
-                        style={!canSaveCurrent || isPageLoading ? buttonDisabledStyle : buttonStyle}
                         title="Save current file (Ctrl+S)"
                     >
                         Save
@@ -378,7 +277,6 @@ function EditorPage() {
                     <button
                         onClick={handleSaveAllFiles}
                         disabled={!canSaveAll || isPageLoading}
-                        style={!canSaveAll || isPageLoading ? buttonDisabledStyle : buttonStyle}
                         title="Save all modified files (Ctrl+Alt+S)"
                     >
                         Save All
@@ -386,38 +284,63 @@ function EditorPage() {
                     <button
                         onClick={handleRunDsl}
                         disabled={!selectedCharacterId || isPageLoading}
-                        style={!selectedCharacterId || isPageLoading ? buttonDisabledStyle : buttonStyle}
                     >
                         Generate for {selectedCharacterId || "..."}
                     </button>
                 </div>
             </header>
 
-            <div style={mainContentStyle}>
-                <div style={leftPanelStyle}>
+            <div className="mobileToggleBar">
+                <button
+                    onClick={() => handleMobilePanelToggle('explorer')}
+                    className={activeMobilePanel === 'explorer' ? 'active' : ''}
+                >
+                    Explorer
+                </button>
+                <button
+                    onClick={() => handleMobilePanelToggle('editor')}
+                    className={activeMobilePanel === 'editor' ? 'active' : ''}
+                >
+                    Editor
+                </button>
+                <button
+                    onClick={() => handleMobilePanelToggle('variables')}
+                    className={activeMobilePanel === 'variables' ? 'active' : ''}
+                >
+                    Variables
+                </button>
+                <button
+                    onClick={() => handleMobilePanelToggle('logs')}
+                    className={activeMobilePanel === 'logs' ? 'active' : ''}
+                >
+                    Logs
+                </button>
+            </div>
+
+            <div className="mainContent">
+                <div className={`leftPanelContainer ${activeMobilePanel !== 'explorer' ? 'mobileHidden' : 'mobileVisible'}`}>
                     <FileTreePanel
-                        key={fileTreeKey} // Force re-render on key change
+                        key={fileTreeKey}
                         onFileSelect={handleOpenFile}
-                        onCharacterSelect={setSelectedCharacterId} // Pass this down from AppContext or manage here
-                        promptsRoot={promptsRoot} // Pass the actual root
+                        onCharacterSelect={setSelectedCharacterId}
+                        promptsRoot={promptsRoot}
                         onFileRenamed={handleFileRenamedInTree}
                         onFileDeleted={handleFileDeletedInTree}
-                        onFileCreated={refreshFileTree} // Simple refresh for now
-                        onError={setPageError} // Allow FileTree to report errors
+                        onFileCreated={refreshFileTree}
+                        onError={setPageError}
                     />
                 </div>
-                <div style={centerPanelStyle}>
+                <div className={`centerPanelContainer ${activeMobilePanel !== 'editor' ? 'mobileHidden' : 'mobileVisible'}`}>
                     <TabManager
                         openFiles={openFiles}
-                        // setOpenFiles={setOpenFiles} // EditorPage manages this now
                         activeFilePath={activeFilePath}
                         setActiveFilePath={setActiveFilePath}
                         onFileContentChange={handleFileContentChange}
-                        onCloseTab={handleCloseTab} // Pass the new close handler
-                        onSaveTab={handleSaveFile} // Allow tab to request save
+                        onCloseTab={handleCloseTab}
+                        onSaveTab={handleSaveFile}
                     />
                 </div>
-                <div style={rightPanelStyle}>
+                <div className={`rightPanelContainer ${activeMobilePanel !== 'variables' ? 'mobileHidden' : 'mobileVisible'}`}>
                     <DslVariablesPanel
                         characterId={selectedCharacterId}
                         onVariablesChange={setDslVariables}
@@ -425,7 +348,7 @@ function EditorPage() {
                 </div>
             </div>
 
-            <div style={bottomPanelStyle}>
+            <div className={`bottomPanelContainer ${activeMobilePanel !== 'logs' ? 'mobileHidden' : 'mobileVisible'}`}>
                 <LogPanel logs={logs} onClearLogs={handleClearLogs} />
             </div>
 

@@ -1,0 +1,20 @@
+/* frontend/src/syntax/syntaxHighlighter.css */
+.sh-default { color: #ABB2BF; }
+.sh-keyword { color: #C678DD; font-weight: bold; }
+.sh-placeholder-link { color: #98C379; text-decoration: underline; cursor: pointer; }
+.sh-comment { color: #5C6370; font-style: italic; }
+.sh-string { color: #98C379; }
+.sh-number { color: #D19A66; }
+.sh-specialtag { color: #E5C07B; }
+.sh-loadcommand { color: #569CD6; font-weight: bold; }
+.sh-sectionmarker { color: #C586C0; font-weight: bold; }
+.sh-insert { color: #FFAC33; font-weight: bold; }
+.sh-triplestring { color: #FFA500; }
+
+/* Ensure pre/code in EditorArea uses these styles */
+.editorTextarea code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre; /* Important for preserving whitespace */
+}

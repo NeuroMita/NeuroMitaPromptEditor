@@ -1,0 +1,221 @@
+/* frontend/src/styles/EditorPage.css */
+.editorPage {
+  display: flex;
+  flex-direction: column;
+  height: 100%; 
+  overflow: hidden; 
+}
+
+.header {
+  padding: 12px 20px; /* Slightly more desktop padding */
+  border-bottom: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0; 
+  min-height: 50px; 
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 500;
+  color: #343a40;
+}
+
+.headerCharacterInfo {
+  font-size: 0.9em;
+  color: #495057;
+  margin-left: 15px;
+  font-weight: normal;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Slightly increased gap */
+}
+
+.pageStatus {
+  font-size: 0.85em;
+  margin-right: 10px;
+}
+
+.pageStatus.loading {
+  color: #007bff;
+}
+
+.pageStatus.error {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.mainContent {
+  display: flex;
+  flex: 1; 
+  overflow: hidden; 
+}
+
+.leftPanelContainer,
+.rightPanelContainer {
+  display: flex; 
+  flex-direction: column;
+  overflow-y: auto; 
+  background-color: #ffffff;
+  flex-shrink: 0; 
+  padding: 0; /* Children will manage padding */
+}
+
+.leftPanelContainer {
+  width: 280px;
+  min-width: 220px;
+  border-right: 1px solid #dee2e6;
+}
+
+.centerPanelContainer {
+  flex: 1; 
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; 
+  background-color: #f0f0f0; /* Consistent background for tab area */
+}
+
+.rightPanelContainer {
+  width: 320px;
+  min-width: 250px;
+  border-left: 1px solid #dee2e6;
+}
+
+.bottomPanelContainer {
+  height: 200px; 
+  min-height: 100px;
+  max-height: 40vh; 
+  border-top: 1px solid #dee2e6;
+  background-color: #ffffff;
+  display: flex; 
+  flex-direction: column;
+  overflow: hidden; 
+  resize: vertical; 
+  padding: 0; /* Children will manage padding */
+}
+
+/* --- Mobile Layout --- */
+.mobileToggleBar {
+  display: none; 
+  background-color: #343a40;
+  color: white;
+  padding: 8px;
+  text-align: center;
+  flex-shrink: 0;
+  border-bottom: 1px solid #555;
+}
+
+.mobileToggleBar button {
+  background: none;
+  border: 1px solid #777;
+  color: #ddd;
+  margin: 0 4px; /* Adjusted margin */
+  padding: 6px 10px; 
+  font-size: 0.8em; 
+  border-radius: 4px;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+.mobileToggleBar button.active {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+  font-weight: bold;
+}
+
+
+@media (max-width: 768px) {
+  .editorPage {
+    /* Header, MobileToggleBar, MainContent, BottomPanel will stack */
+  }
+
+  .header {
+    padding: 8px 10px; 
+    min-height: 44px;
+  }
+  .headerTitle {
+    font-size: 1em;
+  }
+  .headerActions button {
+    padding: 5px 8px; 
+    font-size: 0.75em;
+  }
+  .headerActions .pageStatus { /* Hide status text on mobile for space */
+     display: none;
+  }
+  .headerCharacterInfo {
+    display: none;
+  }
+
+  .mobileToggleBar {
+    display: flex;
+    justify-content: space-around;
+    order: 1; /* Place it after the main header */
+  }
+
+  .mainContent {
+    flex-direction: column; 
+    order: 2; /* After mobile toggle bar */
+    flex: 1; /* Take available space between toggle bar and bottom panel */
+  }
+  
+  /* Panels within mainContent and bottomPanelContainer on mobile */
+  .leftPanelContainer,
+  .centerPanelContainer,
+  .rightPanelContainer,
+  .bottomPanelContainer {
+    width: 100% !important;
+    min-width: auto !important;
+    border-left: none;
+    border-right: none;
+    border-bottom: none; 
+    border-top: none; /* Remove top border for stacked panels, except first one if needed */
+    flex-grow: 0; 
+    flex-shrink: 1; /* Allow shrinking */
+    height: auto; /* Default to auto, visibility will control expansion */
+    max-height: none; /* Remove max-height constraints for active panel */
+    overflow: hidden; /* Hide content if not visible/expanded */
+  }
+  
+  .leftPanelContainer.mobileVisible,
+  .centerPanelContainer.mobileVisible,
+  .rightPanelContainer.mobileVisible {
+    flex-grow: 1; /* The visible panel in mainContent takes all its space */
+    display: flex !important; /* Ensure it's flex if it needs to be */
+    overflow-y: auto; /* Allow internal scrolling */
+  }
+  
+  .bottomPanelContainer.mobileVisible {
+     display: flex !important; /* Ensure it's flex */
+     height: 200px; /* Fixed height for logs on mobile when visible */
+     min-height: 100px; /* Min height for logs */
+     flex-grow: 0; /* Don't let it grow beyond its set height */
+     flex-shrink: 0; /* Don't let it shrink from its set height */
+     overflow-y: auto; /* Allow internal scrolling */
+     border-top: 1px solid #dee2e6; /* Separator for bottom panel */
+  }
+
+  /* Hide non-active panels */
+  .leftPanelContainer.mobileHidden,
+  .centerPanelContainer.mobileHidden,
+  .rightPanelContainer.mobileHidden,
+  .bottomPanelContainer.mobileHidden {
+    display: none !important;
+  }
+
+  .bottomPanelContainer {
+    order: 3; /* After mainContent */
+    resize: none; /* Disable resize on mobile */
+  }
+
+  /* Ensure FileTreePanel actions are always visible on mobile */
+  .fileTreeItem:hover .fileTreeItemActions,
+  .fileTreeItem .fileTreeItemActions { /* Make actions always visible on mobile */
+    visibility: visible;
+  }
+}

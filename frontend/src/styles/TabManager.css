@@ -1,0 +1,126 @@
+/* frontend/src/styles/TabManager.css */
+.tabManager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #f0f0f0; /* Consistent with EditorPage center panel */
+}
+
+.tabBar {
+  display: flex;
+  border-bottom: 1px solid #ced4da; /* Slightly darker border */
+  padding: 5px 5px 0 5px;
+  flex-shrink: 0;
+  overflow-x: auto; /* Horizontal scroll for many tabs */
+  background-color: #e9ecef; /* Match EditorPage center panel */
+  scrollbar-width: thin; /* Firefox scrollbar */
+  scrollbar-color: #adb5bd #e9ecef; /* Firefox scrollbar colors */
+}
+
+.tabBar::-webkit-scrollbar {
+  height: 6px;
+}
+.tabBar::-webkit-scrollbar-thumb {
+  background-color: #adb5bd;
+  border-radius: 3px;
+}
+
+
+.tab {
+  padding: 9px 15px; /* Slightly more padding */
+  margin-right: 3px;
+  border: 1px solid #ced4da;
+  background-color: #e0e0e0;
+  cursor: pointer;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  font-size: 0.9em;
+  color: #495057; /* Darker text for inactive tabs */
+  transition: background-color 0.2s, border-color 0.2s;
+  max-width: 200px; /* Prevent tabs from getting too wide */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab.active {
+  border-bottom: 1px solid #ffffff; /* Active tab "connects" to content */
+  background-color: #ffffff; /* White background for active tab */
+  color: #0056b3; /* Active tab text color */
+  font-weight: 500;
+  z-index: 1; /* Ensure active tab border is on top */
+  position: relative;
+  bottom: -1px; /* Pulls tab down slightly to overlap border */
+}
+
+.tab.modified.active {
+  /* font-style: italic; Combined with asterisk */
+  /* color: #0056b3; */ /* Already set for active */
+}
+.tab.modified:not(.active) {
+  color: #0056b3; /* Modified but not active */
+}
+
+
+.tabName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabCloseButton {
+  margin-left: 10px; /* More space */
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 1.1em; /* Larger close icon */
+  line-height: 1;
+  color: #6c757d; /* Subdued color for close button */
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tabCloseButton:hover {
+  color: #343a40;
+  background-color: #d4d6d8;
+}
+
+.tab.active .tabCloseButton {
+  color: #495057;
+}
+.tab.active .tabCloseButton:hover {
+  color: #000;
+  background-color: #e0e0e0;
+}
+
+
+.tabContent {
+  flex: 1;
+  padding: 0;
+  background-color: #ffffff;
+  overflow: hidden; /* EditorArea will handle its own scroll */
+  border-top: 1px solid #ced4da; /* Ensure border if no tabs or active tab is styled */
+}
+.tab.active + .tabContent {
+  border-top: none; /* Avoid double border with active tab */
+}
+
+
+.noFilesOpenMessage {
+  padding: 20px;
+  text-align: center;
+  color: #6c757d;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1em;
+}

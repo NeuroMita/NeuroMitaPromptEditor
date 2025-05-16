@@ -1,3 +1,4 @@
+// File: frontend\src\contexts\AppContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { getPromptsRoot } from '../services/api';
 
@@ -7,7 +8,7 @@ export const useAppContext = () => useContext(AppContext);
 
 export const AppProvider = ({ children }) => {
     const [promptsRoot, setPromptsRoot] = useState('');
-    const [selectedCharacterId, setSelectedCharacterId] = useState(null); // e.g., "Hero"
+    const [selectedCharacterId, setSelectedCharacterId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -21,7 +22,7 @@ export const AppProvider = ({ children }) => {
             } catch (err) {
                 console.error("Failed to fetch prompts root:", err);
                 setError(err.message || "Failed to load initial configuration.");
-                setPromptsRoot('/error/could/not/load/prompts_root'); // Fallback or error display
+                setPromptsRoot('/error/could/not/load/prompts_root');
             } finally {
                 setIsLoading(false);
             }

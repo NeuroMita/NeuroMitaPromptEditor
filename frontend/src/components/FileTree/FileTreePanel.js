@@ -1,4 +1,4 @@
-// frontend/src/components/FileTree/FileTreePanel.js
+// File: frontend\src\components\FileTree\FileTreePanel.js
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     getFileTree,
@@ -6,66 +6,28 @@ import {
     renameItem as apiRenameItem,
     createFileOrFolder as apiCreateItem
 } from '../../services/api';
-// Removed useAppContext here, selectedCharacterId is now passed as onCharacterSelect prop
-
-const treeItemStyle = (isCharDir) => ({
-    padding: '4px 8px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: '0.9em',
-    fontWeight: isCharDir ? 'bold' : 'normal',
-    borderBottom: '1px solid #f0f0f0', // Subtle separator
-});
-
-const treeItemHoverStyle = {
-    backgroundColor: '#e9f5ff', // Light blue hover
-};
-
-const fileTreeContainerStyle = {
-    padding: '10px',
-    flex: 1, // Allow it to take available space in its parent
-    overflowY: 'auto', // Scroll if content overflows
-};
-
-const inputStyle = {
-    marginLeft: '5px',
-    padding: '2px',
-    fontSize: '0.9em',
-    border: '1px solid #ccc',
-    borderRadius: '3px',
-};
-
-const buttonSmallStyle = {
-    marginLeft: 'auto',
-    fontSize: '0.8em',
-    padding: '2px 5px',
-    border: '1px solid #ccc',
-    borderRadius: '3px',
-    cursor: 'pointer',
-    background: '#f0f0f0'
-};
+import '../../styles/FileTreePanel.css';
 
 
 function FileTreePanel({
     onFileSelect,
     onCharacterSelect,
-    promptsRoot, // Use this to display relative paths correctly if needed
+    promptsRoot,
     onFileRenamed,
     onFileDeleted,
     onFileCreated,
-    onError // Callback to report errors to EditorPage
+    onError
 }) {
     const [treeData, setTreeData] = useState([]);
     const [currentRelativePath, setCurrentRelativePath] = useState('.');
     const [loading, setLoading] = useState(false);
     const [renamingItemPath, setRenamingItemPath] = useState(null);
     const [newItemName, setNewItemName] = useState('');
-    const [creatingInPath, setCreatingInPath] = useState(null); // { path: string, type: 'file' | 'folder' }
+    const [creatingInPath, setCreatingInPath] = useState(null);
 
     const fetchTree = useCallback(async (relativePath) => {
         setLoading(true);
-        onError(null); // Clear previous errors
+        onError(null);
         try {
             const data = await getFileTree(relativePath);
             setTreeData(data);
@@ -80,15 +42,14 @@ function FileTreePanel({
     }, [onError]);
 
     useEffect(() => {
-        fetchTree('.'); // Load root initially
-    }, [fetchTree]); // fetchTree is stable due to useCallback
+        fetchTree('.');
+    }, [fetchTree]);
 
     const handleItemClick = (item) => {
         if (item.is_dir) {
             if (item.is_character_dir && onCharacterSelect) {
                 onCharacterSelect(item.name);
             } else if (currentRelativePath === '.' && !item.is_character_dir && onCharacterSelect) {
-                // If at root and click a non-char dir, clear selected character
                 onCharacterSelect(null);
             }
             fetchTree(item.path);
@@ -100,11 +61,11 @@ function FileTreePanel({
     const handleGoUp = () => {
         if (currentRelativePath === '.' || currentRelativePath === '') return;
         const parts = currentRelativePath.split(/[/\\]+/);
-        const parentIsCharDir = parts.length === 1 && onCharacterSelect; // Navigating up from a character dir
+        const parentIsCharDir = parts.length === 1 && onCharacterSelect;
         parts.pop();
         const parentPath = parts.join('/') || '.';
         fetchTree(parentPath);
-        if (parentIsCharDir || parentPath === '.') { // If went up to root or from char dir
+        if (parentIsCharDir || parentPath === '.') {
             onCharacterSelect(null);
         }
     };
@@ -116,8 +77,8 @@ function FileTreePanel({
             onError(null);
             try {
                 await apiDeleteItem(itemPath);
-                if (onFileDeleted) onFileDeleted(itemPath); // Notify EditorPage
-                else fetchTree(currentRelativePath); // Fallback refresh
+                if (onFileDeleted) onFileDeleted(itemPath);
+                else fetchTree(currentRelativePath);
             } catch (err) {
                 onError(`Failed to delete ${itemName}: ${err.message}`);
             } finally {
@@ -143,7 +104,7 @@ function FileTreePanel({
         try {
             const result = await apiRenameItem(renamingItemPath, newItemName.trim());
             if (onFileRenamed) onFileRenamed(renamingItemPath, result.new_path, newItemName.trim());
-            else fetchTree(currentRelativePath); // Fallback refresh
+            else fetchTree(currentRelativePath);
         } catch (err) {
             onError(`Failed to rename: ${err.message}`);
         } finally {
@@ -155,7 +116,7 @@ function FileTreePanel({
 
     const handleCreateStart = (type) => {
         setCreatingInPath({ path: currentRelativePath, type });
-        setNewItemName(''); // Clear for new item name
+        setNewItemName('');
     };
 
     const handleCreateConfirm = async (e) => {
@@ -168,8 +129,8 @@ function FileTreePanel({
         onError(null);
         try {
             await apiCreateItem(creatingInPath.path, newItemName.trim(), creatingInPath.type);
-            if (onFileCreated) onFileCreated(); // Notify EditorPage to refresh
-            else fetchTree(currentRelativePath); // Fallback refresh
+            if (onFileCreated) onFileCreated();
+            else fetchTree(currentRelativePath);
         } catch (err) {
             onError(`Failed to create ${creatingInPath.type}: ${err.message}`);
         } finally {
@@ -180,21 +141,20 @@ function FileTreePanel({
     };
 
 
-    if (loading && treeData.length === 0) return <p style={{padding: '10px'}}>Loading tree...</p>;
-    // Error is handled by EditorPage now via onError prop
+    if (loading && treeData.length === 0) return <p className="fileTreeMessage loading-text">Loading tree...</p>;
 
     return (
-        <div style={fileTreeContainerStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
-                <h4 style={{ margin: 0, fontSize: '1em' }}>Explorer</h4>
-                <div>
-                    <button onClick={() => handleCreateStart('file')} title="New File" style={{marginRight: '5px', ...buttonSmallStyle, padding: '3px 6px'}}>📄+</button>
-                    <button onClick={() => handleCreateStart('folder')} title="New Folder" style={{...buttonSmallStyle, padding: '3px 6px'}}>📁+</button>
+        <div className="fileTreeContainer">
+            <div className="fileTreeHeader">
+                <h4>Explorer</h4>
+                <div className="fileTreeHeaderActions">
+                    <button onClick={() => handleCreateStart('file')} title="New File">📄+</button>
+                    <button onClick={() => handleCreateStart('folder')} title="New Folder">📁+</button>
                 </div>
             </div>
 
             {creatingInPath && (
-                <div style={{ marginBottom: '10px', padding: '5px', border: '1px dashed #ccc' }}>
+                <div className="fileTreeFormContainer">
                     Creating {creatingInPath.type} in '{creatingInPath.path}'
                     <input
                         type="text"
@@ -203,31 +163,29 @@ function FileTreePanel({
                         placeholder={`${creatingInPath.type} name`}
                         onKeyDown={(e) => e.key === 'Enter' && handleCreateConfirm(e)}
                         autoFocus
-                        style={inputStyle}
+                        className="fileTreeInput"
                     />
-                    <button onClick={handleCreateConfirm} style={{...buttonSmallStyle, marginLeft: '5px'}}>Create</button>
-                    <button onClick={() => setCreatingInPath(null)} style={{...buttonSmallStyle, marginLeft: '5px'}}>Cancel</button>
+                    <div className="fileTreeFormActions">
+                        <button onClick={handleCreateConfirm}>Create</button>
+                        <button onClick={() => setCreatingInPath(null)}>Cancel</button>
+                    </div>
                 </div>
             )}
 
             {currentRelativePath !== '.' && (
                 <div
                     onClick={handleGoUp}
-                    style={{ ...treeItemStyle(false), color: '#007bff', cursor: 'pointer' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = treeItemHoverStyle.backgroundColor}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    className="fileTreeItem upLink"
                 >
                     ⬅️ .. (Up)
                 </div>
             )}
-            <ul style={{ listStyle: 'none', paddingLeft: 0, margin: 0 }}>
+            <ul className="fileTreeList">
                 {treeData.map(item => (
                     <li
                         key={item.path}
                         onClick={() => renamingItemPath !== item.path && handleItemClick(item)}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = treeItemHoverStyle.backgroundColor}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        style={treeItemStyle(item.is_character_dir)}
+                        className={`fileTreeItem ${item.is_character_dir ? 'characterDir' : ''}`}
                         title={item.path}
                     >
                         {renamingItemPath === item.path ? (
@@ -239,27 +197,29 @@ function FileTreePanel({
                                     onChange={(e) => setNewItemName(e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
                                     onKeyDown={(e) => e.key === 'Enter' && handleRenameConfirm(e)}
-                                    onBlur={() => { /* Consider auto-confirm or cancel on blur */ }}
+                                    onBlur={() => { }}
                                     autoFocus
-                                    style={inputStyle}
+                                    className="fileTreeInput"
                                 />
-                                <button onClick={handleRenameConfirm} style={{...buttonSmallStyle, marginLeft: '5px'}}>Save</button>
-                                <button onClick={(e) => {e.stopPropagation(); setRenamingItemPath(null);}} style={{...buttonSmallStyle, marginLeft: '5px'}}>Cancel</button>
+                                <div className="fileTreeFormActions">
+                                    <button onClick={handleRenameConfirm}>Save</button>
+                                    <button onClick={(e) => {e.stopPropagation(); setRenamingItemPath(null);}}>Cancel</button>
+                                </div>
                             </>
                         ) : (
                             <>
-                                {item.is_dir ? '📁' : '📄'} {item.name}
-                                <div style={{ marginLeft: 'auto', display: 'flex', gap: '5px' }}>
-                                     <button onClick={(e) => handleRenameStart(e, item.path, item.name)} title="Rename" style={buttonSmallStyle}>✏️</button>
-                                     <button onClick={(e) => handleDelete(e, item.path, item.name)} title="Delete" style={buttonSmallStyle}>🗑️</button>
+                                <span className="fileTreeItemName">{item.is_dir ? '📁' : '📄'} {item.name}</span>
+                                <div className="fileTreeItemActions">
+                                     <button onClick={(e) => handleRenameStart(e, item.path, item.name)} title="Rename">✏️</button>
+                                     <button onClick={(e) => handleDelete(e, item.path, item.name)} title="Delete">🗑️</button>
                                 </div>
                             </>
                         )}
                     </li>
                 ))}
             </ul>
-            {treeData.length === 0 && !loading && currentRelativePath === '.' && <p style={{fontSize: '0.9em', color: '#777', textAlign: 'center', marginTop: '20px'}}>Prompts directory is empty or not found.</p>}
-            {treeData.length === 0 && !loading && currentRelativePath !== '.' && <p style={{fontSize: '0.9em', color: '#777', textAlign: 'center', marginTop: '20px'}}>This folder is empty.</p>}
+            {treeData.length === 0 && !loading && currentRelativePath === '.' && <p className="fileTreeMessage">Prompts directory is empty or not found.</p>}
+            {treeData.length === 0 && !loading && currentRelativePath !== '.' && <p className="fileTreeMessage">This folder is empty.</p>}
         </div>
     );
 }

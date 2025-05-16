@@ -1,0 +1,81 @@
+/* frontend/src/styles/DslResultModal.css */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6); /* Darker overlay */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 15px; /* Allow some space on small screens */
+  box-sizing: border-box;
+}
+
+.modalContent {
+  background-color: #ffffff;
+  padding: 20px 25px; /* More padding */
+  border-radius: 6px;
+  width: 90%; /* Responsive width */
+  max-width: 750px; /* Max width */
+  max-height: 85vh; /* Max height */
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  color: #333;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e9ecef; /* Lighter border */
+  padding-bottom: 15px;
+  margin-bottom: 15px;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.25em;
+  font-weight: 500;
+  color: #212529;
+}
+
+.modalCloseButton {
+  background: none;
+  border: none;
+  font-size: 1.75rem; /* Larger close icon */
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  color: #6c757d;
+}
+.modalCloseButton:hover {
+  color: #343a40;
+}
+
+.modalBody {
+  flex: 1; /* Take available space */
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 13px;
+  background-color: #f8f9fa; /* Light background for content */
+  padding: 15px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.modalFooter {
+  border-top: 1px solid #e9ecef;
+  padding-top: 15px;
+  margin-top: 15px;
+  text-align: right;
+}
+
+.modalFooter button {
+  /* Uses global button styles */
+}

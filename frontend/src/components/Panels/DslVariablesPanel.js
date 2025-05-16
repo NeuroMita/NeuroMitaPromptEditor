@@ -1,38 +1,19 @@
-// frontend/src/components/Panels/DslVariablesPanel.js
+// File: frontend\src\components\Panels\DslVariablesPanel.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCharacterDefaultVariables } from '../../services/api';
+import '../../styles/DslVariablesPanel.css';
 
-const panelStyle = {
-    padding: '10px',
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-};
-
-const textareaStyle = {
-    flex: 1,
-    width: '100%',
-    boxSizing: 'border-box',
-    padding: '8px',
-    fontFamily: 'monospace',
-    fontSize: '13px',
-    border: '1px solid #ccc',
-    marginBottom: '10px',
-    backgroundColor: '#282c34', // Dark background
-    color: '#abb2bf',       // Light text color
-};
 
 function parseVariables(text) {
     const variables = {};
     if (!text) return variables;
     text.split('\n').forEach(line => {
         line = line.trim();
-        if (line && !line.startsWith('#') && !line.startsWith('//')) { // Ignore comments
+        if (line && !line.startsWith('#') && !line.startsWith('//')) {
             const parts = line.split('=');
             if (parts.length >= 2) {
                 const key = parts[0].trim();
                 let value = parts.slice(1).join('=').trim();
-                // Basic type conversion (more robust parsing might be needed)
                 if (value.toLowerCase() === 'true') {
                     value = true;
                 } else if (value.toLowerCase() === 'false') {
@@ -103,11 +84,13 @@ function DslVariablesPanel({ characterId, onVariablesChange }) {
     };
 
     return (
-        <div style={panelStyle}>
-            <h4>DSL Variables {characterId ? `for ${characterId}` : ''}</h4>
-            {isLoadingDefaults && <p>Loading default variables...</p>}
+        <div className="dslVariablesPanel">
+            <div className="panelHeader">
+                <h4>DSL Variables {characterId ? `for ${characterId}` : ''}</h4>
+            </div>
+            {isLoadingDefaults && <p className="loading-text">Loading default variables...</p>}
             <textarea
-                style={textareaStyle}
+                className="variablesTextarea"
                 value={text}
                 onChange={handleChange}
                 placeholder="varName=value
@@ -115,7 +98,7 @@ anotherVar=123
 isCool=true"
                 aria-label="DSL Variables Input"
             />
-            <button onClick={handleResetToDefaults} disabled={isLoadingDefaults || !characterId}>
+            <button onClick={handleResetToDefaults} disabled={isLoadingDefaults || !characterId} className="panelButton">
                 Reset to Defaults for {characterId || '...'}
             </button>
         </div>

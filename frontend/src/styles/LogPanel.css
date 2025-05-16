@@ -1,0 +1,72 @@
+/* frontend/src/styles/LogPanel.css */
+.logPanel {
+  padding: 0; /* Remove padding, header will have it */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e1e1e; /* Dark background for logs */
+  color: #d4d4d4;
+  font-size: 0.85em; /* Smaller base font for logs */
+}
+
+.logPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px; /* Padding for header */
+  border-bottom: 1px solid #333; /* Separator for header */
+  flex-shrink: 0;
+}
+
+.logPanelHeader h4 {
+  margin: 0;
+  font-size: 1em; /* Relative to panel's font-size */
+  font-weight: 500;
+  color: #ccc; /* Lighter header text on dark bg */
+}
+
+.logPanelHeader button {
+  background-color: #3a3a3a;
+  border-color: #555;
+  color: #ccc;
+  padding: 4px 8px;
+  font-size: 0.9em; /* Relative to panel's font-size */
+}
+.logPanelHeader button:hover {
+  background-color: #4a4a4a;
+  border-color: #666;
+}
+
+
+.logArea {
+  flex: 1; /* Take available space */
+  overflow-y: auto;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 12px; /* Fixed size for log messages */
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 10px; /* Padding inside the scrollable area */
+}
+
+.logEntry {
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+
+.logEntryTimestamp,
+.logEntryName,
+.logEntryLevel {
+  margin-right: 5px;
+  opacity: 0.8;
+}
+
+.logEntry.ERROR, .logEntry.CRITICAL { color: #f48771; }
+.logEntry.WARNING { color: #f8c271; }
+.logEntry.INFO { color: #71b0f8; }
+.logEntry.DEBUG { color: #9e9e9e; }
+
+.noLogsMessage {
+  color: #6c757d;
+  font-style: italic;
+  padding: 10px;
+}

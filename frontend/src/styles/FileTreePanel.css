@@ -1,0 +1,133 @@
+/* frontend/src/styles/FileTreePanel.css */
+.fileTreeContainer {
+  padding: 10px;
+  flex: 1; /* Take available space in its parent container */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Ensure scrolling within the panel */
+}
+
+.fileTreeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.fileTreeHeader h4 {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 500;
+}
+
+.fileTreeHeaderActions button {
+  background: none;
+  border: 1px solid #ccc;
+  padding: 4px 7px;
+  font-size: 0.9em;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.fileTreeHeaderActions button:hover {
+  background-color: #f0f0f0;
+}
+.fileTreeHeaderActions button + button {
+  margin-left: 5px;
+}
+
+
+.fileTreeList {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.fileTreeItem {
+  padding: 5px 8px; /* Increased padding for easier touch */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 0.9em;
+  border-bottom: 1px solid #f9f9f9; /* Very subtle separator */
+  transition: background-color 0.15s ease-in-out;
+}
+
+.fileTreeItem:hover {
+  background-color: #e9f5ff;
+}
+
+.fileTreeItem.characterDir {
+  font-weight: bold;
+  color: #0056b3; /* Distinct color for character folders */
+}
+
+.fileTreeItem.upLink {
+  color: #007bff;
+  font-style: italic;
+}
+
+.fileTreeItemName {
+  margin-left: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1; /* Allow name to take space before actions */
+}
+
+.fileTreeItemActions {
+  margin-left: auto; /* Push actions to the right */
+  display: flex;
+  gap: 5px;
+  visibility: hidden; /* Hide by default */
+}
+
+.fileTreeItem:hover .fileTreeItemActions {
+  visibility: visible; /* Show on hover */
+}
+
+.fileTreeItemActions button {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 0.9em; /* Make icons slightly larger */
+  cursor: pointer;
+  color: #555;
+}
+.fileTreeItemActions button:hover {
+  color: #000;
+}
+
+.fileTreeInput {
+  margin-left: 5px;
+  padding: 3px 5px;
+  font-size: 0.9em;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  flex-grow: 1;
+}
+
+.fileTreeFormActions button {
+  font-size: 0.8em;
+  padding: 3px 6px;
+  margin-left: 5px;
+}
+
+.fileTreeMessage {
+  font-size: 0.9em;
+  color: #777;
+  text-align: center;
+  margin-top: 20px;
+  padding: 10px;
+}
+
+/* Mobile specific adjustments for FileTree */
+@media (max-width: 768px) {
+  .fileTreeItem {
+    padding: 8px 10px; /* Larger touch targets */
+  }
+  .fileTreeItemActions {
+    visibility: visible; /* Always show actions on mobile as hover is unreliable */
+  }
+}

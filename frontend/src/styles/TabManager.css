@@ -91,13 +91,17 @@
     color: var(--error-color);
 }
 
+/* растягиваем содержимое таба на всю высоту/ширину */
 .tabContent {
-    flex-grow: 1;
-    position: relative; /* For EditorArea to fill */
-    display: flex; /* Ensure EditorArea can flex grow */
-    background-color: var(--bg-editor); /* Same as active tab for seamless look */
+  flex: 1 1 auto;       /* берём всё свободное место */
+  display: flex;
+  min-height: 0;        /* важно для корректного flex-scroll */
 }
 
+.tabContent > * {
+  flex: 1 1 100%;
+  min-width: 0;         /* позволяет дочерним flex-элементам с overflow */
+}
 .noFilesOpenMessage {
     padding: 20px;
     text-align: center;

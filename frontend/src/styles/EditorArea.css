@@ -1,48 +1,81 @@
-/* frontend/src/styles/EditorArea.css */
-.editorContainer {
-    position: relative; /* Crucial for absolute positioning of textarea and overlay */
-    flex-grow: 1;
-    background-color: var(--bg-editor); /* Fallback, overlay should cover */
-    border: 1px solid var(--border-color);
-    border-top: none; /* TabManager handles top border */
+/* ───────── базовые переменные ───────── */
+:root {
+  --ea-gutter-width: 50px;
+  --ea-hpad: 15px;              /* привычный горизонтальный отступ текста */
 }
 
-/* These classes are now less used due to direct style application,
-   but can be kept for potential future shared properties or overrides. */
-.editorTextarea { /* Base shared by input and highlight */
-    margin: 0;
-    padding: 15px; /* Consistent padding */
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-    font-size: 14px;
-    line-height: 1.6; /* Crucial for alignment */
-    tab-size: 4;
-    -moz-tab-size: 4;
-    -o-tab-size: 4;
-    -webkit-tab-size: 4;
-    white-space: pre;
-    overflow: auto; /* Important */
-    box-sizing: border-box;
-    width: 100%;
-    height: 100%;
-    border: none;
-    outline: none;
-    resize: none;
+/* ───────── контейнер редактора ───────── */
+.editorContainer{
+  position:relative;
+  width:100%;
+  height:100%;
+  overflow:hidden;
 }
 
-.actualEditorInput {
-    /* Styles are mostly inline in EditorArea.js */
+/* ───────── gutter (первый <pre>) ───────── */
+.editorContainer pre[aria-hidden='true']:first-child {
+  position: absolute;
+  inset: 0 auto 0 0;            /* top:0; left:0; height:100% */
+  width: var(--ea-gutter-width);
+  padding: var(--ea-hpad) 6px 0 0; /* верх + правый mini-gap */
+  margin: 0;
+  box-sizing: border-box;
+  text-align: right;
+  background: var(--bg-editor);
+  color: var(--sh-linenumber, #606060);
+  user-select: none;
+  pointer-events: none;
+  overflow: hidden;             /* gutter не скроллится сам */
+  transform: translateY(0);     /* значение задаёт JS */
+  z-index: 0;                   /* ← самый нижний слой */
 }
 
-.editorTextareaHighlightOverlay {
-    /* Styles are mostly inline in EditorArea.js */
-    /* Ensure text selection is not visible for the overlay */
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
+/* ───────── overlay подсветки (второй <pre>) ───────── */
+.editorContainer pre[aria-hidden='true']:not(:first-child) {
+  position: absolute;
+  inset: 0 0 0 var(--ea-gutter-width);      /* примыкаем к textarea */
+  width: calc(100% - var(--ea-gutter-width));
+  height: 100%;
+  margin: 0;
+  padding: 0;                   /* убрали горизонтальный padding */
+  box-sizing: border-box;
+  background: var(--bg-editor);
+  color: var(--sh-default);
+  pointer-events: none;
+  overflow: hidden;             /* собственных скроллбаров нет */
+  transform: translateY(0);     /* синхронизируется JS-ом */
+  white-space: pre;
+  z-index: 1;                   /* ← средний слой */
+  pointer-events: none;         /* не перехватывает клики/колёсико */
 }
 
-.editorTextareaHighlightOverlay code {
-    /* Styles for code tag itself if needed, mostly inherited from pre */
-    display: block; /* Ensures it takes full width/height of pre */
+/* внутренний code — добавляем левый/правый отступ */
+.editorContainer pre[aria-hidden='true']:not(:first-child) code {
+  display: block;
+  padding: 0 var(--ea-hpad);
+  white-space: pre;
+}
+
+/* ───────── textarea ───────── */
+.editorContainer textarea {
+  position: absolute;
+  inset: 0 0 0 var(--ea-gutter-width);      /* ровно над overlay */
+  width: calc(100% - var(--ea-gutter-width));
+  height: 100%;
+  padding: 0 var(--ea-hpad);
+  margin: 0;
+  box-sizing: border-box;
+
+  font: inherit;
+  line-height: inherit;
+  tab-size: inherit;
+  background: transparent;
+  color: transparent;           /* текст рисует overlay */
+  caret-color: var(--text-primary);
+  border: none;
+  resize: none;
+  outline: none;
+  overflow: auto;               /* единственный скроллбар */
+  white-space: pre;
+  z-index: 2;                   /* ← верхний, получает все события */
 }

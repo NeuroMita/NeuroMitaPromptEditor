@@ -1,93 +1,167 @@
 /* frontend/src/styles/App.css */
+:root {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #333333;
+  --bg-editor: #282c34; /* Specific for editor, matches existing */
+  --text-primary: #d4d4d4;
+  --text-secondary: #a0a0a0;
+  --text-on-accent: #ffffff;
+  --accent-primary: #007acc;
+  --accent-secondary: #005c99;
+  --border-color: #3c3c3c;
+  --border-color-light: #555555;
+  --error-color: #f44747;
+  --error-bg: #5d2323;
+  --success-color: #4caf50;
+  --warning-color: #ffac33;
+  --modified-color: #e5c07b; /* For modified tabs */
+  --scrollbar-thumb-bg: #555;
+  --scrollbar-track-bg: #333;
+  --input-bg: #313131;
+  --input-border: var(--border-color);
+  --input-focus-border: var(--accent-primary);
+  --button-bg: var(--accent-primary);
+  --button-hover-bg: var(--accent-secondary);
+  --button-disabled-bg: #4a4a4a;
+  --button-disabled-text: #777777;
+  --link-color: var(--accent-primary);
+  --link-hover-color: var(--accent-secondary);
+
+  /* Syntax highlighting (already dark-theme friendly, just listing for completeness) */
+  --sh-default: #ABB2BF;
+  --sh-keyword: #C678DD;
+  --sh-placeholder-link: #98C379;
+  --sh-comment: #5C6370;
+  --sh-string: #98C379;
+  --sh-number: #D19A66;
+  --sh-specialtag: #E5C07B;
+  --sh-loadcommand: #569CD6;
+  --sh-sectionmarker: #C586C0;
+  --sh-insert: #FFAC33;
+  --sh-triplestring: #FFA500;
+  --sh-info: #61AFEF; /* Added for INFO logs */
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f4f7f6; /* Lighter overall background */
-  color: #333;
-  font-size: 16px; /* Base font size */
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
 }
 
 .App {
   text-align: left;
-  height: 100vh;
-  display: flex; /* Prepare for App to fill height */
+  display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow: hidden; /* Prevent body scroll with fixed header/panels */
 }
 
-/* Utility classes */
-.loading-text {
-  padding: 20px;
-  text-align: center;
-  font-style: italic;
-  color: #555;
-}
-
-.error-text {
-  padding: 20px;
-  color: #d9534f; /* Bootstrap danger color */
-  background-color: #f2dede;
-  border: 1px solid #ebccd1;
-  border-radius: 4px;
-}
-
+/* General UI Elements */
 button {
-  padding: 8px 15px;
-  border: 1px solid #007bff;
-  background-color: #007bff;
-  color: white;
+  background-color: var(--button-bg);
+  color: var(--text-on-accent);
+  border: 1px solid var(--button-bg);
+  padding: 6px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease;
+  font-size: 13px;
 }
 
 button:hover:not(:disabled) {
-  background-color: #0056b3;
-  border-color: #0056b3;
+  background-color: var(--button-hover-bg);
 }
 
 button:disabled {
-  background-color: #6c757d;
-  border-color: #6c757d;
+  background-color: var(--button-disabled-bg);
+  color: var(--button-disabled-text);
   cursor: not-allowed;
-  opacity: 0.7;
+  border-color: var(--button-disabled-bg);
 }
 
 input[type="text"],
-textarea {
+textarea,
+select { /* Added select here */
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
   padding: 8px;
-  border: 1px solid #ced4da;
   border-radius: 4px;
-  font-size: 0.9rem;
   box-sizing: border-box;
 }
 
 input[type="text"]:focus,
-textarea:focus {
+textarea:focus,
+select:focus { /* Added select here */
   outline: none;
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
 }
 
-/* Basic Scrollbar Styling (Optional, Webkit specific) */
+/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
+  background: var(--scrollbar-track-bg);
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 10px;
+  background: var(--scrollbar-thumb-bg);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #777;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+.loading-text {
+  color: var(--text-secondary);
+  padding: 20px;
+  text-align: center;
+}
+
+.error-text {
+  color: var(--error-color);
+  background-color: var(--error-bg);
+  padding: 15px;
+  border: 1px solid var(--error-color);
+  border-radius: 4px;
+  margin: 10px;
+}
+
+/* Utility classes for common panel styling */
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  min-height: 30px; /* Ensure consistent header height */
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.panelHeader h4 {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.panelButton {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.panelMessage {
+  padding: 10px;
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
 }

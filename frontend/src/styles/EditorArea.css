@@ -1,41 +1,48 @@
 /* frontend/src/styles/EditorArea.css */
 .editorContainer {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  position: relative; /* For potential future additions like a status bar */
+    position: relative; /* Crucial for absolute positioning of textarea and overlay */
+    flex-grow: 1;
+    background-color: var(--bg-editor); /* Fallback, overlay should cover */
+    border: 1px solid var(--border-color);
+    border-top: none; /* TabManager handles top border */
 }
 
-.editorTextarea {
-  width: 100%;
-  height: 100%; /* Take full height of its container */
-  box-sizing: border-box;
-  border: none; /* Remove default textarea border */
-  padding: 15px; /* More padding */
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  font-size: 14px; /* Common coding font size */
-  line-height: 1.6; /* Better readability */
-  background-color: #282c34; /* Dark theme background */
-  color: #abb2bf;       /* Light text color for dark theme */
-  resize: none; /* Disable user resizing */
-  outline: none; /* Remove focus outline */
-  tab-size: 4; /* Standard tab size */
-  -moz-tab-size: 4;
-  -o-tab-size: 4;
-  white-space: pre; /* Preserve whitespace, crucial for code */
-  overflow: auto; /* Enable scrolling */
+/* These classes are now less used due to direct style application,
+   but can be kept for potential future shared properties or overrides. */
+.editorTextarea { /* Base shared by input and highlight */
+    margin: 0;
+    padding: 15px; /* Consistent padding */
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 14px;
+    line-height: 1.6; /* Crucial for alignment */
+    tab-size: 4;
+    -moz-tab-size: 4;
+    -o-tab-size: 4;
+    -webkit-tab-size: 4;
+    white-space: pre;
+    overflow: auto; /* Important */
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    resize: none;
 }
 
-.editorTextarea::placeholder {
-  color: #5c6370; /* Placeholder color for dark theme */
+.actualEditorInput {
+    /* Styles are mostly inline in EditorArea.js */
 }
 
-/* Optional: Style for save button if you add one per editor */
-.editorSaveButton {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  z-index: 10;
-  /* Add button styling from App.css or specific here */
+.editorTextareaHighlightOverlay {
+    /* Styles are mostly inline in EditorArea.js */
+    /* Ensure text selection is not visible for the overlay */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.editorTextareaHighlightOverlay code {
+    /* Styles for code tag itself if needed, mostly inherited from pre */
+    display: block; /* Ensures it takes full width/height of pre */
 }

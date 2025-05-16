@@ -1,6 +1,7 @@
 // File: frontend\src\pages\EditorPage.js
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAppContext } from '../contexts/AppContext';
+import { useSwipeable } from 'react-swipeable';
 
 import FileTreePanel from '../components/FileTree/FileTreePanel';
 import TabManager from '../components/Editor/TabManager';
@@ -15,6 +16,7 @@ import {
 } from '../services/api';
 import '../styles/EditorPage.css';
 
+const MOBILE_PANELS = ['explorer', 'editor', 'variables', 'logs'];
 
 function EditorPage() {
     const { promptsRoot, selectedCharacterId, setSelectedCharacterId, isLoading: appContextLoading, error: appContextError } = useAppContext();
@@ -31,12 +33,39 @@ function EditorPage() {
     const [isPageLoading, setIsPageLoading] = useState(false);
     const [pageError, setPageError] = useState(null);
 
-    // State for mobile panel visibility: 'explorer', 'editor', 'variables', 'logs'
-    const [activeMobilePanel, setActiveMobilePanel] = useState('editor');
+    const [activeMobilePanelIndex, setActiveMobilePanelIndex] = useState(1); // 'editor' by default
+    const activeMobilePanel = useMemo(() => MOBILE_PANELS[activeMobilePanelIndex], [activeMobilePanelIndex]);
 
-    const handleMobilePanelToggle = (panel) => {
-        setActiveMobilePanel(panel);
+    const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobileView(window.innerWidth <= 768);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+
+    const handleMobilePanelChange = (index) => {
+        setActiveMobilePanelIndex(index);
     };
+
+    const swipeHandlers = useSwipeable({
+        onSwipedLeft: () => {
+            if (isMobileView) {
+                setActiveMobilePanelIndex(prev => Math.min(prev + 1, MOBILE_PANELS.length - 1));
+            }
+        },
+        onSwipedRight: () => {
+            if (isMobileView) {
+                setActiveMobilePanelIndex(prev => Math.max(prev - 1, 0));
+            }
+        },
+        preventScrollOnSwipe: true,
+        trackMouse: false // Can enable for desktop testing of swipes
+    });
+
 
     const handleOpenFile = useCallback(async (fileNode) => {
         if (fileNode.is_dir) {
@@ -46,7 +75,7 @@ function EditorPage() {
         const existingFile = openFiles.find(f => f.path === fileNode.path);
         if (existingFile) {
             setActiveFilePath(fileNode.path);
-            if (window.innerWidth <= 768) setActiveMobilePanel('editor'); // Switch to editor on mobile after file select
+            if (isMobileView) setActiveMobilePanelIndex(MOBILE_PANELS.indexOf('editor'));
             return;
         }
 
@@ -65,7 +94,7 @@ function EditorPage() {
                 }
             ]);
             setActiveFilePath(fileData.path);
-            if (window.innerWidth <= 768) setActiveMobilePanel('editor'); // Switch to editor on mobile after file open
+            if (isMobileView) setActiveMobilePanelIndex(MOBILE_PANELS.indexOf('editor'));
         } catch (err) {
             console.error("Error opening file:", err);
             setPageError(`Failed to open ${fileNode.name}: ${err.message}`);
@@ -73,7 +102,7 @@ function EditorPage() {
         } finally {
             setIsPageLoading(false);
         }
-    }, [openFiles]);
+    }, [openFiles, isMobileView]);
 
     const handleFileContentChange = useCallback((filePath, newContent) => {
         setOpenFiles(prevFiles =>
@@ -260,10 +289,109 @@ function EditorPage() {
     const canSaveCurrent = activeFileObject && activeFileObject.isModified;
     const canSaveAll = openFiles.some(f => f.isModified);
 
+    const renderDesktopLayout = () => (
+        <>
+            <div className="mainContent">
+                <div className="leftPanelContainer">
+                    <FileTreePanel
+                        key={fileTreeKey}
+                        onFileSelect={handleOpenFile}
+                        onCharacterSelect={setSelectedCharacterId}
+                        promptsRoot={promptsRoot}
+                        onFileRenamed={handleFileRenamedInTree}
+                        onFileDeleted={handleFileDeletedInTree}
+                        onFileCreated={refreshFileTree}
+                        onError={setPageError}
+                    />
+                </div>
+                <div className="centerPanelContainer">
+                    <TabManager
+                        openFiles={openFiles}
+                        activeFilePath={activeFilePath}
+                        setActiveFilePath={setActiveFilePath}
+                        onFileContentChange={handleFileContentChange}
+                        onCloseTab={handleCloseTab}
+                        onSaveTab={handleSaveFile}
+                    />
+                </div>
+                <div className="rightPanelContainer">
+                    <DslVariablesPanel
+                        characterId={selectedCharacterId}
+                        onVariablesChange={setDslVariables}
+                    />
+                </div>
+            </div>
+            <div className="bottomPanelContainer">
+                <LogPanel logs={logs} onClearLogs={handleClearLogs} />
+            </div>
+        </>
+    );
+
+    const renderMobileLayout = () => (
+        <>
+            <div {...swipeHandlers} className="swipeViewContainer">
+                {MOBILE_PANELS.map((panelId, index) => (
+                    <div
+                        key={panelId}
+                        className="swipePage"
+                        style={{
+                            transform: `translateX(${(index - activeMobilePanelIndex) * 100}%)`,
+                            // visibility: index === activeMobilePanelIndex ? 'visible' : 'hidden' // Optimization
+                        }}
+                    >
+                        {panelId === 'explorer' && (
+                            <FileTreePanel
+                                key={fileTreeKey} // Ensure re-render on key change
+                                onFileSelect={handleOpenFile}
+                                onCharacterSelect={setSelectedCharacterId}
+                                promptsRoot={promptsRoot}
+                                onFileRenamed={handleFileRenamedInTree}
+                                onFileDeleted={handleFileDeletedInTree}
+                                onFileCreated={refreshFileTree}
+                                onError={setPageError}
+                            />
+                        )}
+                        {panelId === 'editor' && (
+                            <TabManager
+                                openFiles={openFiles}
+                                activeFilePath={activeFilePath}
+                                setActiveFilePath={setActiveFilePath}
+                                onFileContentChange={handleFileContentChange}
+                                onCloseTab={handleCloseTab}
+                                onSaveTab={handleSaveFile}
+                            />
+                        )}
+                        {panelId === 'variables' && (
+                            <DslVariablesPanel
+                                characterId={selectedCharacterId}
+                                onVariablesChange={setDslVariables}
+                            />
+                        )}
+                        {panelId === 'logs' && (
+                            <LogPanel logs={logs} onClearLogs={handleClearLogs} />
+                        )}
+                    </div>
+                ))}
+            </div>
+            <div className="mobileToggleBar">
+                {MOBILE_PANELS.map((panel, index) => (
+                    <button
+                        key={panel}
+                        onClick={() => handleMobilePanelChange(index)}
+                        className={activeMobilePanelIndex === index ? 'active' : ''}
+                        aria-label={`Switch to ${panel} view`}
+                    >
+                        {panel.charAt(0).toUpperCase() + panel.slice(1)}
+                    </button>
+                ))}
+            </div>
+        </>
+    );
+
     return (
         <div className="editorPage">
             <header className="header">
-                <h1 className="headerTitle">Prompt Editor (Web)</h1>
+                <h1 className="headerTitle">Prompt Editor</h1>
                 <div className="headerActions">
                     {isPageLoading && <span className="pageStatus loading">Loading...</span>}
                     {pageError && <span className="pageStatus error">Error: {pageError}</span>}
@@ -285,72 +413,12 @@ function EditorPage() {
                         onClick={handleRunDsl}
                         disabled={!selectedCharacterId || isPageLoading}
                     >
-                        Generate for {selectedCharacterId || "..."}
+                        Generate{selectedCharacterId ? ` for ${selectedCharacterId}` : "..."}
                     </button>
                 </div>
             </header>
 
-            <div className="mobileToggleBar">
-                <button
-                    onClick={() => handleMobilePanelToggle('explorer')}
-                    className={activeMobilePanel === 'explorer' ? 'active' : ''}
-                >
-                    Explorer
-                </button>
-                <button
-                    onClick={() => handleMobilePanelToggle('editor')}
-                    className={activeMobilePanel === 'editor' ? 'active' : ''}
-                >
-                    Editor
-                </button>
-                <button
-                    onClick={() => handleMobilePanelToggle('variables')}
-                    className={activeMobilePanel === 'variables' ? 'active' : ''}
-                >
-                    Variables
-                </button>
-                <button
-                    onClick={() => handleMobilePanelToggle('logs')}
-                    className={activeMobilePanel === 'logs' ? 'active' : ''}
-                >
-                    Logs
-                </button>
-            </div>
-
-            <div className="mainContent">
-                <div className={`leftPanelContainer ${activeMobilePanel !== 'explorer' ? 'mobileHidden' : 'mobileVisible'}`}>
-                    <FileTreePanel
-                        key={fileTreeKey}
-                        onFileSelect={handleOpenFile}
-                        onCharacterSelect={setSelectedCharacterId}
-                        promptsRoot={promptsRoot}
-                        onFileRenamed={handleFileRenamedInTree}
-                        onFileDeleted={handleFileDeletedInTree}
-                        onFileCreated={refreshFileTree}
-                        onError={setPageError}
-                    />
-                </div>
-                <div className={`centerPanelContainer ${activeMobilePanel !== 'editor' ? 'mobileHidden' : 'mobileVisible'}`}>
-                    <TabManager
-                        openFiles={openFiles}
-                        activeFilePath={activeFilePath}
-                        setActiveFilePath={setActiveFilePath}
-                        onFileContentChange={handleFileContentChange}
-                        onCloseTab={handleCloseTab}
-                        onSaveTab={handleSaveFile}
-                    />
-                </div>
-                <div className={`rightPanelContainer ${activeMobilePanel !== 'variables' ? 'mobileHidden' : 'mobileVisible'}`}>
-                    <DslVariablesPanel
-                        characterId={selectedCharacterId}
-                        onVariablesChange={setDslVariables}
-                    />
-                </div>
-            </div>
-
-            <div className={`bottomPanelContainer ${activeMobilePanel !== 'logs' ? 'mobileHidden' : 'mobileVisible'}`}>
-                <LogPanel logs={logs} onClearLogs={handleClearLogs} />
-            </div>
+            {isMobileView ? renderMobileLayout() : renderDesktopLayout()}
 
             {dslResult.show && (
                 <DslResultModal

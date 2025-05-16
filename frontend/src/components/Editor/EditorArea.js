@@ -9,10 +9,8 @@ function EditorArea({ filePath, initialContent, onContentChange }) {
     const textareaRef = useRef(null);
     const highlightOverlayRef = useRef(null);
 
-    // Update internal state if initialContent or filePath changes (e.g., switching tabs)
     useEffect(() => {
         setCurrentContent(initialContent || '');
-        // Reset scroll positions when content/file changes
         if (textareaRef.current) textareaRef.current.scrollTop = 0;
         if (highlightOverlayRef.current) highlightOverlayRef.current.scrollTop = 0;
     }, [initialContent, filePath]);
@@ -27,48 +25,43 @@ function EditorArea({ filePath, initialContent, onContentChange }) {
         const newContent = event.target.value;
         setCurrentContent(newContent);
         if (onContentChange) {
-            onContentChange(newContent); // Propagate change to parent (TabManager)
+            onContentChange(newContent);
         }
     };
 
     const handleScroll = (event) => {
-        // Sync scroll position from textarea to overlay
         if (highlightOverlayRef.current) {
             highlightOverlayRef.current.scrollTop = event.target.scrollTop;
             highlightOverlayRef.current.scrollLeft = event.target.scrollLeft;
         }
     };
 
-    // Ensure consistent font, padding, etc. between textarea and overlay
-    // These styles are crucial for alignment.
     const sharedEditorStyles = {
         margin: 0,
-        padding: '15px', // Must match editorTextarea padding in EditorArea.css
+        padding: '15px',
         fontFamily: "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace",
-        fontSize: '14px', // Must match editorTextarea font-size
-        lineHeight: '1.6', // Must match editorTextarea line-height
+        fontSize: '14px',
+        lineHeight: '1.6',
         tabSize: 4,
         WebkitTabSize: 4,
         MozTabSize: 4,
         OTabSize: 4,
         whiteSpace: 'pre',
-        overflow: 'auto', // Important for the overlay's pre/code
+        overflow: 'auto',
         boxSizing: 'border-box',
     };
 
-    const handleLinkClick = (linkData) => {
-        if (linkData) {
-            alert(`Link clicked: ${linkData}. Navigation not implemented in this example.`);
-            // Potentially call a prop to handle opening the link
-        }
-    };
-
+    // const handleLinkClick = (linkData) => {
+    //     if (linkData) {
+    //         alert(`Link clicked: ${linkData}. Navigation not implemented in this example.`);
+    //     }
+    // };
 
     return (
-        <div className="editorContainer"> {/* This container is already flex: 1, display: flex etc. */}
+        <div className="editorContainer">
             <textarea
                 ref={textareaRef}
-                className="editorTextarea actualEditorInput" // Added new class for specific styling
+                className="editorTextarea actualEditorInput"
                 value={currentContent}
                 onChange={handleChange}
                 onScroll={handleScroll}
@@ -81,11 +74,10 @@ function EditorArea({ filePath, initialContent, onContentChange }) {
                     left: 0,
                     width: '100%',
                     height: '100%',
-                    zIndex: 1, // Textarea is "behind" for typing
-                    color: 'transparent', // Make actual text invisible
-                    // caretColor: '#abb2bf', // Or your desired caret color for dark theme
-                    caretColor: 'white', // Make caret visible against dark background
-                    backgroundColor: 'transparent', // Ensure it doesn't hide the overlay below
+                    zIndex: 1,
+                    color: 'transparent',
+                    caretColor: 'var(--text-primary)', // Use CSS variable
+                    backgroundColor: 'transparent',
                     resize: 'none',
                     border: 'none',
                     outline: 'none',
@@ -93,8 +85,8 @@ function EditorArea({ filePath, initialContent, onContentChange }) {
             />
             <pre
                 ref={highlightOverlayRef}
-                className="editorTextareaHighlightOverlay" // New class for specific styling
-                aria-hidden="true" // Hide from screen readers as it's decorative
+                className="editorTextareaHighlightOverlay"
+                aria-hidden="true"
                 style={{
                     ...sharedEditorStyles,
                     position: 'absolute',
@@ -102,11 +94,10 @@ function EditorArea({ filePath, initialContent, onContentChange }) {
                     left: 0,
                     width: '100%',
                     height: '100%',
-                    zIndex: 0, // Overlay is "behind" the transparent textarea input layer
-                    pointerEvents: 'none', // Allows clicks to pass through to textarea if needed, but links won't work
-                                          // If links need to be clickable, zIndex of textarea should be 0, overlay 1, and pointerEvents on overlay 'auto'
-                    backgroundColor: '#282c34', // Actual background color from EditorArea.css for editorTextarea
-                    color: '#abb2bf',       // Default text color from EditorArea.css for editorTextarea
+                    zIndex: 0,
+                    pointerEvents: 'none',
+                    backgroundColor: 'var(--bg-editor)', // Use CSS variable
+                    color: 'var(--sh-default)', // Use CSS variable
                 }}
             >
                 <code>
@@ -116,19 +107,13 @@ function EditorArea({ filePath, initialContent, onContentChange }) {
                                 <span
                                     key={tokenIndex}
                                     className={token.className}
-                                    // onClick handling for links needs careful z-index and pointerEvents management
-                                    // If overlay is on top with pointerEvents: 'auto', this would work:
-                                    // onClick={token.isLink ? () => handleLinkClick(token.linkData) : undefined}
-                                    // style={token.isLink ? { pointerEvents: 'auto', cursor: 'pointer'} : {}}
                                 >
                                     {token.text}
                                 </span>
                             ))}
-                            {/* Add newline character for rendering, except for the last line */}
                             {lineIndex < highlightedLines.length - 1 ? '\n' : ''}
                         </React.Fragment>
                     ))}
-                    {/* If content is empty, ensure overlay doesn't collapse and matches textarea height for one line */}
                     {currentContent.length === 0 && '\n'}
                 </code>
             </pre>

@@ -1,20 +1,22 @@
 /* frontend/src/syntax/syntaxHighlighter.css */
-.sh-default { color: #ABB2BF; }
-.sh-keyword { color: #C678DD; font-weight: bold; }
-.sh-placeholder-link { color: #98C379; text-decoration: underline; cursor: pointer; }
-.sh-comment { color: #5C6370; font-style: italic; }
-.sh-string { color: #98C379; }
-.sh-number { color: #D19A66; }
-.sh-specialtag { color: #E5C07B; }
-.sh-loadcommand { color: #569CD6; font-weight: bold; }
-.sh-sectionmarker { color: #C586C0; font-weight: bold; }
-.sh-insert { color: #FFAC33; font-weight: bold; }
-.sh-triplestring { color: #FFA500; }
+.sh-default { color: var(--sh-default); }
+.sh-keyword { color: var(--sh-keyword); font-weight: bold; }
+.sh-placeholder-link { color: var(--sh-placeholder-link); text-decoration: underline; cursor: pointer; }
+.sh-comment { color: var(--sh-comment); font-style: italic; }
+.sh-string { color: var(--sh-string); }
+.sh-number { color: var(--sh-number); }
+.sh-specialtag { color: var(--sh-specialtag); }
+.sh-loadcommand { color: var(--sh-loadcommand); font-weight: bold; }
+.sh-sectionmarker { color: var(--sh-sectionmarker); font-weight: bold; }
+.sh-insert { color: var(--sh-insert); font-weight: bold; }
+.sh-triplestring { color: var(--sh-triplestring); }
 
 /* Ensure pre/code in EditorArea uses these styles */
-.editorTextarea code {
+.editorTextareaHighlightOverlay code { /* More specific selector if needed */
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
   font-size: 14px;
   line-height: 1.6;
   white-space: pre; /* Important for preserving whitespace */
+  color: var(--sh-default); /* Default text color for code block */
+  background-color: var(--bg-editor); /* Background for the code block itself */
 }

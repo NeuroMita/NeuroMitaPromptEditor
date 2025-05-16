@@ -1,59 +1,42 @@
 /* frontend/src/styles/DslVariablesPanel.css */
 .dslVariablesPanel {
-  display: flex;
-  flex-direction: column;
-  height: 100%; /* Fill the container */
-  padding: 10px;
-  box-sizing: border-box;
-  background-color: #f8f9fa; /* Light background consistent with other panels */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--bg-secondary);
+    padding: 0; /* Panel header will have padding */
+    border-left: 1px solid var(--border-color);
 }
 
-.dslVariablesPanel .panelHeader {
-  margin-bottom: 10px;
-  flex-shrink: 0; /* Prevent header from shrinking */
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e0e0e0;
+/* PanelHeader class from App.css is used */
+
+.variablesTextarea {
+    flex-grow: 1;
+    width: calc(100% - 24px); /* Account for panel padding */
+    margin: 12px; /* Padding around textarea */
+    padding: 10px;
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+    resize: none; /* Or vertical if preferred */
 }
 
-.dslVariablesPanel .panelHeader h4 {
-  margin: 0;
-  font-size: 1em;
-  font-weight: 500;
-  color: #343a40; /* Darker text for better contrast on light bg */
+.variablesTextarea:focus {
+    outline: none;
+    border-color: var(--input-focus-border);
+}
+
+.dslVariablesPanel .panelButton { /* Scoped to this panel */
+    margin: 0 12px 12px 12px; /* Margin for the button */
+    width: calc(100% - 24px);
 }
 
 .dslVariablesPanel .loading-text {
-  font-size: 0.9em;
-  color: #555;
-  margin-bottom: 10px;
-  flex-shrink: 0;
-  text-align: center;
-}
-
-.dslVariablesPanel .variablesTextarea {
-  flex-grow: 1; /* Allow textarea to take remaining vertical space */
-  width: 100%;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  padding: 10px;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  resize: none; 
-  margin-bottom: 10px; /* Space before the button */
-  box-sizing: border-box;
-}
-
-.dslVariablesPanel .variablesTextarea:focus {
-  outline: none;
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-.dslVariablesPanel .panelButton {
-  width: 100%; /* Make button full width */
-  padding: 10px 15px;
-  font-size: 0.9em;
-  flex-shrink: 0; /* Prevent button from shrinking or stretching undesirably */
-  /* Uses global button styles from App.css */
+    padding: 10px 12px;
+    color: var(--text-secondary);
+    font-style: italic;
 }

@@ -19,13 +19,16 @@ import '../../styles/EditorArea.css';
 
 const TAB_CHAR = '\t';
 const lineWrappingCompartment = new Compartment();
+const placeholderLinkRegex = /(\[<)([^\]>]+?\.(?:script|txt))(>\])/; // Regex for placeholder links
 
 function EditorArea({
   filePath,
   initialContent,
   onContentChange,
   lineWrapping,
-  onSave                    // ← callback из TabManager
+  onSave,
+  isMobileView,         // New prop
+  onOpenPathByString    // New prop
 }) {
   const editorRef = useRef(null);
   const viewRef   = useRef(null);
@@ -42,7 +45,7 @@ function EditorArea({
 
     const { state } = view;
     const head      = state.selection.main.head;
-    const prevLine  = state.doc.lineAt(Math.max(0, head - 1));
+    const prevLine  = state.doc.lineAt(Math.max(0, head - 1)); // head can be 0
     const prevTextU = prevLine.text.trimEnd().toUpperCase();
     const needTab   = !isTxtFile &&
                       (prevTextU.endsWith('THEN') || prevTextU === 'ELSE');
@@ -58,14 +61,13 @@ function EditorArea({
   }, [isTxtFile]);
 
   /* ---------- Ctrl/Cmd + S ---------- */
-  const onSaveRef = useRef(onSave);               // хранит актуальную функцию
+  const onSaveRef = useRef(onSave);
   useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
 
   const saveCommand = useCallback(() => {
-    onSaveRef.current?.();                        // вызываем самую свежую
-    return true;                                  // предотвращаем действие браузера
+    onSaveRef.current?.();
+    return true;
   }, []);
-  /* --------------------------------- */
 
   /* ---------- инициализация EditorView ---------- */
   useEffect(() => {
@@ -90,7 +92,7 @@ function EditorArea({
       dslSyntaxHighlighting,
       dslEditorTheme,
       keymap.of([
-        { key: 'Mod-s', run: saveCommand },       // ← сохраняем
+        { key: 'Mod-s', run: saveCommand },
         { key: 'Enter', run: indentEnterCommand },
         { key: 'Tab',   run: indentMore,  shift: indentLess },
         { key: 'Mod-/', run: cmToggleComment },
@@ -101,6 +103,25 @@ function EditorArea({
       EditorView.updateListener.of((update) => {
         if (update.docChanged && viewRef.current) {
           onContentChange?.(update.state.doc.toString());
+        }
+      }),
+      EditorView.domEventHandlers({
+        mousedown: (event, view) => {
+          if (event.ctrlKey && !isMobileView) {
+            const target = event.target;
+            // The class 'sh-placeholder-link' is defined in syntaxStyles.js and applied via dslSyntax.js
+            if (target && target.classList.contains('sh-placeholder-link')) {
+              const linkText = target.innerText;
+              const match = linkText.match(placeholderLinkRegex);
+              if (match && match[2]) {
+                const filePathToOpen = match[2];
+                event.preventDefault(); // Prevent any default browser action (e.g., text selection)
+                onOpenPathByString?.(filePathToOpen);
+                return true; // Indicate that the event was handled
+              }
+            }
+          }
+          return false; // Event not handled by this specific logic
         }
       }),
       EditorView.theme({
@@ -114,7 +135,7 @@ function EditorArea({
       extensions,
     });
 
-    viewRef.current?.destroy();                   // уничтожаем старый, если был
+    viewRef.current?.destroy();
 
     const view = new EditorView({
       state: startState,
@@ -127,9 +148,17 @@ function EditorArea({
       viewRef.current?.destroy();
       viewRef.current = null;
     };
-    // saveCommand БОЛЬШЕ НЕ в зависимостях!
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTxtFile, indentEnterCommand, onContentChange, lineWrapping]);
+  }, [
+    isTxtFile, 
+    indentEnterCommand, 
+    onContentChange, 
+    lineWrapping, 
+    initialContent, // Added initialContent as it's used in EditorState.create
+    // saveCommand is stable due to onSaveRef pattern
+    isMobileView,       // New dependency
+    onOpenPathByString  // New dependency
+  ]);
 
   /* ---------- смена режима переноса строк ---------- */
   useEffect(() => {
@@ -143,8 +172,12 @@ function EditorArea({
   }, [lineWrapping]);
 
   /* ---------- (опционально) внешнее обновление initialContent ---------- */
+  // This effect is separate and handles external changes to initialContent after the editor is mounted.
+  // The main useEffect already uses initialContent for the *first* setup.
+  // If initialContent can change *while the same filePath is active*, this is needed.
   useEffect(() => {
     if (viewRef.current &&
+        initialContent !== undefined && // Ensure initialContent is provided
         initialContent !== viewRef.current.state.doc.toString()) {
       viewRef.current.dispatch({
         changes: { from: 0,
@@ -156,6 +189,7 @@ function EditorArea({
       });
     }
   }, [initialContent]);
+
 
   return <div ref={editorRef} className="editorAreaCodeMirrorContainer" />;
 }

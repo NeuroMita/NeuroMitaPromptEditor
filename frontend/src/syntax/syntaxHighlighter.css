@@ -1,4 +1,4 @@
-/* frontend/src/syntax/syntaxHighlighter.css */
+
 :root {
   --sh-default: #ABB2BF;
   --sh-keyword: #C678DD;
@@ -11,8 +11,6 @@
   --sh-sectionmarker: #C586C0;
   --sh-insert: #FFAC33;
   --sh-triplestring: #FFA500;
-
-  /* --bg-editor: #282c34; /* This is handled by CodeMirror's dslEditorTheme */
 }
 
 .sh-default { color: var(--sh-default); }
@@ -26,20 +24,3 @@
 .sh-sectionmarker { color: var(--sh-sectionmarker); font-weight: bold; }
 .sh-insert { color: var(--sh-insert); font-weight: bold; }
 .sh-triplestring { color: var(--sh-triplestring); }
-
-/*
-The following styles were for a previous highlighting system and are not directly
-used by CodeMirror in this setup, as CodeMirror's dslEditorTheme and HighlightStyle
-handle the overall editor appearance and token styling.
-The font, size, line-height, default color, and background are set via dslEditorTheme.
-*/
-/*
-.editorTextareaHighlightOverlay code {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  white-space: pre;
-  color: var(--sh-default);
-  background-color: var(--bg-editor);
-}
-*/

@@ -2,72 +2,124 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 const cache = {
-    promptsRoot: null, // Stores the promise for promptsRoot
-    fileTree: new Map(), // path -> Promise
-    fileContent: new Map(), // filePath -> Promise
-    charDefaultVariables: new Map(), // charId -> Promise
+    fileTree: new Map(), 
+    fileContent: new Map(), 
+    charDefaultVariables: new Map(), 
 };
 
-// Helper to get parent path for cache invalidation
-function getParentPath(itemPath) {
-    if (!itemPath || itemPath === '.') return '.';
-    const parts = itemPath.split(/[/\\]+/);
-    if (parts.length <= 1 && parts[0] !== '') return '.'; // Item is in root or is root itself
-    if (parts.length === 1 && parts[0] === '') return '.'; // Path like "/file" - parent is root
-    parts.pop();
-    const parent = parts.join('/');
-    return parent === '' ? '.' : parent; // Handle cases like "dir/file" -> "dir", "file" -> "."
+const getToken = () => localStorage.getItem('authToken');
+
+// Helper to normalize path separators to forward slashes
+function normalizePath(pathStr) {
+    if (typeof pathStr === 'string') {
+        return pathStr.replace(/\\/g, '/');
+    }
+    return pathStr;
 }
 
+function getParentPath(itemPath) { // Assumes itemPath is already normalized
+    if (!itemPath || itemPath === '.') return '.';
+    const parts = itemPath.split('/'); // Use forward slash for splitting
+    if (parts.length <= 1 && parts[0] !== '') return '.'; 
+    if (parts.length === 1 && parts[0] === '') return '.'; 
+    parts.pop();
+    const parent = parts.join('/');
+    return parent === '' ? '.' : parent;
+}
 
 async function fetchApi(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
-    const config = {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-    };
+    const token = getToken();
+    
+    const headers = { ...options.headers };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const config = { ...options, headers };
+
+    if (!(options.body instanceof FormData) && options.body && typeof options.body === 'object' && !headers['Content-Type']) {
+        config.headers['Content-Type'] = 'application/json';
+        config.body = JSON.stringify(config.body); 
+    } else if (options.body instanceof FormData) {
+        delete config.headers['Content-Type']; 
+    }
 
     try {
         const response = await fetch(url, config);
+        if (response.status === 401) {
+            console.error(`API Error 401: Unauthorized for ${url}. Token might be invalid or expired.`);
+            window.dispatchEvent(new CustomEvent('auth-error-401', { detail: { endpoint } }));
+        }
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ detail: response.statusText }));
             console.error(`API Error (${response.status}): ${errorData.detail || 'Unknown error'} for ${url}`);
             throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
         }
-        if (response.status === 204) { // No Content
+        if (response.status === 204) { 
             return null;
         }
         return await response.json();
     } catch (error) {
-        console.error('Fetch API error:', error);
+        console.error('Fetch API error:', error, 'Endpoint:', endpoint);
+        if (error.message.includes("Unexpected token '<'") && error.message.includes("HTML")) {
+             throw new Error("API request failed. Server might be down or returned an HTML error page instead of JSON.");
+        }
         throw error;
     }
 }
 
-export const getPromptsRoot = () => {
-    if (cache.promptsRoot) {
-        return cache.promptsRoot;
+// --- Auth Endpoints ---
+export const loginUser = async (username, password) => {
+    const formData = new URLSearchParams();
+    formData.append('username', username);
+    formData.append('password', password);
+
+    const response = await fetch(`${API_BASE_URL}/auth/token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        throw new Error(errorData.detail || `Login failed: Status ${response.status}`);
     }
-    const promise = fetchApi('/settings/prompts-root')
-        .catch(err => {
-            cache.promptsRoot = null; // Clear on error to allow retry
-            throw err;
-        });
-    cache.promptsRoot = promise;
-    return promise;
+    const data = await response.json();
+    return data;
 };
 
+export const registerUser = async (username, password, inviteCode) => {
+    const payload = {
+        username: username,
+        password: password,
+        invite_code: inviteCode,
+    };
+    return fetchApi('/auth/register', {
+        method: 'POST',
+        body: payload,
+    });
+};
+
+
+// --- Settings Endpoints ---
+export const getUserPromptsInfo = () => {
+    return fetchApi('/settings/prompts-root');
+};
+
+
+// --- File Endpoints ---
 export const getFileTree = (relativePath = '.') => {
-    const cacheKey = relativePath;
+    const normalizedPath = normalizePath(relativePath);
+    const cacheKey = normalizedPath;
     if (cache.fileTree.has(cacheKey)) {
         return cache.fileTree.get(cacheKey);
     }
-    const promise = fetchApi(`/files/tree?path=${encodeURIComponent(relativePath)}`)
+    const promise = fetchApi(`/files/tree?path=${encodeURIComponent(normalizedPath)}`)
         .catch(err => {
-            cache.fileTree.delete(cacheKey); // Clear on error
+            cache.fileTree.delete(cacheKey);
             throw err;
         });
     cache.fileTree.set(cacheKey, promise);
@@ -75,107 +127,164 @@ export const getFileTree = (relativePath = '.') => {
 };
 
 export const getFileContent = (filePath) => {
-    if (cache.fileContent.has(filePath)) {
-        return cache.fileContent.get(filePath);
+    const normalizedPath = normalizePath(filePath);
+    if (cache.fileContent.has(normalizedPath)) {
+        return cache.fileContent.get(normalizedPath);
     }
-    const promise = fetchApi(`/files/content?file_path=${encodeURIComponent(filePath)}`)
+    const promise = fetchApi(`/files/content?file_path=${encodeURIComponent(normalizedPath)}`)
         .catch(err => {
-            cache.fileContent.delete(filePath); // Clear on error
+            cache.fileContent.delete(normalizedPath);
             throw err;
         });
-    cache.fileContent.set(filePath, promise);
+    cache.fileContent.set(normalizedPath, promise);
     return promise;
 };
 
 export const saveFileContent = async (filePath, content) => {
-    const result = await fetchApi(`/files/content?file_path=${encodeURIComponent(filePath)}`, {
+    const normalizedPath = normalizePath(filePath);
+    const result = await fetchApi(`/files/content?file_path=${encodeURIComponent(normalizedPath)}`, {
         method: 'POST',
-        body: JSON.stringify({ content }),
+        body: { content },
     });
-    // Invalidate cache for this file, so next getFileContent fetches fresh data
-    // Or, if API returns the new content, update cache: cache.fileContent.set(filePath, Promise.resolve(newContentData));
-    cache.fileContent.delete(filePath);
+    cache.fileContent.delete(normalizedPath); 
+    const parentDir = getParentPath(normalizedPath);
+    cache.fileTree.delete(parentDir); 
     return result;
 };
 
 export const createFileOrFolder = async (parentDirPath, name, type) => {
-    const result = await fetchApi(`/files/create?parent_dir_path=${encodeURIComponent(parentDirPath)}`, {
+    const normalizedPath = normalizePath(parentDirPath);
+    const result = await fetchApi(`/files/create?parent_dir_path=${encodeURIComponent(normalizedPath)}`, {
         method: 'POST',
-        body: JSON.stringify({ name, type }),
+        body: { name, type },
     });
-    // Invalidate parent directory tree cache
-    cache.fileTree.delete(parentDirPath);
+    cache.fileTree.delete(normalizedPath);
     return result;
 };
 
 export const renameItem = async (itemPath, newName) => {
-    const result = await fetchApi(`/files/rename?item_path=${encodeURIComponent(itemPath)}`, {
+    const normalizedItemPath = normalizePath(itemPath);
+    const result = await fetchApi(`/files/rename?item_path=${encodeURIComponent(normalizedItemPath)}`, {
         method: 'PUT',
-        body: JSON.stringify({ new_name: newName }),
+        body: { new_name: newName },
     });
-    // Invalidate parent directory tree cache
-    const parentDir = getParentPath(itemPath);
-    cache.fileTree.delete(parentDir);
-
-    // If the renamed item was a directory and its tree was cached, invalidate that too
-    // (though it's now under a new name, the old path cache is stale)
-    if (cache.fileTree.has(itemPath)) { // Check if itemPath itself was a key (i.e., it was a directory whose tree was fetched)
-         cache.fileTree.delete(itemPath);
+    const parentDirOld = getParentPath(normalizedItemPath);
+    cache.fileTree.delete(parentDirOld);
+    
+    if (cache.fileTree.has(normalizedItemPath)) { 
+         cache.fileTree.delete(normalizedItemPath);
     }
-    // Also invalidate new parent path if the item was moved across directories (not supported by current API structure, but good practice)
-    // For current API, new_path is returned, so we could potentially invalidate cache for new_path's parent too.
-    // For simplicity, only invalidating old parent. The UI re-fetches tree usually.
+    const normalizedNewPath = normalizePath(result.new_path);
+    const parentDirNew = getParentPath(normalizedNewPath);
+    if (parentDirNew !== parentDirOld) {
+        cache.fileTree.delete(parentDirNew);
+    }
+    cache.fileContent.delete(normalizedItemPath); 
     return result;
 };
 
 export const deleteItem = async (itemPath) => {
-    const result = await fetchApi(`/files/delete?item_path=${encodeURIComponent(itemPath)}`, {
+    const normalizedItemPath = normalizePath(itemPath);
+    const result = await fetchApi(`/files/delete?item_path=${encodeURIComponent(normalizedItemPath)}`, {
         method: 'DELETE',
     });
-    // Invalidate parent directory tree cache
-    const parentDir = getParentPath(itemPath);
+    const parentDir = getParentPath(normalizedItemPath);
     cache.fileTree.delete(parentDir);
-
-    // If the deleted item was a directory and its tree was cached, invalidate that too
-    if (cache.fileTree.has(itemPath)) {
-        cache.fileTree.delete(itemPath);
+    if (cache.fileTree.has(normalizedItemPath)) { 
+        cache.fileTree.delete(normalizedItemPath);
     }
+    cache.fileContent.delete(normalizedItemPath); 
     return result;
 };
 
-export const getCharacterDefaultVariables = (charId) => {
-    if (cache.charDefaultVariables.has(charId)) {
-        return cache.charDefaultVariables.get(charId);
+// --- Character Endpoints ---
+export const getCharacterStaticDefaults = (characterName) => {
+    const normalizedCharName = normalizePath(characterName).split('/').pop(); 
+    
+    if (cache.charDefaultVariables.has(normalizedCharName)) {
+        return cache.charDefaultVariables.get(normalizedCharName);
     }
-    const promise = fetchApi(`/characters/${charId}/default-variables`)
+    const promise = fetchApi(`/characters/${normalizedCharName}/static-defaults`)
         .catch(err => {
-            cache.charDefaultVariables.delete(charId); // Clear on error
+            cache.charDefaultVariables.delete(normalizedCharName);
             throw err;
         });
-    cache.charDefaultVariables.set(charId, promise);
+    cache.charDefaultVariables.set(normalizedCharName, promise);
     return promise;
 };
 
-// This function involves a POST request, which typically isn't cached itself,
-// but it doesn't directly invalidate other caches like file content or tree based on its current design.
-// If generating a prompt could somehow alter files, then invalidation logic would be needed.
-export const generatePrompt = (charId, initialVariables, tags) => fetchApi(`/characters/${charId}/generate-prompt`, {
-    method: 'POST',
-    body: JSON.stringify({ initial_variables: initialVariables, tags }),
-});
+export const generatePrompt = (charId, initialVariables, tags) => {
+    const normalizedCharId = normalizePath(charId); 
+    return fetchApi(`/characters/${normalizedCharId}/generate-prompt`, {
+        method: 'POST',
+        body: { initial_variables: initialVariables, tags },
+    });
+};
 
-// Function to clear specific caches if needed (e.g., for testing or a "force refresh" feature)
-export const clearCache = (cacheName) => {
-    if (cacheName === 'all') {
-        cache.promptsRoot = null;
-        cache.fileTree.clear();
-        cache.fileContent.clear();
-        cache.charDefaultVariables.clear();
-        console.log('All API caches cleared.');
-    } else if (cacheName === 'promptsRoot') {
-        cache.promptsRoot = null;
-    } else if (cache.hasOwnProperty(cacheName) && cache[cacheName] instanceof Map) {
-        cache[cacheName].clear();
-        console.log(`Cache cleared for: ${cacheName}`);
+// --- User Actions Endpoints (New) ---
+export const downloadUserPrompts = async () => {
+    const url = `${API_BASE_URL}/user/prompts/download`;
+    const token = getToken();
+    const headers = {};
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
+
+    const response = await fetch(url, { headers });
+
+    if (response.status === 204) {
+        return { isEmpty: true, filename: null, blob: null };
+    }
+
+    if (response.status === 401) {
+        window.dispatchEvent(new CustomEvent('auth-error-401', { detail: { endpoint: '/user/prompts/download' } }));
+        throw new Error("Unauthorized. Your session may have expired.");
+    }
+
+    if (!response.ok) {
+        let errorDetail = response.statusText;
+        try {
+            const errorData = await response.json();
+            errorDetail = errorData.detail || errorDetail;
+        } catch (e) { /* ignore */ }
+        throw new Error(errorDetail || `Download failed: Status ${response.status}`);
+    }
+
+    const contentDisposition = response.headers.get('content-disposition');
+    let filename = 'user_prompts.zip';
+    if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+        if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1];
+        }
+    }
+
+    const blob = await response.blob();
+    return { isEmpty: false, filename, blob };
+};
+
+export const uploadUserPromptsZip = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const result = await fetchApi('/user/prompts/upload-zip', {
+        method: 'POST',
+        body: formData,
+    });
+    cache.fileTree.clear(); 
+    return result;
+};
+
+
+// --- Cache Management ---
+export const clearUserSpecificCaches = () => {
+    cache.fileTree.clear();
+    cache.fileContent.clear();
+    cache.charDefaultVariables.clear();
+    console.log('User-specific API caches cleared (fileTree, fileContent, charDefaultVariables).');
+};
+
+export const clearAllCaches = () => {
+    clearUserSpecificCaches();
+    console.log('All API caches cleared.');
 };

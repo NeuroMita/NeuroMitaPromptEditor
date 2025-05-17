@@ -1,23 +1,24 @@
-from fastapi import APIRouter, HTTPException
+# File: backend\app\api\settings.py
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from pathlib import Path
-import os
 
-from app.core.config import PROMPTS_ROOT_PATH
+from app.auth import User, get_current_active_user
 from app.utils.logger_api import api_logger
 
 router = APIRouter()
 
-class PromptsRootResponse(BaseModel):
-    prompts_root_path: str
+class UserPromptsInfoResponse(BaseModel):
+    user_prompts_message: str
+    user_prompts_relative_path: str # e.g., "admin" or "testuser"
 
-@router.get("/prompts-root", response_model=PromptsRootResponse)
-async def get_prompts_root_path():
+@router.get("/prompts-root", response_model=UserPromptsInfoResponse)
+async def get_user_prompts_info_endpoint(current_user: User = Depends(get_current_active_user)):
     """
-    Returns the configured absolute path to the Prompts root directory.
+    Returns information about the authenticated user's Prompts root.
+    Client operations (like file tree listing) should use relative paths from ".".
     """
-    return {"prompts_root_path": str(PROMPTS_ROOT_PATH)}
-
-# In a real app, setting prompts_root via API might be complex due to
-# server needing to re-initialize things or security concerns.
-# For now, it's read from config/env.
+    api_logger.info(f"User '{current_user.username}' requested prompts root info.")
+    return UserPromptsInfoResponse(
+        user_prompts_message=f"File operations are relative to prompts for user '{current_user.username}'.",
+        user_prompts_relative_path=current_user.prompts_dir_relative
+    )

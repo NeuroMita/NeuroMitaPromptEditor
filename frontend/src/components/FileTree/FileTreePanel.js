@@ -12,7 +12,6 @@ import '../../styles/FileTreePanel.css';
 function FileTreePanel({
     onFileSelect,
     onCharacterSelect,
-    promptsRoot,
     onFileRenamed,
     onFileDeleted,
     onFileCreated,
@@ -29,7 +28,7 @@ function FileTreePanel({
         setLoading(true);
         onError(null);
         try {
-            const data = await getFileTree(relativePath);
+            const data = await getFileTree(relativePath); 
             setTreeData(data);
             setCurrentRelativePath(relativePath);
         } catch (err) {
@@ -42,18 +41,19 @@ function FileTreePanel({
     }, [onError]);
 
     useEffect(() => {
-        fetchTree('.');
+        fetchTree('.'); 
     }, [fetchTree]);
 
     const handleItemClick = (item) => {
         if (item.is_dir) {
             if (item.is_character_dir && onCharacterSelect) {
-                onCharacterSelect(item.name);
-            } else if (currentRelativePath === '.' && !item.is_character_dir && onCharacterSelect) {
+                onCharacterSelect(item.path); // Use item.path
+            } else if (onCharacterSelect) {
+                // If it's a directory but not a character directory, deselect any active character.
                 onCharacterSelect(null);
             }
-            fetchTree(item.path);
-        } else {
+            fetchTree(item.path); // Navigate into the clicked directory
+        } else { // It's a file
             onFileSelect(item);
         }
     };
@@ -61,11 +61,11 @@ function FileTreePanel({
     const handleGoUp = () => {
         if (currentRelativePath === '.' || currentRelativePath === '') return;
         const parts = currentRelativePath.split(/[/\\]+/);
-        const parentIsCharDir = parts.length === 1 && onCharacterSelect;
         parts.pop();
         const parentPath = parts.join('/') || '.';
         fetchTree(parentPath);
-        if (parentIsCharDir || parentPath === '.') {
+        
+        if (onCharacterSelect) {
             onCharacterSelect(null);
         }
     };
@@ -76,9 +76,9 @@ function FileTreePanel({
             setLoading(true);
             onError(null);
             try {
-                await apiDeleteItem(itemPath);
+                await apiDeleteItem(itemPath); 
                 if (onFileDeleted) onFileDeleted(itemPath);
-                else fetchTree(currentRelativePath);
+                else fetchTree(currentRelativePath); 
             } catch (err) {
                 onError(`Failed to delete ${itemName}: ${err.message}`);
             } finally {
@@ -102,9 +102,9 @@ function FileTreePanel({
         setLoading(true);
         onError(null);
         try {
-            const result = await apiRenameItem(renamingItemPath, newItemName.trim());
+            const result = await apiRenameItem(renamingItemPath, newItemName.trim()); 
             if (onFileRenamed) onFileRenamed(renamingItemPath, result.new_path, newItemName.trim());
-            else fetchTree(currentRelativePath);
+            else fetchTree(currentRelativePath); 
         } catch (err) {
             onError(`Failed to rename: ${err.message}`);
         } finally {
@@ -115,7 +115,7 @@ function FileTreePanel({
     };
 
     const handleCreateStart = (type) => {
-        setCreatingInPath({ path: currentRelativePath, type });
+        setCreatingInPath({ path: currentRelativePath, type }); 
         setNewItemName('');
     };
 
@@ -128,9 +128,9 @@ function FileTreePanel({
         setLoading(true);
         onError(null);
         try {
-            await apiCreateItem(creatingInPath.path, newItemName.trim(), creatingInPath.type);
-            if (onFileCreated) onFileCreated();
-            else fetchTree(currentRelativePath);
+            await apiCreateItem(creatingInPath.path, newItemName.trim(), creatingInPath.type); 
+            if (onFileCreated) onFileCreated(); 
+            else fetchTree(currentRelativePath); 
         } catch (err) {
             onError(`Failed to create ${creatingInPath.type}: ${err.message}`);
         } finally {
@@ -183,7 +183,7 @@ function FileTreePanel({
             <ul className="fileTreeList">
                 {treeData.map(item => (
                     <li
-                        key={item.path}
+                        key={item.path} 
                         onClick={() => renamingItemPath !== item.path && handleItemClick(item)}
                         className={`fileTreeItem ${item.is_character_dir ? 'characterDir' : ''}`}
                         title={item.path}
@@ -197,7 +197,7 @@ function FileTreePanel({
                                     onChange={(e) => setNewItemName(e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
                                     onKeyDown={(e) => e.key === 'Enter' && handleRenameConfirm(e)}
-                                    onBlur={() => { }}
+                                    onBlur={() => { /* Consider auto-cancel or auto-save on blur */ }}
                                     autoFocus
                                     className="fileTreeInput"
                                 />
@@ -218,7 +218,7 @@ function FileTreePanel({
                     </li>
                 ))}
             </ul>
-            {treeData.length === 0 && !loading && currentRelativePath === '.' && <p className="fileTreeMessage">Prompts directory is empty or not found.</p>}
+            {treeData.length === 0 && !loading && currentRelativePath === '.' && <p className="fileTreeMessage">Your prompts directory is empty. Click 📄+ or 📁+ to create items.</p>}
             {treeData.length === 0 && !loading && currentRelativePath !== '.' && <p className="fileTreeMessage">This folder is empty.</p>}
         </div>
     );

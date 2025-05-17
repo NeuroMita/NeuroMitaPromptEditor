@@ -1,6 +1,8 @@
+// File: frontend\src\pages\EditorPage.js
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { useSwipeable } from 'react-swipeable';
+import { useNavigate } from 'react-router-dom';
 
 import FileTreePanel from '../components/FileTree/FileTreePanel';
 import TabManager from '../components/Editor/TabManager';
@@ -12,6 +14,8 @@ import {
     generatePrompt,
     getFileContent,
     saveFileContent as apiSaveFile,
+    downloadUserPrompts as apiDownloadUserPrompts,
+    uploadUserPromptsZip as apiUploadUserPromptsZip,
 } from '../services/api';
 import '../styles/EditorPage.css';
 
@@ -20,7 +24,16 @@ const MIN_LOG_PANEL_HEIGHT = 60;
 const DEFAULT_LOG_PANEL_HEIGHT = 200;
 
 function EditorPage() {
-    const { promptsRoot, selectedCharacterId, setSelectedCharacterId, isLoading: appContextLoading, error: appContextError } = useAppContext();
+    const { 
+        userPromptsInfo,
+        selectedCharacterId, 
+        setSelectedCharacterId, 
+        isLoading: appContextLoading, 
+        authError: appContextError,
+        logout,
+        currentUser
+    } = useAppContext();
+    const navigate = useNavigate();
 
     const [openFiles, setOpenFiles] = useState([]);
     const [activeFilePath, setActiveFilePath] = useState(null);
@@ -39,7 +52,8 @@ function EditorPage() {
     const initialLogHeightRef = useRef(0);
     const editorPageRef = useRef(null);
     const headerRef = useRef(null);
-    const [lineWrapping, setLineWrapping] = useState(false); // По умолчанию перенос строк выключен
+    const [lineWrapping, setLineWrapping] = useState(false);
+    const zipUploadInputRef = useRef(null);
 
     useEffect(() => {
         const handleResize = () => setIsMobileView(window.innerWidth <= 768);
@@ -276,12 +290,77 @@ function EditorPage() {
         }
     }, [isResizingLogPanel]);
 
-    if (appContextLoading) return <div className="loading-text">Loading application configuration...</div>;
-    if (appContextError) return <div className="error-text">Error loading application: {appContextError}<br/>Prompts Root: {promptsRoot}</div>;
+    const handleLogoutClick = () => {
+        logout();
+        navigate('/login', { replace: true });
+    };
+
+    const handleDownloadPrompts = async () => {
+        setIsPageLoading(true);
+        setPageError(null);
+        try {
+            const { isEmpty, filename, blob } = await apiDownloadUserPrompts();
+            if (isEmpty) {
+                alert("Your prompts directory is empty. Nothing to download.");
+            } else if (blob && filename) {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } else {
+                throw new Error("Download failed: No blob or filename received from server.");
+            }
+        } catch (err) {
+            setPageError(`Download failed: ${err.message}`);
+            alert(`Download failed: ${err.message}`);
+        } finally {
+            setIsPageLoading(false);
+        }
+    };
+
+    const handleZipFileSelected = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setIsPageLoading(true);
+        setPageError(null);
+        try {
+            if (!file.name.toLowerCase().endsWith('.zip')) {
+                throw new Error("Invalid file type. Please select a .zip file.");
+            }
+            const result = await apiUploadUserPromptsZip(file);
+            alert(result.message || "ZIP file imported successfully!");
+            refreshFileTree();
+        } catch (err) {
+            setPageError(`Import failed: ${err.message}`);
+            alert(`Import failed: ${err.message}`);
+        } finally {
+            setIsPageLoading(false);
+            if (zipUploadInputRef.current) {
+                zipUploadInputRef.current.value = '';
+            }
+        }
+    };
+
+
+    if (appContextLoading) return <div className="loading-text">Loading user session...</div>;
+    if (appContextError) return <div className="error-text">Session Error: {appContextError}<br/>Please try logging in again.</div>;
+    if (!userPromptsInfo) return <div className="loading-text">Initializing user workspace...</div>;
 
     const activeFileObject = openFiles.find(f => f.path === activeFilePath);
     const canSaveCurrent = activeFileObject && activeFileObject.isModified;
     const canSaveAll = openFiles.some(f => f.isModified);
+
+    const getDisplayCharName = (charPath) => {
+        if (!charPath) return null;
+        const parts = charPath.replace(/\\/g, '/').split('/');
+        return parts[parts.length - 1];
+    };
+    const displayCharName = getDisplayCharName(selectedCharacterId);
 
     const renderDesktopLayout = () => (
         <div className="desktopContentWrapper">
@@ -291,7 +370,6 @@ function EditorPage() {
                         key={fileTreeKey}
                         onFileSelect={handleOpenFile}
                         onCharacterSelect={setSelectedCharacterId}
-                        promptsRoot={promptsRoot}
                         onFileRenamed={handleFileRenamedInTree}
                         onFileDeleted={handleFileDeletedInTree}
                         onFileCreated={refreshFileTree}
@@ -311,7 +389,7 @@ function EditorPage() {
                 </div>
                 <div className="rightPanelContainer">
                     <DslVariablesPanel
-                        characterId={selectedCharacterId}
+                        characterId={selectedCharacterId} // Pass the full path
                         onVariablesChange={setDslVariables}
                     />
                 </div>
@@ -341,7 +419,6 @@ function EditorPage() {
                                 key={fileTreeKey} 
                                 onFileSelect={handleOpenFile}
                                 onCharacterSelect={setSelectedCharacterId}
-                                promptsRoot={promptsRoot}
                                 onFileRenamed={handleFileRenamedInTree}
                                 onFileDeleted={handleFileDeletedInTree}
                                 onFileCreated={refreshFileTree}
@@ -361,7 +438,7 @@ function EditorPage() {
                         )}
                         {panelId === 'variables' && (
                             <DslVariablesPanel
-                                characterId={selectedCharacterId}
+                                characterId={selectedCharacterId} // Pass the full path
                                 onVariablesChange={setDslVariables}
                             />
                         )}
@@ -389,7 +466,10 @@ function EditorPage() {
     return (
         <div className="editorPage" ref={editorPageRef}>
             <header className="header" ref={headerRef}>
-                <h1 className="headerTitle">Prompt Editor</h1>
+                <div className="header-left">
+                    <h1 className="headerTitle">Prompt Editor</h1>
+                    {currentUser && <span className="currentUserDisplay">User: {currentUser.username}</span>}
+                </div>
                 <div className="headerActions">
                     {isPageLoading && <span className="pageStatus loading">Loading...</span>}
                     {pageError && <span className="pageStatus error">Error: {pageError}</span>}
@@ -411,8 +491,29 @@ function EditorPage() {
                     </button>
                     <button onClick={handleRunDsl} disabled={!selectedCharacterId || isPageLoading}>
                         {isMobileView 
-                            ? (selectedCharacterId ? `▶ ${selectedCharacterId.length > 10 ? selectedCharacterId.slice(0, 10) + '…' : selectedCharacterId}` : "▶ Gen") 
-                            : (selectedCharacterId ? `Generate for ${selectedCharacterId}` : "Generate...")}
+                            ? (displayCharName ? `▶ ${displayCharName.length > 6 ? displayCharName.slice(0,6) + '…' : displayCharName}` : "▶ Gen") 
+                            : (displayCharName ? `Generate for ${displayCharName}` : "Generate...")}
+                    </button>
+                    <button onClick={handleDownloadPrompts} disabled={isPageLoading} title="Download all your prompts as ZIP">
+                        {isMobileView ? "📥" : "Download ZIP"}
+                    </button>
+                    <input 
+                        type="file" 
+                        accept=".zip" 
+                        ref={zipUploadInputRef} 
+                        onChange={handleZipFileSelected} 
+                        style={{ display: 'none' }} 
+                        aria-hidden="true"
+                    />
+                    <button 
+                        onClick={() => zipUploadInputRef.current?.click()} 
+                        disabled={isPageLoading} 
+                        title="Import prompts from a ZIP file"
+                    >
+                        {isMobileView ? "📤" : "Import ZIP"}
+                    </button>
+                    <button onClick={handleLogoutClick} disabled={isPageLoading} title="Logout">
+                        {isMobileView ? "🚪" : "Logout"}
                     </button>
                 </div>
             </header>

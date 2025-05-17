@@ -2,3 +2,6 @@ prompt-editor-web
 __pycache__
 node_modules
 package-lock.json
+user_prompts_storage
+backend/generate_user_hash.py
+data

@@ -183,6 +183,75 @@
     color: var(--error-color);
 }
 
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 15px; /* Adjusted padding */
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  height: 50px; /* Fixed height for header */
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.headerTitle {
+  font-size: 1.3em;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.currentUserDisplay {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  margin-left: 15px;
+  background-color: var(--bg-tertiary);
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Spacing between buttons */
+}
+
+.headerActions button {
+  padding: 5px 10px; /* Slightly smaller buttons for header */
+  font-size: 0.9em;
+}
+
+.headerActions .pageStatus {
+  font-size: 0.85em;
+  padding: 3px 8px;
+  border-radius: 3px;
+  margin-right: 5px;
+}
+.headerActions .pageStatus.loading {
+  background-color: var(--bg-tertiary);
+  color: var(--warning-color);
+}
+.headerActions .pageStatus.error {
+  background-color: var(--error-bg);
+  color: var(--error-color);
+}
+
+.app-loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5em;
+  color: var(--text-secondary);
+  background-color: var(--bg-primary);
+}
+
 /* Responsive adjustments for header actions on mobile */
 @media (max-width: 768px) {
   .headerTitle {

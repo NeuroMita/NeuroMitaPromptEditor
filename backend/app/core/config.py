@@ -1,39 +1,44 @@
+# File: backend\app\core\config.py
 import os
 from pathlib import Path
+from datetime import timedelta
+from dotenv import load_dotenv # <--- Добавлено
 
-# Determine the project root dynamically (assuming config.py is in backend/app/core)
-# backend_root / app / core / config.py
-# So, project_root is three levels up from this file's directory.
-# More robust: backend_root = Path(__file__).resolve().parent.parent.parent
-# prompts_root should ideally be outside the app code, but for simplicity:
+# Загружаем переменные из .env файла (если он существует)
+# Это должно быть сделано до первого обращения к os.getenv для этих переменных
+load_dotenv() # <--- Добавлено
+
+# Determine the project root dynamically
 APP_DIR = Path(__file__).resolve().parent.parent # backend/app/
 BACKEND_ROOT_DIR = APP_DIR.parent # backend/
-PROMPTS_ROOT_PATH_STR = os.getenv("PROMPTS_ROOT_PATH", str(BACKEND_ROOT_DIR / "Prompts"))
 
-# Ensure PROMPTS_ROOT_PATH is an absolute path
-PROMPTS_ROOT_PATH = Path(PROMPTS_ROOT_PATH_STR).resolve()
+# --- User and Auth Configuration ---
+USER_DATA_FILE = BACKEND_ROOT_DIR / "data" / "users.json"
+USER_PROMPTS_BASE_DIR_NAME = "user_prompts_storage" # Directory name for all user prompts
+USER_PROMPTS_ROOT_PATH = BACKEND_ROOT_DIR / USER_PROMPTS_BASE_DIR_NAME
+USER_QUOTA_MB = 200
 
-# Create the Prompts directory if it doesn't exist
-PROMPTS_ROOT_PATH.mkdir(parents=True, exist_ok=True)
+# JWT Settings
+SECRET_KEY = os.getenv("SECRET_KEY", "a_very_secret_key_that_should_be_changed_in_production_and_kept_safe") # CHANGE THIS!
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60 * 24 * 7)) # 7 days
 
-# DSL Engine specific configs (can be moved from dsl_engine.py if preferred)
-LOG_DIR_NAME = "Logs_DSL" # Renamed to avoid conflict if backend has its own 'Logs'
+# Invite code (for potential future registration endpoint)
+# Сначала пытается загрузить из переменной окружения INVITE_CODE,
+# если ее нет, используется значение по умолчанию.
+INVITE_CODE = os.getenv("INVITE_CODE", "PUT_HERE_YOUR_INVITE_CODE") # <--- Изменено
+
+# Ensure base directories exist
+USER_PROMPTS_ROOT_PATH.mkdir(parents=True, exist_ok=True)
+USER_DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+
+# --- DSL Engine specific configs ---
+LOG_DIR_NAME = "Logs_DSL"
 DSL_LOG_DIR = BACKEND_ROOT_DIR / LOG_DIR_NAME
 MAX_LOG_BYTES = 2_000_000
 BACKUP_COUNT = 3
-
-# Ensure DSL_LOG_DIR exists
 DSL_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-# Update dsl_engine.py to use these constants:
-# Replace:
-# LOG_DIR = "Logs"
-# With:
-# from app.core.config import DSL_LOG_DIR
-# LOG_DIR = DSL_LOG_DIR
-#
-# And ensure paths like LOG_FILE are constructed with Path objects or os.path.join
-# LOG_FILE = DSL_LOG_DIR / "dsl_execution.log" # In dsl_engine.py
-
-# Character model related
-DEFAULT_CHARACTER_ID = "Hero" # Example
+# --- Character model related (legacy, might be removed or adapted) ---
+DEFAULT_CHARACTER_ID = "Hero"

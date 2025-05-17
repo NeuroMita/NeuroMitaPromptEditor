@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, Body
+# File: backend\app\api\characters.py
+from fastapi import APIRouter, HTTPException, Body, Depends, status
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List
 from pathlib import Path
 
-from app.core.config import PROMPTS_ROOT_PATH
+from app.core.config import USER_PROMPTS_ROOT_PATH
+from app.auth import User, get_current_active_user
 from app.models.character import Character
-# If you use legacy characters for defaults:
 from app.models.characters import (
     CrazyMita, KindMita, ShortHairMita, CappyMita, MilaMita, CreepyMita, SleepyMita
 )
@@ -13,111 +14,154 @@ from app.utils.logger_api import api_logger, get_dsl_logs_for_request, remove_li
 
 router = APIRouter()
 
-# Store legacy classes in a dictionary for easy lookup
 _LEGACY_CLASSES_MAP = {
     "crazymita": CrazyMita, "kindmita": KindMita, "shorthairmita": ShortHairMita,
     "cappymita": CappyMita, "milamita": MilaMita, "creepymita": CreepyMita,
     "sleepymita": SleepyMita
 }
 
-
 class CharacterVariablesResponse(BaseModel):
-    character_id: str
+    character_id: str # Может быть именем или путем, в зависимости от эндпоинта
     variables: Dict[str, Any]
 
-@router.get("/{char_id}/default-variables", response_model=CharacterVariablesResponse)
-async def get_character_default_variables(char_id: str):
-    """
-    Gets default variables for a character.
-    Combines Character.BASE_DEFAULTS with legacy overrides if applicable.
-    """
-    api_logger.info(f"Requesting default variables for character: '{char_id}'")
-    
-    # Check if character directory exists
-    char_dir = PROMPTS_ROOT_PATH / char_id
-    if not char_dir.is_dir():
-        raise HTTPException(status_code=404, detail=f"Character directory '{char_id}' not found in Prompts.")
+# НОВЫЙ ЭНДПОИНТ для статических дефолтов по имени
+@router.get("/{char_name}/static-defaults", response_model=CharacterVariablesResponse)
+async def get_character_static_default_variables(
+    char_name: str,
+    # current_user: User = Depends(get_current_active_user) # Аутентификация здесь может быть опциональной
+                                                            # если это действительно "статические" данные,
+                                                            # не зависящие от пользователя.
+                                                            # Пока оставим для консистентности.
+    current_user: User = Depends(get_current_active_user)
+):
+    api_logger.info(f"User '{current_user.username}' requesting STATIC default variables for character name: '{char_name}'")
 
-    base_defaults = Character.base_defaults() # Use classmethod for a fresh copy
+    if not char_name or '/' in char_name or '\\' in char_name or '..' in char_name:
+        api_logger.warning(f"Invalid char_name format for static defaults: '{char_name}' by user '{current_user.username}'.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid character name format for static defaults. Cannot contain path characters or be empty.")
+
+    base_defaults = Character.base_defaults()
     
-    # Apply overrides from legacy classes if char_id matches
-    legacy_class = _LEGACY_CLASSES_MAP.get(char_id.lower())
+    legacy_class = _LEGACY_CLASSES_MAP.get(char_name.lower())
     if legacy_class:
         overrides = getattr(legacy_class, "DEFAULT_OVERRIDES", {})
         base_defaults.update(overrides)
-        api_logger.info(f"Applied legacy overrides for {char_id} from class {legacy_class.__name__}")
+        api_logger.info(f"Applied legacy overrides for {char_name} using class {legacy_class.__name__}")
+    else:
+        api_logger.info(f"No specific legacy overrides found for character name '{char_name}'. Using base defaults.")
 
-    return CharacterVariablesResponse(character_id=char_id, variables=base_defaults)
+    return CharacterVariablesResponse(character_id=char_name, variables=base_defaults)
+
+
+# СТАРЫЙ ЭНДПОИНТ (оставляем, но можно переименовать для ясности, если нужно)
+# Он проверяет файловую систему и может быть полезен, если дефолты будут грузиться из файлов персонажа
+@router.get("/{char_id_path:path}/filesystem-defaults", response_model=CharacterVariablesResponse, deprecated=True, summary="DEPRECATED: Use /static-defaults or specific file-based logic if needed.")
+async def get_character_filesystem_default_variables( # Переименовал для ясности
+    char_id_path: str, # char_id_path может быть путем
+    current_user: User = Depends(get_current_active_user)
+):
+    user_prompts_path = USER_PROMPTS_ROOT_PATH / current_user.prompts_dir_relative
+    api_logger.info(f"User '{current_user.username}' requesting FILESYSTEM default variables for character path: '{char_id_path}' from '{user_prompts_path}'")
+    
+    if not char_id_path or '..' in char_id_path:
+        api_logger.warning(f"Invalid char_id_path format (contains '..' or empty): '{char_id_path}' by user '{current_user.username}'.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid character ID format. Cannot be empty or contain '..'.")
+
+    normalized_char_path_segment = Path(char_id_path)
+    char_dir_abs = (user_prompts_path / normalized_char_path_segment).resolve()
+
+    if not str(char_dir_abs).startswith(str(user_prompts_path.resolve())):
+        api_logger.error(f"Security alert: Character path '{char_dir_abs}' for char_id_path '{char_id_path}' is outside user's prompt root '{user_prompts_path.resolve()}' for user '{current_user.username}'.")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access to character path denied.")
+
+    if not char_dir_abs.is_dir():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Character directory '{char_id_path}' not found in user's Prompts ('{user_prompts_path / char_id_path}').")
+
+    main_template_file = char_dir_abs / Character.main_template_path_relative 
+    if not main_template_file.is_file():
+        api_logger.warning(f"Directory '{char_id_path}' for user '{current_user.username}' is not a valid character project (missing '{Character.main_template_path_relative}'). Path checked: {main_template_file}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Directory '{char_id_path}' is not a valid character project (missing '{Character.main_template_path_relative}').")
+
+    base_defaults = Character.base_defaults()
+    
+    # Для этого эндпоинта, имя для legacy lookup берется из имени директории
+    char_name_for_legacy_lookup = normalized_char_path_segment.name 
+    legacy_class = _LEGACY_CLASSES_MAP.get(char_name_for_legacy_lookup.lower())
+    if legacy_class:
+        overrides = getattr(legacy_class, "DEFAULT_OVERRIDES", {})
+        base_defaults.update(overrides)
+        api_logger.info(f"Applied legacy overrides for {char_name_for_legacy_lookup} (from path {char_id_path}) using class {legacy_class.__name__}")
+
+    # Здесь можно было бы добавить логику загрузки дефолтов из файла типа `char_dir_abs / "defaults.json"`
+    # if (char_dir_abs / "defaults.json").is_file(): ...
+
+    return CharacterVariablesResponse(character_id=char_id_path, variables=base_defaults)
 
 
 class GeneratePromptPayload(BaseModel):
     initial_variables: Dict[str, Any] = Field(default_factory=dict)
-    # For {{SYS_INFO}} and other dynamic tags
     tags: Dict[str, Any] = Field(default_factory=lambda: {"SYS_INFO": "[SYS_INFO PLACEHOLDER]"})
 
 class GeneratePromptResponse(BaseModel):
     character_id: str
     generated_prompt: str
-    logs: List[Dict[str, Any]] = Field(default_factory=list) # To send back DSL execution logs
+    logs: List[Dict[str, Any]] = Field(default_factory=list)
 
-@router.post("/{char_id}/generate-prompt", response_model=GeneratePromptResponse)
-async def generate_character_prompt(char_id: str, payload: GeneratePromptPayload = Body(...)):
-    """
-    Generates a full prompt for the specified character using the DSL engine.
-    """
-    api_logger.info(f"Generating prompt for character: '{char_id}' with variables: {payload.initial_variables} and tags: {payload.tags}")
+@router.post("/{char_id:path}/generate-prompt", response_model=GeneratePromptResponse)
+async def generate_character_prompt(
+    char_id: str, # char_id can now be a path
+    payload: GeneratePromptPayload = Body(...),
+    current_user: User = Depends(get_current_active_user)
+):
+    user_prompts_path = USER_PROMPTS_ROOT_PATH / current_user.prompts_dir_relative
+    api_logger.info(f"User '{current_user.username}' generating prompt for character path: '{char_id}' from '{user_prompts_path}' with variables: {payload.initial_variables} and tags: {payload.tags}")
 
-    char_dir = PROMPTS_ROOT_PATH / char_id
-    if not char_dir.is_dir():
-        raise HTTPException(status_code=404, detail=f"Character directory '{char_id}' not found in Prompts.")
+    if not char_id or '..' in char_id:
+        api_logger.warning(f"Invalid char_id format (contains '..' or empty): '{char_id}' by user '{current_user.username}'.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid character ID format. Cannot be empty or contain '..'.")
+
+    normalized_char_path_segment = Path(char_id)
+    char_dir_abs = (user_prompts_path / normalized_char_path_segment).resolve()
+
+    if not str(char_dir_abs).startswith(str(user_prompts_path.resolve())):
+        api_logger.error(f"Security alert: Character path '{char_dir_abs}' for char_id '{char_id}' is outside user's prompt root '{user_prompts_path.resolve()}' for user '{current_user.username}'.")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access to character path denied.")
+
+    if not char_dir_abs.is_dir():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Character directory '{char_id}' not found in user's Prompts ('{user_prompts_path / char_id}').")
     
-    # Check for main_template.txt
-    # The Character class constructor expects prompts_root_path to be the global Prompts root,
-    # and it will construct base_data_path as PROMPTS_ROOT_PATH / char_id.
-    # main_template_path_relative is relative to this base_data_path.
-    
-    # Capture DSL logs for this request
     captured_logs, log_handler = get_dsl_logs_for_request()
 
     try:
-        # Instantiate the character
-        # The Character class will use its own `DEFAULT_OVERRIDES` if the class itself has them,
-        # or just `BASE_DEFAULTS`. The `initial_vars` from payload will further override these.
         character_instance = Character(
-            char_id=char_id,
-            name=char_id, # Name can be same as ID or fetched from a config
-            prompts_root_path=str(PROMPTS_ROOT_PATH), # Pass the global Prompts root
+            char_id=str(normalized_char_path_segment), 
+            name=normalized_char_path_segment.name,    
+            prompts_root_path=str(user_prompts_path), 
             initial_vars=payload.initial_variables
         )
         
-        # The main_template_path_relative is already set in Character class, e.g., "main_template.txt"
-        # It will be resolved against character_instance.base_data_path
-
-        api_logger.debug(f"Character '{char_id}' instantiated. Base data path: {character_instance.base_data_path}")
-        api_logger.debug(f"Main template path relative: {character_instance.main_template_path_relative}")
+        api_logger.debug(f"Character '{normalized_char_path_segment.name}' (path: {char_id}) for user '{current_user.username}' instantiated. Effective prompts_root: {character_instance.prompts_root}, Base data path: {character_instance.base_data_path}")
         
-        full_main_template_path = Path(character_instance.base_data_path) / character_instance.main_template_path_relative
-        if not full_main_template_path.is_file():
-            api_logger.error(f"Main template file '{full_main_template_path}' not found for character '{char_id}'.")
-            raise HTTPException(status_code=404, detail=f"Main template file '{character_instance.main_template_path_relative}' not found for character '{char_id}'.")
-
         prompt_text = character_instance.get_full_prompt(tags=payload.tags)
         
+        if f"[DSL ERROR IN MAIN TEMPLATE {Path(character_instance.main_template_path_relative).name}" in prompt_text or \
+           f"[PY ERROR IN MAIN TEMPLATE {Path(character_instance.main_template_path_relative).name}" in prompt_text:
+            if not (Path(character_instance.base_data_path) / character_instance.main_template_path_relative).is_file():
+                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Main template file '{character_instance.main_template_path_relative}' not found for character '{char_id}'. This directory may not be a valid character project.")
+
         return GeneratePromptResponse(
             character_id=char_id,
             generated_prompt=prompt_text,
             logs=captured_logs
         )
-    except HTTPException: # Re-raise HTTPExceptions
+    except HTTPException:
         raise
     except Exception as e:
-        api_logger.error(f"Error generating prompt for '{char_id}': {e}", exc_info=True)
-        # Include captured logs even on error, if any
+        api_logger.error(f"Error generating prompt for '{char_id}' for user '{current_user.username}': {e}", exc_info=True)
         return GeneratePromptResponse(
             character_id=char_id,
             generated_prompt=f"[DSL ENGINE ERROR FOR {char_id}: {str(e)} - Check server logs and API response logs]",
-            logs=captured_logs # Send back what was captured before the error
+            logs=captured_logs
         )
     finally:
-        # Important: Remove the handler to prevent log duplication on subsequent requests
         remove_list_log_handler(log_handler)

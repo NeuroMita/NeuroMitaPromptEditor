@@ -20,30 +20,34 @@ import '../../styles/EditorArea.css';
 const TAB_CHAR = '\t';
 const lineWrappingCompartment = new Compartment();
 
-function EditorArea({ filePath, initialContent, onContentChange, lineWrapping }) {
+function EditorArea({
+  filePath,
+  initialContent,
+  onContentChange,
+  lineWrapping,
+  onSave                    // ← callback из TabManager
+}) {
   const editorRef = useRef(null);
   const viewRef   = useRef(null);
 
+  /* ---------- isTxtFile ---------- */
   const isTxtFile = useMemo(
     () => (filePath ? filePath.toLowerCase().endsWith('.txt') : false),
     [filePath]
   );
 
-  /* ----------------- ENTER с авто-отступом ----------------- */
+  /* ---------- ENTER c авто-отступом ---------- */
   const indentEnterCommand = useCallback((view) => {
-    /* Шаг 1 — стандартная новая строка + авто-отступ CodeMirror */
     insertNewlineAndIndent(view);
 
-    /* Шаг 2 — возможно добавляем дополнительный таб */
     const { state } = view;
-    const { head }  = state.selection.main;
-    const prevLine = state.doc.lineAt(Math.max(0, head - 1));
+    const head      = state.selection.main.head;
+    const prevLine  = state.doc.lineAt(Math.max(0, head - 1));
+    const prevTextU = prevLine.text.trimEnd().toUpperCase();
+    const needTab   = !isTxtFile &&
+                      (prevTextU.endsWith('THEN') || prevTextU === 'ELSE');
 
-    const prevTextUpper = prevLine.text.trimEnd().toUpperCase();
-    const needExtraTab = !isTxtFile &&
-                         (prevTextUpper.endsWith('THEN') || prevTextUpper === 'ELSE');
-
-    if (needExtraTab) {
+    if (needTab) {
       view.dispatch({
         changes: { from: head, insert: TAB_CHAR },
         selection: EditorSelection.cursor(head + 1),
@@ -52,8 +56,18 @@ function EditorArea({ filePath, initialContent, onContentChange, lineWrapping })
     }
     return true;
   }, [isTxtFile]);
-  /* --------------------------------------------------------- */
 
+  /* ---------- Ctrl/Cmd + S ---------- */
+  const onSaveRef = useRef(onSave);               // хранит актуальную функцию
+  useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
+
+  const saveCommand = useCallback(() => {
+    onSaveRef.current?.();                        // вызываем самую свежую
+    return true;                                  // предотвращаем действие браузера
+  }, []);
+  /* --------------------------------- */
+
+  /* ---------- инициализация EditorView ---------- */
   useEffect(() => {
     if (!editorRef.current) return;
 
@@ -76,8 +90,9 @@ function EditorArea({ filePath, initialContent, onContentChange, lineWrapping })
       dslSyntaxHighlighting,
       dslEditorTheme,
       keymap.of([
-        { key: 'Enter', run: indentEnterCommand },    // ← наше переопределение
-        { key: 'Tab',   run: indentMore, shift: indentLess },
+        { key: 'Mod-s', run: saveCommand },       // ← сохраняем
+        { key: 'Enter', run: indentEnterCommand },
+        { key: 'Tab',   run: indentMore,  shift: indentLess },
         { key: 'Mod-/', run: cmToggleComment },
         ...historyKeymap,
         ...completionKeymap,
@@ -99,7 +114,7 @@ function EditorArea({ filePath, initialContent, onContentChange, lineWrapping })
       extensions,
     });
 
-    viewRef.current?.destroy();
+    viewRef.current?.destroy();                   // уничтожаем старый, если был
 
     const view = new EditorView({
       state: startState,
@@ -112,10 +127,11 @@ function EditorArea({ filePath, initialContent, onContentChange, lineWrapping })
       viewRef.current?.destroy();
       viewRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // saveCommand БОЛЬШЕ НЕ в зависимостях!
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTxtFile, indentEnterCommand, onContentChange, lineWrapping]);
 
-  /* ---- динамическое переключение переноса строк ---- */
+  /* ---------- смена режима переноса строк ---------- */
   useEffect(() => {
     if (viewRef.current) {
       viewRef.current.dispatch({
@@ -126,12 +142,17 @@ function EditorArea({ filePath, initialContent, onContentChange, lineWrapping })
     }
   }, [lineWrapping]);
 
-  /* ---- внешнее обновление initialContent ---- */
+  /* ---------- (опционально) внешнее обновление initialContent ---------- */
   useEffect(() => {
-    if (viewRef.current && initialContent !== viewRef.current.state.doc.toString()) {
+    if (viewRef.current &&
+        initialContent !== viewRef.current.state.doc.toString()) {
       viewRef.current.dispatch({
-        changes: { from: 0, to: viewRef.current.state.doc.length, insert: initialContent || '' },
-        selection: EditorSelection.cursor(initialContent ? initialContent.length : 0),
+        changes: { from: 0,
+                   to: viewRef.current.state.doc.length,
+                   insert: initialContent || '' },
+        selection: EditorSelection.cursor(
+          initialContent ? initialContent.length : 0
+        ),
       });
     }
   }, [initialContent]);

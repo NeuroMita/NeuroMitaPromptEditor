@@ -1,12 +1,13 @@
 import React from 'react';
 import { AppProvider } from './contexts/AppContext';
 import EditorPage from './pages/EditorPage';
-import './styles/App.css'; 
+import './styles/App.css';
+import './syntax/syntaxHighlighter.css';
 
 function App() {
   return (
     <AppProvider>
-      <div className="App"> {/* .App class from App.css */}
+      <div className="App">
         <EditorPage />
       </div>
     </AppProvider>

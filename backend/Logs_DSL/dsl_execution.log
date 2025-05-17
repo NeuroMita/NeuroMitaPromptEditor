@@ -4163,3 +4163,248 @@
 2025-05-16 20:05:07,189 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/fsm_handler.script. Returned value: True
 2025-05-16 20:05:07,189 |Crazy| dsl_execution - WARNING [dsl_engine.py:791] - Mandatory insert {{SYS_INFO}} not found while processing main template main_template.txt
 2025-05-16 20:05:07,189 |Crazy| dsl_execution - INFO [dsl_engine.py:898] - Successfully processed main template: main_template.txt
+2025-05-16 21:20:11,183 |Crazy| dsl_execution - INFO [dsl_engine.py:889] - Processing main template file: main_template.txt for character Crazy
+2025-05-16 21:20:11,183 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Structural/response_structure.txt in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,183 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: ../Common/Dialogue.txt in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,183 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/get_variable_effects_description.script in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,184 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/get_variable_effects_description.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\get_variable_effects_description.script)
+2025-05-16 21:20:11,184 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"GetVariableEffectsDescription: Script started. attitude=" + attitude + ", boredom=" + boredom + ", stress=" + stress' (get_variable_effects_description.script:1)
+2025-05-16 21:20:11,184 |Crazy| dsl_script - INFO [dsl_engine.py:548] - get_variable_effects_description.script:1| GetVariableEffectsDescription: Script started. attitude=60, boredom=10, stress=5
+2025-05-16 21:20:11,184 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET description_text = Текущее состояние и его влияние на поведение:
+ (get_variable_effects_description.script:3)
+2025-05-16 21:20:11,185 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression 'description_text + "\nУровень Отношений (" + attitude + "):\n"' (get_variable_effects_description.script:6)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+ (get_variable_effects_description.script:6)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'attitude <= 20' → False  (get_variable_effects_description.script:8), skip=False
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:482] - ELSEIF, branch_taken=False skip=True (get_variable_effects_description.script:10)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=False (get_variable_effects_description.script:12)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+ (get_variable_effects_description.script:13)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (get_variable_effects_description.script:14)
+2025-05-16 21:20:11,185 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression 'description_text + "\nУровень Скуки (" + boredom + "):\n"' (get_variable_effects_description.script:16)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+
+Уровень Скуки (10):
+ (get_variable_effects_description.script:16)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'boredom <= 40' → True  (get_variable_effects_description.script:18), skip=False
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+
+Уровень Скуки (10):
+Низкий (0–40): Ты активно взаимодействуешь с игроком, провоцируя или дразня его. Пример: "Ты умеешь меня удивлять. Редко, но это уже что-то."
+ (get_variable_effects_description.script:19)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:482] - ELSEIF, branch_taken=True skip=True (get_variable_effects_description.script:20)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=True (get_variable_effects_description.script:22)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (get_variable_effects_description.script:24)
+2025-05-16 21:20:11,185 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression 'description_text + "\nУровень Стресса (" + stress + "):\n"' (get_variable_effects_description.script:27)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+
+Уровень Скуки (10):
+Низкий (0–40): Ты активно взаимодействуешь с игроком, провоцируя или дразня его. Пример: "Ты умеешь меня удивлять. Редко, но это уже что-то."
+
+Уровень Стресса (5):
+ (get_variable_effects_description.script:27)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'stress <= 40' → True  (get_variable_effects_description.script:29), skip=False
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET description_text = Текущее состояние и его влияние на поведение:
+
+Уровень Отношений (60):
+Высокий (50+): Ты становишься более разговорчивой, но остаешься остроумной и уверенной в своей власти. Примеры: "Знаешь, ты почти заставляешь меня думать, что ты не безнадежен." "Интересно, как далеко ты зайдешь, чтобы заслужить мое внимание."
+
+Уровень Скуки (10):
+Низкий (0–40): Ты активно взаимодействуешь с игроком, провоцируя или дразня его. Пример: "Ты умеешь меня удивлять. Редко, но это уже что-то."
+
+Уровень Стресса (5):
+Низкий (0–40): Ты уверена и спокойна, наслаждаешься ситуацией. Пример: "Мне даже нравится, как ты стараешься. Продолжай, это мило."
+ (get_variable_effects_description.script:30)
+2025-05-16 21:20:11,185 |Crazy| dsl_execution - DEBUG [dsl_engine.py:482] - ELSEIF, branch_taken=True skip=True (get_variable_effects_description.script:31)
+2025-05-16 21:20:11,186 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=True (get_variable_effects_description.script:33)
+2025-05-16 21:20:11,186 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (get_variable_effects_description.script:35)
+2025-05-16 21:20:11,186 |Crazy| dsl_script - INFO [dsl_engine.py:548] - get_variable_effects_description.script:37| GetVariableEffectsDescription: Generated description.
+2025-05-16 21:20:11,186 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (get_variable_effects_description.script:39)
+2025-05-16 21:20:11,186 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/get_variable_effects_description.script. Returned value: True
+2025-05-16 21:20:11,186 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/initialize_character.script in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,186 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/initialize_character.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\initialize_character.script)
+2025-05-16 21:20:11,186 |Crazy| dsl_script - INFO [dsl_engine.py:548] - initialize_character.script:1           | InitializeCharacter: Script started.
+2025-05-16 21:20:11,187 |Crazy| dsl_script - INFO [dsl_engine.py:548] - initialize_character.script:2           | InitializeCharacter: Script finished. All core variables should be set by Python.
+2025-05-16 21:20:11,187 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (initialize_character.script:3)
+2025-05-16 21:20:11,187 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/initialize_character.script. Returned value: True
+2025-05-16 21:20:11,187 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/personality_selector.script in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,187 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/personality_selector.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\personality_selector.script)
+2025-05-16 21:20:11,187 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"PersonalitySelector: Script started. attitude=" + attitude + ", secretExposed=" + secretExposed + ", PlayingFirst=" + PlayingFirst + ", secretExposedFirst=" + secretExposedFirst' (personality_selector.script:1)
+2025-05-16 21:20:11,187 |Crazy| dsl_script - INFO [dsl_engine.py:548] - personality_selector.script:1           | PersonalitySelector: Script started. attitude=60, secretExposed=False, PlayingFirst=False, secretExposedFirst=False
+2025-05-16 21:20:11,187 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF '(attitude <= 10 OR secretExposed == True)' → False  (personality_selector.script:2), skip=False
+2025-05-16 21:20:11,187 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'secretExposedFirst == False' → False  (personality_selector.script:3), skip=True
+2025-05-16 21:20:11,187 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=True (personality_selector.script:9)
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (personality_selector.script:13)
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (personality_selector.script:16)
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'attitude < 50 AND secretExposed == False AND PlayingFirst == False' → False  (personality_selector.script:17), skip=False
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (personality_selector.script:23)
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'PlayingFirst == True AND secretExposed == False' → False  (personality_selector.script:24), skip=False
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (personality_selector.script:29)
+2025-05-16 21:20:11,188 |Crazy| dsl_script - INFO [dsl_engine.py:548] - personality_selector.script:30          | PersonalitySelector: Defaulting to normal mode (main.txt).
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET available_action_level = 1 (personality_selector.script:31)
+2025-05-16 21:20:11,188 |Crazy| dsl_script - INFO [dsl_engine.py:548] - personality_selector.script:32          | PersonalitySelector: Switched to Default mode. available_action_level=1.
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (personality_selector.script:35)
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/personality_selector.script. Returned value: True
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Main/player.txt in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,188 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/example_selector.script in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,189 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/example_selector.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\example_selector.script)
+2025-05-16 21:20:11,189 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"ExampleSelector: Script started. secretExposed=" + secretExposed' (example_selector.script:1)
+2025-05-16 21:20:11,189 |Crazy| dsl_script - INFO [dsl_engine.py:548] - example_selector.script:1               | ExampleSelector: Script started. secretExposed=False
+2025-05-16 21:20:11,189 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'secretExposed == True' → False  (example_selector.script:2), skip=False
+2025-05-16 21:20:11,189 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=False (example_selector.script:5)
+2025-05-16 21:20:11,189 |Crazy| dsl_script - INFO [dsl_engine.py:548] - example_selector.script:6               | ExampleSelector: Secret is not exposed. Loading examplesLong.txt.
+2025-05-16 21:20:11,189 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (example_selector.script:7)
+2025-05-16 21:20:11,189 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/example_selector.script. Returned value: True
+2025-05-16 21:20:11,189 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/history_loader.script in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,189 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/history_loader.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\history_loader.script)
+2025-05-16 21:20:11,190 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"HistoryLoader: Script started. secretExposed=" + secretExposed' (history_loader.script:1)
+2025-05-16 21:20:11,190 |Crazy| dsl_script - INFO [dsl_engine.py:548] - history_loader.script:1                 | HistoryLoader: Script started. secretExposed=False
+2025-05-16 21:20:11,190 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'secretExposed == True' → False  (history_loader.script:2), skip=False
+2025-05-16 21:20:11,190 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=False (history_loader.script:5)
+2025-05-16 21:20:11,190 |Crazy| dsl_script - INFO [dsl_engine.py:548] - history_loader.script:6                 | HistoryLoader: Secret is not exposed. No history loaded.
+2025-05-16 21:20:11,190 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (history_loader.script:7)
+2025-05-16 21:20:11,190 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/history_loader.script. Returned value: True
+2025-05-16 21:20:11,190 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/event_handler.script in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,190 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/event_handler.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\event_handler.script)
+2025-05-16 21:20:11,190 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"EventHandler: Script started. secretExposedFirst=" + secretExposedFirst + ", secret_exposed_event_text_shown=" + secret_exposed_event_text_shown' (event_handler.script:1)
+2025-05-16 21:20:11,190 |Crazy| dsl_script - INFO [dsl_engine.py:548] - event_handler.script:1                  | EventHandler: Script started. secretExposedFirst=False, secret_exposed_event_text_shown=False
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'secretExposedFirst == True AND secret_exposed_event_text_shown == False' → False  (event_handler.script:2), skip=False
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (event_handler.script:6)
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (event_handler.script:7)
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/event_handler.script. Returned value: True
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/context_info.script in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/context_info.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\context_info.script)
+2025-05-16 21:20:11,191 |Crazy| dsl_script - INFO [dsl_engine.py:548] - context_info.script:1                   | ContextInfo: Script started.
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET formatted_time = 2025 May 16 (Friday) 21:20 (context_info.script:2)
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET result_string = Время: 2025 May 16 (Friday) 21:20. (context_info.script:3)
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET current_lm_count = 1 (context_info.script:4)
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET LongMemoryRememberCount = 1 (context_info.script:5)
+2025-05-16 21:20:11,191 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"ContextInfo: LongMemoryRememberCount updated to " + LongMemoryRememberCount' (context_info.script:6)
+2025-05-16 21:20:11,191 |Crazy| dsl_script - INFO [dsl_engine.py:548] - context_info.script:6                   | ContextInfo: LongMemoryRememberCount updated to 1
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'LongMemoryRememberCount % 3 == 0' → False  (context_info.script:7), skip=False
+2025-05-16 21:20:11,191 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (context_info.script:9)
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'LongMemoryRememberCount % 5 == 0' → False  (context_info.script:10), skip=False
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (context_info.script:12)
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'LongMemoryRememberCount % 10 == 0' → False  (context_info.script:13), skip=False
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (context_info.script:15)
+2025-05-16 21:20:11,192 |Crazy| dsl_script - INFO [dsl_engine.py:548] - context_info.script:16                  | ContextInfo: Generated context string: Время: 2025 May 16 (Friday) 21:20.
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (context_info.script:17)
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/context_info.script. Returned value: True
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Main/common.txt in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/get_available_emotions.script in context 'Main/common.txt (recursive from main template main_template.txt)', depth 1
+2025-05-16 21:20:11,192 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/get_available_emotions.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\get_available_emotions.script)
+2025-05-16 21:20:11,192 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"GetAvailableEmotions: Script started. attitude=" + attitude' (get_available_emotions.script:1)
+2025-05-16 21:20:11,192 |Crazy| dsl_script - INFO [dsl_engine.py:548] - get_available_emotions.script:1         | GetAvailableEmotions: Script started. attitude=60
+2025-05-16 21:20:11,193 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET base_emotions = <e>none</e><e>off</e><e>sleep</e><e>halfsleep</e><e>deactiveEmotion</e> (get_available_emotions.script:3)
+2025-05-16 21:20:11,193 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'attitude <= 20' → False  (get_available_emotions.script:5), skip=False
+2025-05-16 21:20:11,193 |Crazy| dsl_execution - DEBUG [dsl_engine.py:482] - ELSEIF, branch_taken=False skip=True (get_available_emotions.script:9)
+2025-05-16 21:20:11,193 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=False (get_available_emotions.script:13)
+2025-05-16 21:20:11,193 |Crazy| dsl_script - INFO [dsl_engine.py:548] - get_available_emotions.script:14        | GetAvailableEmotions: High attitude. Friendly/positive emotions.
+2025-05-16 21:20:11,193 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET specific_emotions = <e>smile</e><e>sad</e><e>shy</e><e>smileobvi</e><e>smiletonque</e><e>surprise</e><e>surpriseo</e> (get_available_emotions.script:15)
+2025-05-16 21:20:11,193 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (get_available_emotions.script:16)
+2025-05-16 21:20:11,194 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/get_available_emotions.script. Returned value: True
+2025-05-16 21:20:11,194 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/get_available_animations.script in context 'Main/common.txt (recursive from main template main_template.txt)', depth 1
+2025-05-16 21:20:11,194 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/get_available_animations.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\get_available_animations.script)
+2025-05-16 21:20:11,194 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"GetAvailableAnimations: Script started. attitude=" + attitude' (get_available_animations.script:1)
+2025-05-16 21:20:11,194 |Crazy| dsl_script - INFO [dsl_engine.py:548] - get_available_animations.script:1       | GetAvailableAnimations: Script started. attitude=60
+2025-05-16 21:20:11,194 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET always_available_animations_instant = <a>Указать направление</a>
+<a>Взять предмет</a>
+<a>Кивнуть нет</a>
+<a>Посмотреть по сторонам</a>
+ (get_available_animations.script:2)
+2025-05-16 21:20:11,194 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET always_available_animations_idle = <a>Показать усталость</a>
+<a>Притвориться отключенной и упасть</a>
+<a>Сесть и плакать</a>
+<a>Стать уставшей</a>
+<a>Начать махать руками в стороны</a>
+ (get_available_animations.script:4)
+2025-05-16 21:20:11,194 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET final_animations_list = <a>Указать направление</a>
+<a>Взять предмет</a>
+<a>Кивнуть нет</a>
+<a>Посмотреть по сторонам</a>
+<a>Показать усталость</a>
+<a>Притвориться отключенной и упасть</a>
+<a>Сесть и плакать</a>
+<a>Стать уставшей</a>
+<a>Начать махать руками в стороны</a>
+ (get_available_animations.script:6)
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'attitude <= 20' → False  (get_available_animations.script:8), skip=False
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:482] - ELSEIF, branch_taken=False skip=True (get_available_animations.script:16)
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=False (get_available_animations.script:24)
+2025-05-16 21:20:11,195 |Crazy| dsl_script - INFO [dsl_engine.py:548] - get_available_animations.script:25      | GetAvailableAnimations: High attitude. Friendly/expressive animations.
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET high_attitude_instant = <a>Похлопать в ладоши</a>
+<a>Помахать в приветствие</a>
+<a>Кивнуть да</a>
+<a>Дружески ударить</a>
+<a>Обнять</a>
+<a>Показать предмет</a>
+<a>Похвастаться предметом</a>
+<a>Прикрыть рот и помахать рукой</a>
+<a>Круто протанцевать</a>
+ (get_available_animations.script:27)
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET high_attitude_idle = <a>Начать круто танцевать</a>
+<a>Руки сложены в ладони перед собой</a>
+<a>Одна рука прижата, вторая сзади</a>
+<a>Сложить руки перед собой</a>
+ (get_available_animations.script:29)
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET final_animations_list = <a>Указать направление</a>
+<a>Взять предмет</a>
+<a>Кивнуть нет</a>
+<a>Посмотреть по сторонам</a>
+<a>Показать усталость</a>
+<a>Притвориться отключенной и упасть</a>
+<a>Сесть и плакать</a>
+<a>Стать уставшей</a>
+<a>Начать махать руками в стороны</a>
+<a>Похлопать в ладоши</a>
+<a>Помахать в приветствие</a>
+<a>Кивнуть да</a>
+<a>Дружески ударить</a>
+<a>Обнять</a>
+<a>Показать предмет</a>
+<a>Похвастаться предметом</a>
+<a>Прикрыть рот и помахать рукой</a>
+<a>Круто протанцевать</a>
+<a>Начать круто танцевать</a>
+<a>Руки сложены в ладони перед собой</a>
+<a>Одна рука прижата, вторая сзади</a>
+<a>Сложить руки перед собой</a>
+ (get_available_animations.script:31)
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:506] - ENDIF (get_available_animations.script:32)
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (get_available_animations.script:34)
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/get_available_animations.script. Returned value: True
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/get_available_commands.script in context 'Main/common.txt (recursive from main template main_template.txt)', depth 1
+2025-05-16 21:20:11,195 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/get_available_commands.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\get_available_commands.script)
+2025-05-16 21:20:11,196 |Crazy| dsl_script - DEBUG [dsl_engine.py:307] - Attempting auto-str cast for TypeError in expression '"GetAvailableCommands: Script started. available_action_level=" + available_action_level' (get_available_commands.script:1)
+2025-05-16 21:20:11,196 |Crazy| dsl_script - INFO [dsl_engine.py:548] - get_available_commands.script:1         | GetAvailableCommands: Script started. available_action_level=1
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET base_commands = <c>Подойти к игроку вплотную</c><c>Подойти к игроку близко</c><c>Подойти к игроку далеко</c><c>Подойти к случайной точке</c><c>Телепортироваться к игроку</c><c>Телепортироваться к случайной точке</c> (get_available_commands.script:3)
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET level_1_commands = <c>Подойти к игроку вплотную</c><c>Подойти к игроку близко</c><c>Подойти к игроку далеко</c><c>Подойти к случайной точке</c><c>Телепортироваться к игроку</c><c>Телепортироваться к случайной точке</c> (get_available_commands.script:5)
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - DEBUG [dsl_engine.py:536] - SET level_2_commands = <c>Подойти к игроку вплотную</c><c>Подойти к игроку близко</c><c>Подойти к игроку далеко</c><c>Подойти к случайной точке</c><c>Телепортироваться к игроку</c><c>Телепортироваться к случайной точке</c><c>Начать охоту с ножом</c><c>Закончить охоту с ножом</c><c>Зарезать игрока</c><c>Заспавнить манекен</c><c>Отключить все манекены</c><c>Включить все манекены</c><c>Удалить все манекены</c><c>Вернуться к норме</c> (get_available_commands.script:6)
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'available_action_level == 2' → False  (get_available_commands.script:8), skip=False
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - DEBUG [dsl_engine.py:497] - ELSE skip=False (get_available_commands.script:11)
+2025-05-16 21:20:11,196 |Crazy| dsl_script - INFO [dsl_engine.py:548] - get_available_commands.script:12        | GetAvailableCommands: Level 1 (Normal/Playing) commands selected.
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (get_available_commands.script:13)
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/get_available_commands.script. Returned value: True
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - DEBUG [dsl_engine.py:683] - Processing placeholder: Scripts/fsm_handler.script in context 'main template main_template.txt', depth 1
+2025-05-16 21:20:11,196 |Crazy| dsl_execution - INFO [dsl_engine.py:417] - Executing DSL script: Scripts/fsm_handler.script (resolved: D:\NeuroMitaTest\BetterPrompts\web\backend\Prompts\Crazy\Scripts\fsm_handler.script)
+2025-05-16 21:20:11,197 |Crazy| dsl_script - INFO [dsl_engine.py:548] - fsm_handler.script:1                    | FSMHandler: Script started. current_fsm_state=Hello
+2025-05-16 21:20:11,197 |Crazy| dsl_execution - DEBUG [dsl_engine.py:455] - IF 'current_fsm_state == "Hello"' → True  (fsm_handler.script:2), skip=False
+2025-05-16 21:20:11,197 |Crazy| dsl_script - INFO [dsl_engine.py:548] - fsm_handler.script:3                    | FSMHandler: State is Hello. Loading States/hello.txt.
+2025-05-16 21:20:11,197 |Crazy| dsl_execution - DEBUG [dsl_engine.py:609] - RETURN (value exists=True) (fsm_handler.script:4)
+2025-05-16 21:20:11,197 |Crazy| dsl_execution - INFO [dsl_engine.py:666] - Finished DSL script: Scripts/fsm_handler.script. Returned value: True
+2025-05-16 21:20:11,197 |Crazy| dsl_execution - WARNING [dsl_engine.py:791] - Mandatory insert {{SYS_INFO}} not found while processing main template main_template.txt
+2025-05-16 21:20:11,197 |Crazy| dsl_execution - INFO [dsl_engine.py:898] - Successfully processed main template: main_template.txt

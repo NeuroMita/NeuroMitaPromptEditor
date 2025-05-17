@@ -1,4 +1,3 @@
-// File: frontend\src\pages\EditorPage.js
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { useSwipeable } from 'react-swipeable';
@@ -17,7 +16,7 @@ import {
 import '../styles/EditorPage.css';
 
 const MOBILE_PANELS = ['explorer', 'editor', 'variables', 'logs'];
-const MIN_LOG_PANEL_HEIGHT = 60; // Minimum height for the log panel in pixels
+const MIN_LOG_PANEL_HEIGHT = 60;
 const DEFAULT_LOG_PANEL_HEIGHT = 200;
 
 function EditorPage() {
@@ -26,87 +25,62 @@ function EditorPage() {
     const [openFiles, setOpenFiles] = useState([]);
     const [activeFilePath, setActiveFilePath] = useState(null);
     const [fileTreeKey, setFileTreeKey] = useState(Date.now());
-
     const [dslVariables, setDslVariables] = useState({});
     const [dslResult, setDslResult] = useState({ show: false, title: '', content: '' });
-
     const [logs, setLogs] = useState([]);
-
     const [isPageLoading, setIsPageLoading] = useState(false);
     const [pageError, setPageError] = useState(null);
-
-    const [activeMobilePanelIndex, setActiveMobilePanelIndex] = useState(1); // 'editor' by default
+    const [activeMobilePanelIndex, setActiveMobilePanelIndex] = useState(1);
     const activeMobilePanel = useMemo(() => MOBILE_PANELS[activeMobilePanelIndex], [activeMobilePanelIndex]);
-
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
-
-    // Log panel resizing state
     const [logPanelHeight, setLogPanelHeight] = useState(DEFAULT_LOG_PANEL_HEIGHT);
     const [isResizingLogPanel, setIsResizingLogPanel] = useState(false);
     const initialMouseYRef = useRef(0);
     const initialLogHeightRef = useRef(0);
-    const editorPageRef = useRef(null); // Ref for the main editor page container
-    const headerRef = useRef(null); // Ref for the header element
+    const editorPageRef = useRef(null);
+    const headerRef = useRef(null);
+    const [lineWrapping, setLineWrapping] = useState(false); // По умолчанию перенос строк выключен
 
     useEffect(() => {
-        const handleResize = () => {
-            setIsMobileView(window.innerWidth <= 768);
-        };
+        const handleResize = () => setIsMobileView(window.innerWidth <= 768);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-
-    const handleMobilePanelChange = (index) => {
+    const handleMobilePanelChange = useCallback((index) => {
         setActiveMobilePanelIndex(index);
-    };
+    }, []);
 
     const swipeHandlers = useSwipeable({
         onSwipedLeft: () => {
-            if (isMobileView) {
-                setActiveMobilePanelIndex(prev => Math.min(prev + 1, MOBILE_PANELS.length - 1));
-            }
+            if (isMobileView) setActiveMobilePanelIndex(prev => Math.min(prev + 1, MOBILE_PANELS.length - 1));
         },
         onSwipedRight: () => {
-            if (isMobileView) {
-                setActiveMobilePanelIndex(prev => Math.max(prev - 1, 0));
-            }
+            if (isMobileView) setActiveMobilePanelIndex(prev => Math.max(prev - 1, 0));
         },
         preventScrollOnSwipe: true,
         trackMouse: false
     });
 
-
     const handleOpenFile = useCallback(async (fileNode) => {
-        if (fileNode.is_dir) {
-            return;
-        }
-
+        if (fileNode.is_dir) return;
         const existingFile = openFiles.find(f => f.path === fileNode.path);
         if (existingFile) {
             setActiveFilePath(fileNode.path);
             if (isMobileView) setActiveMobilePanelIndex(MOBILE_PANELS.indexOf('editor'));
             return;
         }
-
         setIsPageLoading(true);
         setPageError(null);
         try {
             const fileData = await getFileContent(fileNode.path);
             setOpenFiles(prevFiles => [
                 ...prevFiles,
-                {
-                    path: fileData.path,
-                    name: fileNode.name,
-                    content: fileData.content,
-                    originalContent: fileData.content,
-                    isModified: false
-                }
+                { path: fileData.path, name: fileNode.name, content: fileData.content, originalContent: fileData.content, isModified: false }
             ]);
             setActiveFilePath(fileData.path);
             if (isMobileView) setActiveMobilePanelIndex(MOBILE_PANELS.indexOf('editor'));
         } catch (err) {
-            console.error("Error opening file:", err);
             setPageError(`Failed to open ${fileNode.name}: ${err.message}`);
             alert(`Failed to open ${fileNode.name}: ${err.message}`);
         } finally {
@@ -125,13 +99,8 @@ function EditorPage() {
     const handleSaveFile = useCallback(async (filePathToSave) => {
         const path = filePathToSave || activeFilePath;
         if (!path) return;
-
         const fileToSave = openFiles.find(f => f.path === path);
-        if (!fileToSave || !fileToSave.isModified) {
-            if (fileToSave && !fileToSave.isModified) console.log(`${fileToSave.name} has no changes to save.`);
-            return;
-        }
-
+        if (!fileToSave || !fileToSave.isModified) return;
         setIsPageLoading(true);
         setPageError(null);
         try {
@@ -141,9 +110,7 @@ function EditorPage() {
                     f.path === fileToSave.path ? { ...f, isModified: false, originalContent: f.content } : f
                 )
             );
-            console.log(`${fileToSave.name} saved successfully.`);
         } catch (err) {
-            console.error("Error saving file:", err);
             setPageError(`Failed to save ${fileToSave.name}: ${err.message}`);
             alert(`Failed to save ${fileToSave.name}: ${err.message}`);
         } finally {
@@ -157,7 +124,6 @@ function EditorPage() {
             alert("No files have unsaved changes.");
             return;
         }
-
         setIsPageLoading(true);
         setPageError(null);
         let allSaved = true;
@@ -172,7 +138,6 @@ function EditorPage() {
             }
             alert("All modified files saved successfully!");
         } catch (err) {
-            console.error("Error saving all files:", err);
             setPageError(`Failed to save some files: ${err.message}. Check console for details.`);
             alert(`Failed to save some files: ${err.message}. Check console for details.`);
             allSaved = false;
@@ -184,15 +149,12 @@ function EditorPage() {
 
     const handleCloseTab = useCallback((filePathToClose, forceClose = false) => {
         const fileToClose = openFiles.find(f => f.path === filePathToClose);
-
         if (fileToClose && fileToClose.isModified && !forceClose) {
             if (!window.confirm(`File ${fileToClose.name} has unsaved changes. Close anyway?`)) {
                 return false;
             }
         }
-
         setOpenFiles(prevFiles => prevFiles.filter(file => file.path !== filePathToClose));
-
         if (activeFilePath === filePathToClose) {
             const newOpenFiles = openFiles.filter(file => file.path !== filePathToClose);
             setActiveFilePath(newOpenFiles.length > 0 ? newOpenFiles[newOpenFiles.length - 1].path : null);
@@ -226,7 +188,6 @@ function EditorPage() {
         }
     }, [openFiles, handleCloseTab, refreshFileTree]);
 
-
     const handleRunDsl = useCallback(async () => {
         if (!selectedCharacterId) {
             alert("Please select a character first.");
@@ -237,18 +198,12 @@ function EditorPage() {
             if (window.confirm("You have unsaved changes. Save them before generating the prompt?")) {
                 const saved = await handleSaveAllFiles();
                 if (!saved) {
-                    if (!window.confirm("Some files could not be saved. Continue generating prompt anyway?")) {
-                        return;
-                    }
+                    if (!window.confirm("Some files could not be saved. Continue generating prompt anyway?")) return;
                 }
             } else {
-                 if (!window.confirm("Generate prompt with unsaved changes? This might lead to unexpected results.")) {
-                    return;
-                 }
+                 if (!window.confirm("Generate prompt with unsaved changes? This might lead to unexpected results.")) return;
             }
         }
-
-
         setIsPageLoading(true);
         setPageError(null);
         setLogs([]);
@@ -258,7 +213,6 @@ function EditorPage() {
             setDslResult({ show: true, title: `DSL Result: ${selectedCharacterId}`, content: result.generated_prompt });
             setLogs(result.logs || []);
         } catch (err) {
-            console.error("Error generating prompt:", err);
             setPageError(`Error generating prompt: ${err.message}`);
             alert(`Error generating prompt: ${err.message}`);
             setLogs(prev => [...prev, { level: "ERROR", message: `API Error: ${err.message}`, name: "API_CLIENT" }]);
@@ -266,7 +220,6 @@ function EditorPage() {
             setIsPageLoading(false);
         }
     }, [selectedCharacterId, dslVariables, openFiles, handleSaveAllFiles]);
-
 
     const handleClearLogs = useCallback(() => {
         setLogs([]);
@@ -276,9 +229,7 @@ function EditorPage() {
         const handleKeyDown = (event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                 event.preventDefault();
-                if (activeFilePath) {
-                    handleSaveFile(activeFilePath);
-                }
+                if (activeFilePath) handleSaveFile(activeFilePath);
             }
             if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 's') {
                 event.preventDefault();
@@ -286,19 +237,16 @@ function EditorPage() {
             }
         };
         window.addEventListener('keydown', handleKeyDown);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-        };
+        return () => window.removeEventListener('keydown', handleKeyDown);
     }, [activeFilePath, handleSaveFile, handleSaveAllFiles]);
 
-    // Log panel resize handlers
     const handleLogPanelResizeStart = useCallback((e) => {
         e.preventDefault();
         setIsResizingLogPanel(true);
         initialMouseYRef.current = e.clientY;
         initialLogHeightRef.current = logPanelHeight;
-        document.body.style.cursor = 'ns-resize'; // Optional: change cursor globally
-        document.body.style.userSelect = 'none'; // Disable text selection during resize
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none';
     }, [logPanelHeight]);
 
     useEffect(() => {
@@ -306,23 +254,18 @@ function EditorPage() {
             if (!isResizingLogPanel) return;
             const deltaY = e.clientY - initialMouseYRef.current;
             let newHeight = initialLogHeightRef.current - deltaY;
-
             const maxLogPanelHeight = editorPageRef.current 
-                ? editorPageRef.current.offsetHeight - (headerRef.current?.offsetHeight || 60) - 150 // 150 as min main content height
+                ? editorPageRef.current.offsetHeight - (headerRef.current?.offsetHeight || 60) - 150
                 : window.innerHeight * 0.7;
-
             newHeight = Math.max(MIN_LOG_PANEL_HEIGHT, newHeight);
             newHeight = Math.min(newHeight, maxLogPanelHeight);
-            
             setLogPanelHeight(newHeight);
         };
-
         const handleMouseUp = () => {
             setIsResizingLogPanel(false);
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
         };
-
         if (isResizingLogPanel) {
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
@@ -332,7 +275,6 @@ function EditorPage() {
             };
         }
     }, [isResizingLogPanel]);
-
 
     if (appContextLoading) return <div className="loading-text">Loading application configuration...</div>;
     if (appContextError) return <div className="error-text">Error loading application: {appContextError}<br/>Prompts Root: {promptsRoot}</div>;
@@ -364,6 +306,7 @@ function EditorPage() {
                         onFileContentChange={handleFileContentChange}
                         onCloseTab={handleCloseTab}
                         onSaveTab={handleSaveFile}
+                        lineWrapping={lineWrapping}
                     />
                 </div>
                 <div className="rightPanelContainer">
@@ -391,9 +334,7 @@ function EditorPage() {
                     <div
                         key={panelId}
                         className="swipePage"
-                        style={{
-                            transform: `translateX(${(index - activeMobilePanelIndex) * 100}%)`,
-                        }}
+                        style={{ transform: `translateX(${(index - activeMobilePanelIndex) * 100}%)` }}
                     >
                         {panelId === 'explorer' && (
                             <FileTreePanel
@@ -415,6 +356,7 @@ function EditorPage() {
                                 onFileContentChange={handleFileContentChange}
                                 onCloseTab={handleCloseTab}
                                 onSaveTab={handleSaveFile}
+                                lineWrapping={lineWrapping}
                             />
                         )}
                         {panelId === 'variables' && (
@@ -451,37 +393,30 @@ function EditorPage() {
                 <div className="headerActions">
                     {isPageLoading && <span className="pageStatus loading">Loading...</span>}
                     {pageError && <span className="pageStatus error">Error: {pageError}</span>}
-                    <button
-                        onClick={() => handleSaveFile(activeFilePath)}
-                        disabled={!canSaveCurrent || isPageLoading}
-                        title="Save current file (Ctrl+S)"
-                    >
+                     <label htmlFor="lineWrappingCheckbox" style={{ display: 'flex', alignItems: 'center', marginRight: '10px', cursor: 'pointer', color: 'var(--text-color-normal, #D4D4D4)' }}>
+                        <input
+                            type="checkbox"
+                            id="lineWrappingCheckbox"
+                            checked={lineWrapping}
+                            onChange={(e) => setLineWrapping(e.target.checked)}
+                            style={{ marginRight: '5px', cursor: 'pointer' }}
+                        />
+                        Wrap Lines
+                    </label>
+                    <button onClick={() => handleSaveFile(activeFilePath)} disabled={!canSaveCurrent || isPageLoading} title="Save current file (Ctrl+S)">
                         {isMobileView ? "💾" : "Save"}
                     </button>
-                    <button
-                        onClick={handleSaveAllFiles}
-                        disabled={!canSaveAll || isPageLoading}
-                        title="Save all modified files (Ctrl+Alt+S)"
-                    >
+                    <button onClick={handleSaveAllFiles} disabled={!canSaveAll || isPageLoading} title="Save all modified files (Ctrl+Alt+S)">
                         {isMobileView ? "💾∀" : "Save All"}
                     </button>
-                    <button
-                        onClick={handleRunDsl}
-                        disabled={!selectedCharacterId || isPageLoading}
-                    >
+                    <button onClick={handleRunDsl} disabled={!selectedCharacterId || isPageLoading}>
                         {isMobileView 
-                            ? (selectedCharacterId 
-                                ? `▶ ${selectedCharacterId.length > 10 ? selectedCharacterId.slice(0, 10) + '…' : selectedCharacterId}` 
-                                : "▶ Gen") 
-                            : (selectedCharacterId 
-                                ? `Generate for ${selectedCharacterId}` 
-                                : "Generate...")}
+                            ? (selectedCharacterId ? `▶ ${selectedCharacterId.length > 10 ? selectedCharacterId.slice(0, 10) + '…' : selectedCharacterId}` : "▶ Gen") 
+                            : (selectedCharacterId ? `Generate for ${selectedCharacterId}` : "Generate...")}
                     </button>
                 </div>
             </header>
-
             {isMobileView ? renderMobileLayout() : renderDesktopLayout()}
-
             {dslResult.show && (
                 <DslResultModal
                     title={dslResult.title}

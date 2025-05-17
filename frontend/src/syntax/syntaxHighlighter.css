@@ -1,4 +1,20 @@
 /* frontend/src/syntax/syntaxHighlighter.css */
+:root {
+  --sh-default: #ABB2BF;
+  --sh-keyword: #C678DD;
+  --sh-placeholder-link: #98C379;
+  --sh-comment: #5C6370;
+  --sh-string: #98C379;
+  --sh-number: #D19A66;
+  --sh-specialtag: #E5C07B;
+  --sh-loadcommand: #569CD6;
+  --sh-sectionmarker: #C586C0;
+  --sh-insert: #FFAC33;
+  --sh-triplestring: #FFA500;
+
+  /* --bg-editor: #282c34; /* This is handled by CodeMirror's dslEditorTheme */
+}
+
 .sh-default { color: var(--sh-default); }
 .sh-keyword { color: var(--sh-keyword); font-weight: bold; }
 .sh-placeholder-link { color: var(--sh-placeholder-link); text-decoration: underline; cursor: pointer; }
@@ -11,12 +27,19 @@
 .sh-insert { color: var(--sh-insert); font-weight: bold; }
 .sh-triplestring { color: var(--sh-triplestring); }
 
-/* Ensure pre/code in EditorArea uses these styles */
-.editorTextareaHighlightOverlay code { /* More specific selector if needed */
+/*
+The following styles were for a previous highlighting system and are not directly
+used by CodeMirror in this setup, as CodeMirror's dslEditorTheme and HighlightStyle
+handle the overall editor appearance and token styling.
+The font, size, line-height, default color, and background are set via dslEditorTheme.
+*/
+/*
+.editorTextareaHighlightOverlay code {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
   font-size: 14px;
   line-height: 1.6;
-  white-space: pre; /* Important for preserving whitespace */
-  color: var(--sh-default); /* Default text color for code block */
-  background-color: var(--bg-editor); /* Background for the code block itself */
+  white-space: pre;
+  color: var(--sh-default);
+  background-color: var(--bg-editor);
 }
+*/

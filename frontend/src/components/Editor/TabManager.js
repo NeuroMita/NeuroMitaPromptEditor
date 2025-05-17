@@ -1,5 +1,4 @@
-// File: frontend\src\components\Editor\TabManager.js
-import React from 'react';
+import React, { useCallback } from 'react';
 import EditorArea from './EditorArea';
 import '../../styles/TabManager.css';
 
@@ -9,25 +8,26 @@ function TabManager({
     setActiveFilePath,
     onFileContentChange,
     onCloseTab,
-    onSaveTab
+    onSaveTab,
+    lineWrapping // Принимаем новый проп
 }) {
 
-    const handleTabClick = (filePath) => {
+    const handleTabClick = useCallback((filePath) => {
         setActiveFilePath(filePath);
-    };
+    }, [setActiveFilePath]);
 
-    const handleInternalCloseTab = (e, filePathToClose) => {
+    const handleInternalCloseTab = useCallback((e, filePathToClose) => {
         e.stopPropagation();
         if (onCloseTab) {
             onCloseTab(filePathToClose);
         }
-    };
+    }, [onCloseTab]);
 
-    const handleEditorContentChange = (newContent) => {
+    const handleEditorContentChange = useCallback((newContent) => {
         if (activeFilePath && onFileContentChange) {
             onFileContentChange(activeFilePath, newContent);
         }
-    };
+    }, [activeFilePath, onFileContentChange]);
 
     const activeFile = openFiles.find(file => file.path === activeFilePath);
 
@@ -62,6 +62,7 @@ function TabManager({
                         filePath={activeFile.path}
                         initialContent={activeFile.content}
                         onContentChange={handleEditorContentChange}
+                        lineWrapping={lineWrapping} // Передаем проп дальше
                     />
                 ) : (
                     <div className="noFilesOpenMessage">

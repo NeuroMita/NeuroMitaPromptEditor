@@ -1,113 +1,92 @@
 /* frontend/src/styles/TabManager.css */
 .tabManager {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background-color: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Важно, чтобы TabManager занимал всю высоту родителя (centerPanelContainer) */
+  background-color: var(--bg-tabs, #252526); /* Пример фона */
 }
 
 .tabBar {
-    display: flex;
-    flex-wrap: nowrap; /* Prevent wrapping, enable scrolling if needed */
-    overflow-x: auto; /* Allow horizontal scrolling for many tabs */
-    overflow-y: hidden;
-    background-color: var(--bg-primary);
-    border-bottom: 1px solid var(--border-color);
-    padding-top: 4px; /* Space for top curve of active tab */
-    align-items: flex-end; /* Align tabs to the bottom of the bar */
-}
-
-.tabBar::-webkit-scrollbar {
-  height: 4px;
-}
-.tabBar::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb-bg);
+  display: flex;
+  flex-wrap: nowrap; /* Предотвращаем перенос табов на новую строку */
+  overflow-x: auto; /* Горизонтальный скролл для табов, если их много */
+  overflow-y: hidden;
+  flex-shrink: 0;
+  background-color: var(--bg-tab-bar, #2d2d2d);
+  border-bottom: 1px solid var(--border-color-light, #3f3f3f);
 }
 
 .tab {
-    display: flex;
-    align-items: center;
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    border-bottom: none;
-    border-radius: 4px 4px 0 0; /* Rounded top corners */
-    margin-right: 2px;
-    cursor: pointer;
-    background-color: var(--bg-tertiary);
-    color: var(--text-secondary);
-    max-width: 200px; /* Limit tab width */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 0.9em;
-    position: relative; /* For the '*' modified indicator */
+  padding: 8px 12px;
+  cursor: pointer;
+  border-right: 1px solid var(--border-color-light, #3f3f3f);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  color: var(--text-secondary, #cccccc);
+  font-size: 13px;
+  user-select: none;
 }
 
 .tab:hover {
-    background-color: var(--bg-secondary); /* Slightly lighter on hover */
-    color: var(--text-primary);
+  background-color: var(--bg-tab-hover, #3f3f3f);
 }
 
 .tab.active {
-    background-color: var(--bg-editor); /* Match editor background */
-    color: var(--text-primary);
-    border-bottom: 1px solid var(--bg-editor); /* Merge with editor area */
-    position: relative;
-    /* z-index: 1; */ /* Ensure active tab is "above" others if they overlap slightly */
-}
-
-.tab.modified .tabName {
-    color: var(--modified-color);
+  background-color: var(--bg-editor, #1e1e1e); /* Такой же как фон редактора */
+  color: var(--text-primary, #d4d4d4);
+  /* border-bottom: 2px solid var(--accent-color, #007acc); */ /* Можно добавить акцент */
 }
 
 .tabName {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-right: 8px;
+  margin-right: 8px;
 }
+
+.tab.modified .tabName::after {
+  content: "*";
+  color: var(--accent-color-modified, #f0ad4e); /* Цвет для звездочки измененного файла */
+  margin-left: 2px;
+  font-weight: bold;
+}
+
 
 .tabCloseButton {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-size: 1.2em;
-    line-height: 1;
-    padding: 0 4px;
-    margin-left: auto; /* Pushes button to the right */
-    cursor: pointer;
-    border-radius: 3px;
-}
-
-.tab:hover .tabCloseButton {
-    color: var(--text-primary);
-}
-
-.tab.active .tabCloseButton {
-    color: var(--text-primary);
+  background: none;
+  border: none;
+  color: var(--text-secondary, #cccccc);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: 16px;
+  line-height: 1;
+  margin-left: auto; /* Чтобы кнопка была справа */
+  opacity: 0.7;
 }
 
 .tabCloseButton:hover {
-    background-color: var(--bg-tertiary); /* Darker subtle hover for close button */
-    color: var(--error-color);
+  color: var(--text-primary, #d4d4d4);
+  opacity: 1;
+  background-color: var(--bg-button-hover-light, #555);
+  border-radius: 3px;
 }
 
-/* растягиваем содержимое таба на всю высоту/ширину */
-.tabContent {
-  flex: 1 1 auto;       /* берём всё свободное место */
-  display: flex;
-  min-height: 0;        /* важно для корректного flex-scroll */
+.tab.active .tabCloseButton {
+    /* Можно сделать кнопку закрытия чуть заметнее на активном табе */
 }
 
-.tabContent > * {
-  flex: 1 1 100%;
-  min-width: 0;         /* позволяет дочерним flex-элементам с overflow */
-}
 .noFilesOpenMessage {
-    padding: 20px;
-    text-align: center;
-    color: var(--text-secondary);
-    flex-grow: 1; /* Center message if no editor */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  padding: 10px;
+  color: var(--text-secondary, #888);
+  text-align: center;
+  flex-grow: 1; /* Чтобы занимало место, если табов нет */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tabContent {
+  flex-grow: 1;
+  position: relative; /* Для EditorArea */
+  overflow: hidden; /* Чтобы внутренний скролл CM работал, если EditorArea не 100% */
+  min-height: 0; /* Важно для flex-grow в некоторых случаях */
+  background-color: var(--bg-editor, #1e1e1e); /* Фон для области, где нет активного файла */
 }

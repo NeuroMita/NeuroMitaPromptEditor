@@ -18,7 +18,7 @@ import {
     generatePrompt,
     getFileContent,
     getFileTree,
-    saveFileContent as apiSaveFile,
+    saveFileContent as apiSaveFile, // Renamed for clarity if needed, or use as is
     downloadUserPrompts as apiDownloadUserPrompts,
     uploadUserPromptsZip as apiUploadUserPromptsZip,
 } from '../services/api';
@@ -49,7 +49,7 @@ function EditorPage() {
 
     const [openFiles, setOpenFiles] = useState([]);
     const [activeFilePath, setActiveFilePath] = useState(null);
-    const [fileTreeKey, setFileTreeKey] = useState(Date.now()); // This key will now remain static unless explicitly changed for other reasons
+    const [fileTreeKey, setFileTreeKey] = useState(Date.now()); 
     const [dslVariables, setDslVariables] = useState({});
     const [dslResult, setDslResult] = useState({ show: false, title: '', content: '' });
     const [logs, setLogs] = useState([]);
@@ -120,7 +120,6 @@ function EditorPage() {
 
     const handleOpenFile = useCallback(async (fileNode) => {
         if (fileNode.is_dir) {
-            // Если это директория, проверяем наличие main_template.txt
             const hasMainTemplate = await checkForMainTemplate(fileNode.path);
             if (hasMainTemplate) {
                 setSelectedCharacterId(fileNode.path);
@@ -151,7 +150,6 @@ function EditorPage() {
     
     const handleMobileFileSelect = useCallback(async (fileNode) => {
         if (fileNode.is_dir) {
-            // Если это директория, проверяем наличие main_template.txt
             const hasMainTemplate = await checkForMainTemplate(fileNode.path);
             if (hasMainTemplate) {
                 setSelectedCharacterId(fileNode.path);
@@ -269,18 +267,12 @@ function EditorPage() {
         return true;
     }, [activeFilePath, openFiles]);
 
-    // Modified refreshFileTree: It no longer changes fileTreeKey.
-    // FileTreePanel is now responsible for refreshing its own view.
-    // This function is kept in case EditorPage needs to perform other actions
-    // when a file is created, but it won't force a FileTreePanel remount.
     const refreshFileTree = useCallback(() => {
-        // setFileTreeKey(Date.now()); // DO NOT DO THIS - This was causing the reset to root.
         console.log("EditorPage: refreshFileTree called. FileTreePanel handles its own refresh.");
-        // If EditorPage needs to do something else upon file creation, add it here.
     }, []);
 
     const handleFileRenamedInTree = useCallback((oldPath, newPath, newName) => {
-        refreshFileTree(); // This will call the modified refreshFileTree (no key change)
+        refreshFileTree(); 
         setOpenFiles(prevOpenFiles => {
             return prevOpenFiles.map(file => {
                 if (file.path === oldPath) {
@@ -292,14 +284,14 @@ function EditorPage() {
         if (activeFilePath === oldPath) {
             setActiveFilePath(newPath);
         }
-    }, [activeFilePath, refreshFileTree]); // refreshFileTree dependency is fine
+    }, [activeFilePath, refreshFileTree]); 
 
     const handleFileDeletedInTree = useCallback((deletedPath) => {
-        refreshFileTree(); // This will call the modified refreshFileTree (no key change)
+        refreshFileTree(); 
         if (openFiles.some(f => f.path === deletedPath)) {
             handleCloseTab(deletedPath, true);
         }
-    }, [openFiles, handleCloseTab, refreshFileTree]); // refreshFileTree dependency is fine
+    }, [openFiles, handleCloseTab, refreshFileTree]); 
 
     const handleRunDsl = useCallback(async () => {
         if (!selectedCharacterId) {
@@ -337,6 +329,61 @@ function EditorPage() {
     const handleClearLogs = useCallback(() => {
         setLogs([]);
     }, []);
+
+    // Effect to warn user about unsaved changes before leaving the page
+    useEffect(() => {
+        const handleBeforeUnload = (event) => {
+            // Check if there are any files with unsaved changes
+            const hasUnsavedChanges = openFiles.some(file => file.isModified);
+
+            if (hasUnsavedChanges) {
+                // Standard way to trigger the browser's confirmation dialog
+                event.preventDefault(); 
+                event.returnValue = ''; // Required for Chrome and some other browsers
+                // Most modern browsers show a generic message, custom messages are often ignored.
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [openFiles]);
+
+    // Effect to attempt saving unsaved changes when the page is being hidden/unloaded ("forcibly reset")
+    useEffect(() => {
+        const handlePageHide = () => {
+            const modifiedFiles = openFiles.filter(file => file.isModified);
+
+            if (modifiedFiles.length > 0) {
+                console.log(`EditorPage: Page is hiding with ${modifiedFiles.length} unsaved file(s). Attempting to save them all using 'keepalive'.`);
+                
+                modifiedFiles.forEach(fileToSave => {
+                    try {
+                        // Call apiSaveFile with keepalive = true.
+                        // This sends the request and tells the browser to try to complete it
+                        // even if the page unloads. We don't await the promise here
+                        // because the pagehide handler should execute quickly.
+                        apiSaveFile(fileToSave.path, fileToSave.content, true); // true for keepalive
+                        console.log(`EditorPage: Save request initiated for ${fileToSave.path} with keepalive.`);
+                    } catch (err) {
+                        // This catch would typically handle synchronous errors in preparing the call,
+                        // not network errors from the fetch itself when not awaiting.
+                        console.error(`EditorPage: Error initiating save for ${fileToSave.name} during pagehide: ${err.message}`);
+                    }
+                });
+            }
+        };
+
+        // 'pagehide' is generally more reliable than 'unload' for such operations.
+        window.addEventListener('pagehide', handlePageHide);
+
+        return () => {
+            window.removeEventListener('pagehide', handlePageHide);
+        };
+    }, [openFiles]); // Depends on openFiles to get the latest list of modified files.
+
 
     useEffect(() => {
         const handleKeyDown = (event) => {
@@ -432,17 +479,6 @@ function EditorPage() {
             }
             const result = await apiUploadUserPromptsZip(file);
             alert(result.message || "ZIP file imported successfully!");
-            // Since upload can drastically change the tree, a full refresh might be intended here.
-            // If FileTreePanel should go to root after upload, then changing fileTreeKey here is okay.
-            // For now, let FileTreePanel handle its refresh. If it's desired to go to root,
-            // then setFileTreeKey(Date.now()) could be called here.
-            // The current FileTreePanel will refresh its current path due to cache invalidation in api.js
-            // If a full root refresh is needed, that's a separate consideration.
-            // The prompt was about CUD operations, upload is a bulk operation.
-            // Let's assume the current behavior (refresh current path or rely on cache invalidation) is fine for now.
-            // If a root refresh is explicitly needed after ZIP upload, that's a different requirement.
-            // The `uploadUserPromptsZip` in api.js calls `cache.fileTree.clear()`, so the next
-            // `fetchTree` in `FileTreePanel` will be a fresh call.
         } catch (err) {
             setPageError(`Import failed: ${err.message}`);
         } finally {
@@ -474,12 +510,12 @@ function EditorPage() {
             <div className="mainContent">
                 <div className="leftPanelContainer">
                     <FileTreePanel
-                        key={fileTreeKey} // Key is now static unless other logic changes it
+                        key={fileTreeKey} 
                         onFileSelect={handleOpenFile}
                         onCharacterSelect={setSelectedCharacterId}
                         onFileRenamed={handleFileRenamedInTree}
                         onFileDeleted={handleFileDeletedInTree}
-                        onFileCreated={refreshFileTree} // refreshFileTree no longer changes the key
+                        onFileCreated={refreshFileTree} 
                         onError={setPageError}
                     />
                 </div>
@@ -568,14 +604,14 @@ function EditorPage() {
                     <div className="mobileExplorerOverlay" onClick={toggleMobileExplorer}></div>
                     <div className={`mobileExplorerPanel ${isMobileExplorerOpen ? 'open' : ''}`}>
                         <FileTreePanel
-                            key={`mobile-${fileTreeKey}`} // Key is now static
+                            key={`mobile-${fileTreeKey}`} 
                             onFileSelect={handleMobileFileSelect}
                             onCharacterSelect={(charId) => {
                                 setSelectedCharacterId(charId);
                             }}
                             onFileRenamed={handleFileRenamedInTree}
                             onFileDeleted={handleFileDeletedInTree}
-                            onFileCreated={refreshFileTree} // refreshFileTree no longer changes the key
+                            onFileCreated={refreshFileTree} 
                             onError={setPageError}
                         />
                     </div>

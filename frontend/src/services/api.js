@@ -36,7 +36,12 @@ async function fetchApi(endpoint, options = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const config = { ...options, headers };
+    const config = { ...options, headers }; // Create a mutable copy for headers and other options
+    // Explicitly add keepalive to the fetch config if options.keepalive is true
+    if (options.keepalive === true) {
+        config.keepalive = true;
+    }
+
 
     if (!(options.body instanceof FormData) && options.body && typeof options.body === 'object' && !headers['Content-Type']) {
         config.headers['Content-Type'] = 'application/json';
@@ -140,16 +145,26 @@ export const getFileContent = (filePath) => {
     return promise;
 };
 
-export const saveFileContent = async (filePath, content) => {
+export const saveFileContent = async (filePath, content, keepalive = false) => {
     const normalizedPath = normalizePath(filePath);
-    const result = await fetchApi(`/files/content?file_path=${encodeURIComponent(normalizedPath)}`, {
+    
+    const fetchOptions = {
         method: 'POST',
         body: { content },
-    });
+    };
+    if (keepalive) {
+        fetchOptions.keepalive = true;
+    }
+
+    const result = await fetchApi(`/files/content?file_path=${encodeURIComponent(normalizedPath)}`, fetchOptions);
+    
+    // Invalidate caches. If keepalive is true, this happens optimistically.
+    // The request is sent; if it succeeds on the server, the cache invalidation is correct for next load.
     cache.fileContent.delete(normalizedPath); 
     const parentDir = getParentPath(normalizedPath);
     cache.fileTree.delete(parentDir); 
-    return result;
+    
+    return result; 
 };
 
 export const createFileOrFolder = async (parentDirPath, name, type) => {

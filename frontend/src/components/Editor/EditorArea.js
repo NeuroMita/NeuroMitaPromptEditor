@@ -19,34 +19,36 @@ import '../../styles/EditorArea.css';
 
 const TAB_CHAR = '\t';
 const lineWrappingCompartment = new Compartment();
+const mobileBottomPaddingCompartment = new Compartment(); 
+
+const MOBILE_BOTTOM_PADDING_VH = '40vh'; 
+const MOBILE_PADDING_THRESHOLD_RATIO = 0.6;
+
 
 function EditorArea({
   filePath,
   initialContent,
   onContentChange,
   lineWrapping,
-  onSave
+  onSave,
+  isMobileView
 }) {
   const editorRef = useRef(null);
   const viewRef   = useRef(null);
 
-  /* ---------- isTxtFile ---------- */
   const isTxtFile = useMemo(
     () => (filePath ? filePath.toLowerCase().endsWith('.txt') : false),
     [filePath]
   );
 
-  /* ---------- ENTER c авто-отступом ---------- */
   const indentEnterCommand = useCallback((view) => {
     insertNewlineAndIndent(view);
-
     const { state } = view;
     const head      = state.selection.main.head;
     const prevLine  = state.doc.lineAt(Math.max(0, head - 1));
     const prevTextU = prevLine.text.trimEnd().toUpperCase();
     const needTab   = !isTxtFile &&
                       (prevTextU.endsWith('THEN') || prevTextU === 'ELSE');
-
     if (needTab) {
       view.dispatch({
         changes: { from: head, insert: TAB_CHAR },
@@ -57,7 +59,6 @@ function EditorArea({
     return true;
   }, [isTxtFile]);
 
-  /* ---------- актуальные callback’и через ref ---------- */
   const onChangeRef = useRef(onContentChange);
   useEffect(() => { onChangeRef.current = onContentChange; }, [onContentChange]);
 
@@ -69,7 +70,31 @@ function EditorArea({
     return true;
   }, []);
 
-  /* ---------- инициализация EditorView ---------- */
+  // Функция для обновления padding'а
+  const updateMobilePadding = useCallback((view) => {
+    if (!view) return;
+
+    let needsPadding = false;
+    if (isMobileView) {
+      const contentHeight = view.contentHeight;
+      const editorHeight = view.dom.clientHeight; // или view.scrollDOM.clientHeight
+      if (editorHeight > 0 && contentHeight / editorHeight > MOBILE_PADDING_THRESHOLD_RATIO) {
+        needsPadding = true;
+      }
+    }
+
+    const paddingTheme = EditorView.theme({
+      '.cm-scroller': {
+        paddingBottom: needsPadding ? MOBILE_BOTTOM_PADDING_VH : '0px',
+      }
+    });
+
+    view.dispatch({
+      effects: mobileBottomPaddingCompartment.reconfigure(paddingTheme)
+    });
+  }, [isMobileView]);
+
+
   useEffect(() => {
     if (!editorRef.current) return;
 
@@ -104,11 +129,16 @@ function EditorArea({
         if (update.docChanged && viewRef.current) {
           onChangeRef.current?.(update.state.doc.toString());
         }
+        // Обновляем padding при изменении документа или геометрии редактора
+        if (update.docChanged || update.geometryChanged) {
+          updateMobilePadding(update.view);
+        }
       }),
       EditorView.theme({
         '&': { height: '100%' },
         '.cm-scroller': { overflow: 'auto' },
-      })
+      }),
+      mobileBottomPaddingCompartment.of(EditorView.theme({})), // Инициализация compartment
     ];
 
     const startState = EditorState.create({
@@ -123,17 +153,27 @@ function EditorArea({
       parent: editorRef.current,
     });
     viewRef.current = view;
+    
+    // Первоначальное применение padding'а после монтирования
+    updateMobilePadding(view);
+    
     view.focus();
 
     return () => {
       viewRef.current?.destroy();
       viewRef.current = null;
     };
-    // saveCommand и onChangeRef не включаем в зависимости
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTxtFile, indentEnterCommand, lineWrapping]);
+  }, [isTxtFile, indentEnterCommand, updateMobilePadding]); // Добавили updateMobilePadding
 
-  /* ---------- смена режима переноса строк ---------- */
+  // Обновление padding'а при изменении isMobileView
+  useEffect(() => {
+    if (viewRef.current) {
+      updateMobilePadding(viewRef.current);
+    }
+  }, [isMobileView, updateMobilePadding]);
+
+  // Обновление lineWrapping
   useEffect(() => {
     if (viewRef.current) {
       viewRef.current.dispatch({
@@ -144,7 +184,7 @@ function EditorArea({
     }
   }, [lineWrapping]);
 
-  /* ---------- (опционально) внешнее обновление initialContent ---------- */
+  // Обновление initialContent
   useEffect(() => {
     if (viewRef.current &&
         initialContent !== viewRef.current.state.doc.toString()) {

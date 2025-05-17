@@ -43,6 +43,12 @@
   --sh-info: #61AFEF; /* Added for INFO logs */
 }
 
+html {
+  height: 100%;
+  overflow: hidden; /* Prevent scroll on the html element */
+}
+
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -53,14 +59,16 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-size: 14px;
+  height: 100%; /* Make body take full height of html */
+  overflow: hidden; /* Prevent scroll on the body element */
 }
 
 .App {
   text-align: left;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden; /* Prevent body scroll with fixed header/panels */
+  height: 100%; /* Make App take full height of body */
+  overflow: hidden; /* Still good to prevent its own scroll if its content misbehaves */
 }
 
 /* General UI Elements */

@@ -1,49 +1,63 @@
 /* frontend/src/styles/EditorPage.css */
+
+/* ───────── БАЗОВОЕ (ОСНОВА ИЗ "РАБОТАЮЩЕГО CSS") ───────── */
 .editorPage {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background-color: var(--bg-primary); 
+  width: 100%; /* Из "работающего" */
+  height: 100vh;                  /* для десктопа */
+  background-color: var(--bg-primary);
   color: var(--text-primary);
-  overflow: hidden;
+  overflow: hidden;               /* внешний скролл запрещён */
 }
 
+/* мобилка: вся страница фиксируется к viewport (ИЗ "РАБОТАЮЩЕГО CSS") */
+.editorPage.mobile-view {
+  position: fixed;
+  inset: 0;                       /* top/right/bottom/left = 0 */
+  height: auto;                   /* фикс-позиция задаёт высоту сама (из "работающего") */
+  width: 100%;                    /* из "работающего" */
+  /* overflow: hidden; наследуется от .editorPage */
+  box-sizing: border-box; /* Добавлено для консистентности */
+}
+
+/* ───────────────────────── Header (общий, объединенный) ───────────────────────── */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 10px; /* Reduced padding slightly for mobile */
-  background-color: var(--bg-secondary); 
+  padding: 0 10px;
+  background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   height: 50px;
   flex-shrink: 0;
   box-sizing: border-box;
+  /* z-index для мобильного header будет в .editorPage.mobile-view .header */
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  flex-shrink: 0; 
-  overflow: hidden; 
-  min-width: 0; /* Added for flexbox shrinking */
+  min-width: 0; /* flex-box shrinking */
+  overflow: hidden;
+  flex-shrink: 0; /* Из "определял" */
 }
 
 .headerTitle {
-  font-size: 1.2em; /* Adjusted for better mobile fit */
-  margin: 0;
-  color: var(--text-primary);
+  margin-left: 5px;
+  font-size: 1.2em;
   white-space: nowrap;
-  text-overflow: ellipsis; 
   overflow: hidden;
-  margin-left: 5px; /* Space from hamburger */
+  text-overflow: ellipsis;
+  color: var(--text-primary);
 }
 
 .currentUserDisplay {
-  font-size: 0.85em;
-  color: var(--text-secondary);
   margin-left: 15px;
-  background-color: var(--bg-tertiary);
   padding: 3px 8px;
+  font-size: .85em;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   border-radius: 3px;
   white-space: nowrap;
 }
@@ -52,81 +66,79 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0; /* Let actions take their space, header-left will shrink title */
+  flex-shrink: 0;
 }
 
-.headerButton { 
+.headerButton {
   padding: 6px 10px;
-  font-size: 0.9em;
-  background-color: var(--button-bg);
+  font-size: .9em;
+  background: var(--button-bg);
   color: var(--text-on-accent);
   border: 1px solid var(--button-bg);
   border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
   white-space: nowrap;
-  display: flex; /* For aligning icons if used */
-  align-items: center; /* For aligning icons if used */
-  justify-content: center; /* For aligning icons if used */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color .2s ease; /* transition из "определял" */
 }
 .headerButton:hover:not(:disabled) {
-  background-color: var(--button-hover-bg);
+  background: var(--button-hover-bg);
 }
 .headerButton:disabled {
-  background-color: var(--button-disabled-bg);
+  background: var(--button-disabled-bg);
   color: var(--button-disabled-text);
   cursor: not-allowed;
 }
-.headerButton.generateButton { 
-  min-width: 100px; 
+.headerButton.generateButton {
+  min-width: 100px;
 }
 
 .headerCheckboxLabel {
   display: flex;
   align-items: center;
-  margin-right: 5px;
+  font-size: .9em;
   cursor: pointer;
-  color: var(--text-primary);
-  font-size: 0.9em;
-  padding: 6px 0px; 
-  white-space: nowrap;
+  color: var(--text-primary); /* Из "определял" */
+  margin-right: 5px; /* Из "определял" */
+  padding: 6px 0; /* Из "определял" */
+  white-space: nowrap; /* Из "определял" */
 }
-.headerCheckboxLabel input[type="checkbox"] {
+.headerCheckboxLabel input { /* input[type='checkbox'] из "определял" */
   margin-right: 5px;
-  cursor: pointer;
-  background-color: initial; 
-  border: initial;
-  padding: initial;
+  cursor: pointer; /* Из "определял" */
 }
-
 
 .headerActions .pageStatus {
-  font-size: 0.85em;
+  font-size: .85em;
   padding: 3px 8px;
   border-radius: 3px;
-  margin-right: 5px;
   white-space: nowrap;
+  margin-right: 5px; /* Из "определял" */
 }
 .headerActions .pageStatus.loading {
-  background-color: var(--bg-tertiary);
+  background: var(--bg-tertiary);
   color: var(--warning-color);
 }
 .headerActions .pageStatus.error {
-  background-color: var(--error-bg);
+  background: var(--error-bg);
   color: var(--error-color);
 }
-.pageStatus.small-error { 
-    margin: 10px 0 0 0;
-    width: 100%;
-    box-sizing: border-box;
-    text-align: center;
+/* Стили .pageStatus.small-error и .pageStatus.small-status из "определял" */
+.pageStatus.small-error {
+  margin: 10px 0 0 0;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
 }
-.pageStatus.small-status { 
-    font-size: 0.9em;
-    padding: 8px;
+.pageStatus.small-status {
+  font-size: 0.9em;
+  padding: 8px;
 }
 
-/* Desktop Layout Specifics */
+
+/* ───────── ДЕСКТОП (объединенные, приоритет "определял" для полноты) ───────── */
 .desktopContentWrapper {
   display: flex;
   flex-direction: column;
@@ -145,13 +157,13 @@
   width: 280px;
   flex-shrink: 0;
   overflow-y: auto;
-  background-color: var(--bg-secondary); 
+  background: var(--bg-secondary);
 }
 .leftPanelContainer {
   border-right: 1px solid var(--border-color);
 }
 .rightPanelContainer {
-   border-left: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
 }
 
 .centerPanelContainer {
@@ -163,275 +175,390 @@
 
 .logPanelResizeHandle {
   height: 8px;
-  background-color: var(--border-color);
+  background: var(--border-color);
   cursor: ns-resize;
   flex-shrink: 0;
-  transition: background-color 0.2s ease;
+  transition: background-color .2s ease; /* transition из "определял" */
 }
 .logPanelResizeHandle:hover {
-  background-color: var(--accent-primary); 
+  background: var(--accent-primary);
 }
 
 .bottomPanelContainer {
   flex-shrink: 0;
   overflow: hidden;
-  background-color: var(--bg-secondary); 
+  background: var(--bg-secondary);
+  /* height устанавливается JS */
+}
+
+/* ───────── МОБИЛЬНЫЙ РЕЖИМ (КЛЮЧЕВЫЕ СТИЛИ ИЗ "РАБОТАЮЩЕГО CSS") ───────── */
+/* фиксируем панели */
+.editorPage.mobile-view .header { /* Из "работающего" */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+}
+.editorPage.mobile-view .mobileBottomNavBar { /* Из "работающего" */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 56px;
+  z-index: 100;
+  /* Стили для самой панели .mobileBottomNavBar ниже, объединены */
+}
+
+/* главная прокручиваемая зона — абсолютна между двумя фикс-панелями (ИЗ "РАБОТАЮЩЕГО CSS") */
+.mobileMainContentArea {
+  position: absolute;
+  top: 50px;                 /* высота header */
+  bottom: 56px;              /* высота нижней панели */
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;          /* внешний скролл запрещён */
+}
+/* Непосредственные дочерние div'ы в .mobileMainContentArea (ИЗ "РАБОТАЮЩЕГО CSS") */
+.mobileMainContentArea > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Эти контейнеры не скроллятся, их внутренности - да */
+  min-height: 0; /* Важно для flex/overflow */
+}
+
+/* внутренние панели получают собственный скролл (ИЗ "РАБОТАЮЩЕГО CSS" + дополнения из "определял") */
+.mobileMainContentArea .tabManager .tabContent {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background-color: var(--bg-primary); /* Из "определял" */
+  /* flex:1 и position:relative для .tabContent должны быть в TabManager.css или общих стилях .tabContent ниже */
+}
+.mobileMainContentArea .logPanel,
+.mobileMainContentArea .dslVariablesPanel {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-left: none; /* Из "определял", для мобильной версии */
+}
+/* Скроллинг для .mobileSettingsPanel (из "определял") */
+.mobileMainContentArea .mobileSettingsPanel {
+  /* Этот div является прямым ребенком .mobileMainContentArea > div, поэтому его overflow:hidden родителя переопределяется */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Остальные стили .mobileSettingsPanel (padding, bg, etc.) ниже */
 }
 
 
-/* Mobile Layout Specifics */
-.editorPage.mobile-view .header-left .headerTitle {
-  margin-left: 8px; /* More consistent spacing */
+/* Прочие мобильные стили из "определял" */
+.editorPage.mobile-view .header-left .headerTitle { /* Из "определял" */
+  margin-left: 8px;
 }
 
-.hamburgerButton {
-  font-size: 1.2em; /* Adjusted icon size */
-  padding: 4px 8px !important; 
-  background: transparent !important; 
-  border: none !important; 
-  color: var(--text-primary) !important; 
-  line-height: 1; /* Ensure icon is vertically centered */
+.hamburgerButton { /* Из "определял" */
+  font-size: 1.2em;
+  padding: 4px 8px !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-primary) !important;
+  line-height: 1;
 }
-.hamburgerButton svg { /* Target SVG inside for feather icons */
-    vertical-align: middle;
+.hamburgerButton svg {
+  vertical-align: middle;
 }
 .hamburgerButton:hover {
   background-color: var(--bg-tertiary) !important;
 }
 
-.mobileHeaderActionButton {
-    padding: 5px 8px !important; /* Smaller padding for mobile header buttons */
-    font-size: 0.85em !important;
-    min-width: auto !important; /* Allow to shrink */
+.mobileHeaderActionButton { /* Из "определял" */
+  padding: 5px 8px !important;
+  font-size: 0.85em !important;
+  min-width: auto !important;
 }
-.generateMobileButton {
-    background-color: var(--success-color) !important; /* Green color for generate */
-    border-color: var(--success-color) !important;
-    color: var(--text-on-accent) !important;
-    padding: 5px 8px !important; /* Ensure consistent padding */
+.generateMobileButton { /* Из "определял" */
+  background-color: var(--success-color) !important;
+  border-color: var(--success-color) !important;
+  color: var(--text-on-accent) !important;
 }
 .generateMobileButton:hover:not(:disabled) {
-    background-color: #3c8840 !important; /* Darker green for hover */
+  background-color: #3c8840 !important;
 }
 .generateMobileButton svg {
-    vertical-align: middle;
+  vertical-align: middle;
 }
 
-
-.mobileExplorerOverlay {
+/* Explorer (slide-in) (объединенный) */
+.mobileExplorerOverlay { /* Из "работающего" */
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 998; 
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 98;
 }
-
-.mobileExplorerPanel {
+.mobileExplorerPanel { /* Из "работающего", детали из "определял" */
   position: fixed;
-  top: 50px; 
+  top: 50px;
   left: 0;
   width: 80%;
   max-width: 300px;
-  height: calc(100vh - 50px); 
-  background-color: var(--bg-secondary);
+  height: calc(100vh - 50px);
+  background: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
-  box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+  box-shadow: 2px 0 5px rgba(0,0,0,.2);
   transform: translateX(-100%);
-  transition: transform 0.3s ease-in-out;
-  z-index: 999;
+  transition: transform .3s ease-in-out; /* ease-in-out из "определял" */
+  z-index: 99;
   overflow-y: auto;
 }
 .mobileExplorerPanel.open {
   transform: translateX(0);
 }
-.mobileExplorerPanel .fileTreeContainer { 
-    height: 100%;
-    border-right: none; 
+.mobileExplorerPanel .fileTreeContainer { /* Из "работающего" */
+  height: 100%;
+  border-right: none;
 }
 
-
-.mobileMainContentArea {
-  flex-grow: 1;
-  overflow-y: auto; 
-  display: flex; 
-  flex-direction: column; 
-}
-.mobileMainContentArea > div { 
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-.mobileMainContentArea .tabManager .tabContent {
-    background-color: var(--bg-primary); 
-}
-.mobileMainContentArea .dslVariablesPanel,
-.mobileMainContentArea .logPanel {
-    border-left: none; 
-}
-
-
-.mobileBottomNavBar {
+/* Нижняя навигация (объединенные стили) */
+.mobileBottomNavBar { /* Базовые стили контейнера из "работающего" и "определял" */
   display: flex;
   justify-content: space-around;
-  padding: 0;
-  background-color: var(--bg-secondary);
+  background: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
-  flex-shrink: 0;
-  height: 56px; 
+  flex-shrink: 0; /* Из "определял" */
+  /* height: 56px; -- уже задано выше при position:fixed */
 }
-
-.mobileBottomNavBar button {
-  flex-grow: 1;
-  background-color: transparent;
-  color: var(--text-secondary);
+.mobileBottomNavBar button { /* Стили кнопок из "работающего" и "определял" */
+  flex-grow: 1; /* flex:1 из "работающего" */
+  background: transparent;
   border: none;
-  border-radius: 0;
-  cursor: pointer;
-  font-size: 0.7em; /* Smaller font for labels with icons */
+  color: var(--text-secondary);
+  font-size: .7em;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4px 0; /* Adjusted padding for icons */
-  line-height: 1.2;
+  padding: 4px 0;
+  cursor: pointer;
+  line-height: 1.2; /* Из "определял" */
 }
-.mobileBottomNavBar button .mobileNavIcon {
+.mobileBottomNavBar button .mobileNavIcon { /* Из "определял" */
   margin-bottom: 2px;
-  display: flex; /* Helps center the SVG icon */
+  display: flex;
   align-items: center;
 }
-.mobileBottomNavBar button .mobileNavIcon svg {
-  stroke-width: 2; /* Feather icons default, can adjust */
-}
-.mobileBottomNavBar button .mobileNavLabel {
+.mobileBottomNavBar button .mobileNavLabel { /* Из "определял" */
   display: block;
   margin-top: 2px;
 }
-
-.mobileBottomNavBar button.active {
-  background-color: var(--bg-tertiary);
+.mobileBottomNavBar button.active { /* Из "работающего" и "определял" */
+  background: var(--bg-tertiary);
   color: var(--accent-primary);
 }
-.mobileBottomNavBar button.active .mobileNavIcon svg {
-    color: var(--accent-primary); /* Ensure icon color matches active state */
+.mobileBottomNavBar button.active .mobileNavIcon svg { /* Из "определял" */
+  color: var(--accent-primary);
 }
-.mobileBottomNavBar button:hover:not(.active) {
-  background-color: var(--bg-tertiary);
+.mobileBottomNavBar button:hover:not(.active) { /* Из "работающего" и "определял" */
+  background: var(--bg-tertiary);
 }
 
+/* Settings-панель в mobile (из "определял") */
+/* .mobileSettingsPanel сам по себе будет .mobileMainContentArea > div */
+/* и для него уже применен overflow-y:auto выше */
 .mobileSettingsPanel {
-    padding: 15px;
-    height: 100%;
-    overflow-y: auto;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
+  padding: 15px;
+  /* height: 100%; -- управляется flex:1 родителя */
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  box-sizing: border-box; /* Добавлено */
 }
 .mobileSettingsSection {
-    margin-bottom: 20px;
+  margin-bottom: 20px;
 }
 .mobileSettingsSection h4 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    color: var(--text-secondary);
-    font-size: 0.9em;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--border-color-light);
-    padding-bottom: 5px;
+  margin: 0 0 10px 0;
+  color: var(--text-secondary);
+  font-size: 0.9em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-color-light);
+  padding-bottom: 5px;
 }
 .mobileSettingsSection .userInfo {
-    font-size: 0.95em;
-    background-color: var(--bg-secondary);
-    padding: 8px 10px;
-    border-radius: 4px;
-    border: 1px solid var(--border-color-light);
+  font-size: 0.95em;
+  background-color: var(--bg-secondary);
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color-light);
 }
 
 .mobileSettingButton {
-    width: 100%;
-    padding: 10px 12px;
-    font-size: 0.95em;
-    text-align: left; 
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color-light);
-    border-radius: 4px;
-    margin-bottom: 8px;
-    display: block; 
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 0.95em;
+  text-align: left;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color-light);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  display: block;
+  box-sizing: border-box; /* Добавлено */
 }
 .mobileSettingButton:hover:not(:disabled) {
-    background-color: var(--bg-tertiary);
+  background-color: var(--bg-tertiary);
 }
 .mobileSettingButton:disabled {
-    background-color: var(--button-disabled-bg);
-    color: var(--button-disabled-text);
-    opacity: 0.7;
+  background-color: var(--button-disabled-bg);
+  color: var(--button-disabled-text);
+  opacity: 0.7;
 }
 .mobileSettingButton.checkboxLabel {
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 }
 .mobileSettingButton.checkboxLabel input {
-    margin-right: 10px;
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
+  margin-right: 10px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 .mobileSettingButton.logoutButton {
-    background-color: var(--error-bg);
-    border-color: var(--error-color);
-    color: var(--error-color);
+  background-color: var(--error-bg);
+  border-color: var(--error-color);
+  color: var(--error-color);
 }
 .mobileSettingButton.logoutButton:hover:not(:disabled) {
-    background-color: #723030; 
+  background-color: #723030;
+}
+
+/* ───────── TAB-MANAGER (ОБЩИЕ СТИЛИ ИЗ "РАБОТАЮЩЕГО CSS") ───────── */
+/* Эти стили применяются к TabManager в любом режиме (desktop/mobile) */
+.tabManager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-tabs, #252526);
+  overflow: hidden; /* Сам TabManager не скроллится, его .tabContent - да */
+}
+.tabBar {
+  display: flex;
+  overflow-x: auto; /* Горизонтальный скролл для табов */
+  flex-shrink: 0;
+  background: var(--bg-tab-bar, #2d2d2d);
+  border-bottom: 1px solid var(--border-color-light);
+}
+.tab {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  border-right: 1px solid var(--border-color-light);
+  color: var(--text-secondary);
+  font-size: 13px;
+  user-select: none;
+  cursor: pointer;
+}
+.tab:hover {
+  background: var(--bg-tab-hover, #3f3f3f);
+}
+.tab.active {
+  background: var(--bg-editor, #1e1e1e);
+  color: var(--text-primary);
+}
+.tabName {
+  margin-right: 8px;
+}
+.tab.modified .tabName::after {
+  content: '*';
+  margin-left: 2px;
+  color: var(--accent-color-modified, #f0ad4e); /* var(--modified-color) из App.css */
+  font-weight: bold;
+}
+.tabCloseButton {
+  margin-left: auto;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: .7;
+}
+.tabCloseButton:hover {
+  color: var(--text-primary);
+  opacity: 1;
+  background: var(--bg-button-hover-light, #555); /* var(--bg-tertiary) было бы консистентнее */
+  border-radius: 3px; /* Добавлено из TabManager.css если там было */
+}
+.noFilesOpenMessage { /* Сообщение, если нет открытых файлов */
+  padding: 10px;
+  color: var(--text-secondary);
+  flex: 1; /* flex-grow:1 из "определял" TabManager.css */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center; /* Из "определял" TabManager.css */
+}
+.tabContent { /* Контентная область ТАБОВ */
+  flex: 1; /* flex-grow:1 из "определял" TabManager.css */
+  position: relative; /* Из "определял" TabManager.css */
+  /* overflow-y: auto; -- Этот overflow управляется специфично для mobile выше, для desktop - EditorArea сам разберется */
+  /* overflow-x: hidden; -- Из "работающего" */
+  background: var(--bg-editor, #1e1e1e);
+  -webkit-overflow-scrolling: touch; /* Для мобильных */
+  min-height: 0; /* Из "определял" TabManager.css */
 }
 
 
-/* General Loading/Error text styling */
-.loading-text, .error-text {
-    padding: 20px;
-    text-align: center;
-    font-size: 1.1em;
+/* ───────── Шрифты ошибок / загрузки (объединенные) ───────── */
+.loading-text,
+.error-text {
+  padding: 20px;
+  text-align: center;
+  font-size: 1.1em;
 }
 .error-text {
-    color: var(--error-color);
+  color: var(--error-color);
+  /* Если есть глобальный .error-text в App.css, эти стили должны быть согласованы */
+  /* background-color, border etc. из App.css .error-text */
 }
-
-.app-loading-spinner {
+.app-loading-spinner { /* Используется в App.js */
   display: flex;
+  align-items: center; /* align-items из "работающего" */
   justify-content: center;
-  align-items: center;
   height: 100vh;
   font-size: 1.5em;
   color: var(--text-secondary);
-  background-color: var(--bg-primary);
+  background: var(--bg-primary);
 }
 
-/* Responsive adjustments for really small mobile screens */
+/* Make CodeMirror editor font a bit smaller on mobile */
+.editorPage.mobile-view .editorAreaCodeMirrorContainer .cm-content {
+  font-size: 0.9em; /* Base font is 14px, so this is 12.6px. Adjust if needed. */
+}
+
+/* ───────── Адаптация 360 px (из "работающего" и "определял") ───────── */
 @media (max-width: 360px) {
   .editorPage.mobile-view .headerTitle {
-    font-size: 1.0em; 
+    font-size: 1em;
     margin-left: 4px;
   }
-   .mobileBottomNavBar button .mobileNavLabel {
-    font-size: 0.85em; 
+  .mobileBottomNavBar button .mobileNavLabel {
+    font-size: .85em;
   }
-  .mobileBottomNavBar button .mobileNavIcon svg {
+  .mobileBottomNavBar button .mobileNavIcon svg,
+  .generateMobileButton svg { /* Объединено с .generateMobileButton svg из "работающего" */
     width: 16px;
     height: 16px;
   }
+  /* Стили из "определял" для @media (max-width: 360px) */
   .mobileSettingButton {
-      font-size: 0.9em;
-      padding: 8px 10px;
+    font-size: 0.9em;
+    padding: 8px 10px;
   }
   .mobileHeaderActionButton {
-      padding: 4px 6px !important;
-      font-size: 0.8em !important;
+    padding: 4px 6px !important;
+    font-size: 0.8em !important;
   }
-  .generateMobileButton svg {
-      width: 16px;
-      height: 16px;
-  }
-
 }

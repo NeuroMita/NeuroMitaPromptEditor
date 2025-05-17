@@ -56,27 +56,22 @@ function FileTreePanel({
 
     const handleItemClick = (item) => {
         if (item.is_dir) {
+            fetchTree(item.path);
+            // Проверяем, является ли директория персонажем (содержит main_template.txt)
             if (item.is_character_dir && onCharacterSelect) {
-                onCharacterSelect(item.path); 
-            } else if (onCharacterSelect) {
-                onCharacterSelect(null);
+                onCharacterSelect(item.path);
             }
-            fetchTree(item.path); 
         } else { 
             onFileSelect(item);
         }
     };
-
+    
     const handleGoUp = () => {
         if (currentRelativePath === '.' || currentRelativePath === '') return;
         const parts = currentRelativePath.split(/[/\\]+/);
         parts.pop();
         const parentPath = parts.join('/') || '.';
         fetchTree(parentPath);
-        
-        if (onCharacterSelect) {
-            onCharacterSelect(null);
-        }
     };
 
     const handleDelete = async (e, itemPath, itemName) => {
@@ -86,8 +81,11 @@ function FileTreePanel({
             onError(null);
             try {
                 await apiDeleteItem(itemPath); 
-                if (onFileDeleted) onFileDeleted(itemPath);
-                else fetchTree(currentRelativePath); 
+                // Refresh the current directory view
+                fetchTree(currentRelativePath);
+                if (onFileDeleted) {
+                    onFileDeleted(itemPath);
+                }
             } catch (err) {
                 onError(`Failed to delete ${itemName}: ${err.message}`);
             } finally {
@@ -112,8 +110,11 @@ function FileTreePanel({
         onError(null);
         try {
             const result = await apiRenameItem(renamingItemPath, newItemName.trim()); 
-            if (onFileRenamed) onFileRenamed(renamingItemPath, result.new_path, newItemName.trim());
-            else fetchTree(currentRelativePath); 
+            // Refresh the current directory view
+            fetchTree(currentRelativePath);
+            if (onFileRenamed) {
+                onFileRenamed(renamingItemPath, result.new_path, newItemName.trim());
+            }
         } catch (err) {
             onError(`Failed to rename: ${err.message}`);
         } finally {
@@ -137,9 +138,18 @@ function FileTreePanel({
         setLoading(true);
         onError(null);
         try {
+            // Use creatingInPath.path for the API call, as currentRelativePath might have changed
+            // if user navigated while input was open (though unlikely for this specific UI).
+            // The API call itself will clear the cache for creatingInPath.path.
             await apiCreateItem(creatingInPath.path, newItemName.trim(), creatingInPath.type); 
-            if (onFileCreated) onFileCreated(); 
-            else fetchTree(currentRelativePath); 
+            
+            // Refresh the current directory view. If creatingInPath.path is different from
+            // currentRelativePath, the new item might not appear if it was created
+            // outside the current view. But typically they are the same.
+            fetchTree(currentRelativePath);
+            if (onFileCreated) {
+                onFileCreated(); 
+            }
         } catch (err) {
             onError(`Failed to create ${creatingInPath.type}: ${err.message}`);
         } finally {

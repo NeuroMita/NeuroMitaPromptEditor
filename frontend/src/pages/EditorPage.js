@@ -17,6 +17,7 @@ import DslResultModal from '../components/Panels/DslResultModal';
 import {
     generatePrompt,
     getFileContent,
+    getFileTree,
     saveFileContent as apiSaveFile,
     downloadUserPrompts as apiDownloadUserPrompts,
     uploadUserPromptsZip as apiUploadUserPromptsZip,
@@ -48,7 +49,7 @@ function EditorPage() {
 
     const [openFiles, setOpenFiles] = useState([]);
     const [activeFilePath, setActiveFilePath] = useState(null);
-    const [fileTreeKey, setFileTreeKey] = useState(Date.now());
+    const [fileTreeKey, setFileTreeKey] = useState(Date.now()); // This key will now remain static unless explicitly changed for other reasons
     const [dslVariables, setDslVariables] = useState({});
     const [dslResult, setDslResult] = useState({ show: false, title: '', content: '' });
     const [logs, setLogs] = useState([]);
@@ -68,6 +69,38 @@ function EditorPage() {
     const [lineWrapping, setLineWrapping] = useState(false);
     const zipUploadInputRef = useRef(null);
 
+    
+    const checkForMainTemplate = useCallback(async (path) => {
+        if (!path) return false;
+        try {
+            const fileTree = await getFileTree(path);
+            return fileTree.some(item => 
+                !item.is_dir && item.name.toLowerCase() === 'main_template.txt'
+            );
+        } catch (err) {
+            console.error("Error checking for main_template.txt:", err);
+            return false;
+        }
+    }, []);
+
+    const isPathInCharacterDir = useCallback(async (path) => {
+        if (!path) return false;
+        
+        const hasMainTemplate = await checkForMainTemplate(path);
+        if (hasMainTemplate) return true;
+        
+        const parts = path.split(/[/\\]+/);
+        while (parts.length > 1) {
+            parts.pop();
+            const parentPath = parts.join('/');
+            const parentHasMainTemplate = await checkForMainTemplate(parentPath);
+            if (parentHasMainTemplate) return true;
+        }
+        
+        return false;
+    }, [checkForMainTemplate]);
+
+
     useEffect(() => {
         const handleResize = () => {
             const mobile = window.innerWidth <= 768;
@@ -84,17 +117,17 @@ function EditorPage() {
         setIsMobileExplorerOpen(prev => !prev);
     }, []);
     
-    const handleMobileFileSelect = useCallback(async (fileNode) => {
-        await handleOpenFile(fileNode); 
-        if (fileNode && !fileNode.is_dir) {
-             setIsMobileExplorerOpen(false); 
-             setActiveMobileTab('editor'); 
-        }
-    }, []);
-
 
     const handleOpenFile = useCallback(async (fileNode) => {
-        if (fileNode.is_dir) return;
+        if (fileNode.is_dir) {
+            // Если это директория, проверяем наличие main_template.txt
+            const hasMainTemplate = await checkForMainTemplate(fileNode.path);
+            if (hasMainTemplate) {
+                setSelectedCharacterId(fileNode.path);
+            }
+            return;
+        }
+        
         const existingFile = openFiles.find(f => f.path === fileNode.path);
         if (existingFile) {
             setActiveFilePath(fileNode.path);
@@ -114,7 +147,42 @@ function EditorPage() {
         } finally {
             setIsPageLoading(false);
         }
-    }, [openFiles]);
+    }, [openFiles, checkForMainTemplate, setSelectedCharacterId]);
+    
+    const handleMobileFileSelect = useCallback(async (fileNode) => {
+        if (fileNode.is_dir) {
+            // Если это директория, проверяем наличие main_template.txt
+            const hasMainTemplate = await checkForMainTemplate(fileNode.path);
+            if (hasMainTemplate) {
+                setSelectedCharacterId(fileNode.path);
+            }
+        } else {
+            await handleOpenFile(fileNode);
+            setIsMobileExplorerOpen(false);
+            setActiveMobileTab('editor');
+        }
+    }, [checkForMainTemplate, handleOpenFile, setSelectedCharacterId, setIsMobileExplorerOpen, setActiveMobileTab]);
+    
+    const existingFile = useCallback(async (fileNode) => {openFiles.find(f => f.path === fileNode.path);
+        if (existingFile) {
+            setActiveFilePath(fileNode.path);
+            return;
+        }
+        setIsPageLoading(true);
+        setPageError(null);
+        try {
+            const fileData = await getFileContent(fileNode.path);
+            setOpenFiles(prevFiles => [
+                ...prevFiles,
+                { path: fileData.path, name: fileNode.name, content: fileData.content, originalContent: fileData.content, isModified: false }
+            ]);
+            setActiveFilePath(fileData.path);
+        } catch (err) {
+            setPageError(`Failed to open ${fileNode.name}: ${err.message}`);
+        } finally {
+            setIsPageLoading(false);
+        }
+    }, [openFiles, checkForMainTemplate, setSelectedCharacterId]);
     
     const handleOpenPathByString = useCallback(async (filePathToOpen) => {
         try {
@@ -201,12 +269,18 @@ function EditorPage() {
         return true;
     }, [activeFilePath, openFiles]);
 
+    // Modified refreshFileTree: It no longer changes fileTreeKey.
+    // FileTreePanel is now responsible for refreshing its own view.
+    // This function is kept in case EditorPage needs to perform other actions
+    // when a file is created, but it won't force a FileTreePanel remount.
     const refreshFileTree = useCallback(() => {
-        setFileTreeKey(Date.now());
+        // setFileTreeKey(Date.now()); // DO NOT DO THIS - This was causing the reset to root.
+        console.log("EditorPage: refreshFileTree called. FileTreePanel handles its own refresh.");
+        // If EditorPage needs to do something else upon file creation, add it here.
     }, []);
 
     const handleFileRenamedInTree = useCallback((oldPath, newPath, newName) => {
-        refreshFileTree();
+        refreshFileTree(); // This will call the modified refreshFileTree (no key change)
         setOpenFiles(prevOpenFiles => {
             return prevOpenFiles.map(file => {
                 if (file.path === oldPath) {
@@ -218,14 +292,14 @@ function EditorPage() {
         if (activeFilePath === oldPath) {
             setActiveFilePath(newPath);
         }
-    }, [activeFilePath, refreshFileTree]);
+    }, [activeFilePath, refreshFileTree]); // refreshFileTree dependency is fine
 
     const handleFileDeletedInTree = useCallback((deletedPath) => {
-        refreshFileTree();
+        refreshFileTree(); // This will call the modified refreshFileTree (no key change)
         if (openFiles.some(f => f.path === deletedPath)) {
             handleCloseTab(deletedPath, true);
         }
-    }, [openFiles, handleCloseTab, refreshFileTree]);
+    }, [openFiles, handleCloseTab, refreshFileTree]); // refreshFileTree dependency is fine
 
     const handleRunDsl = useCallback(async () => {
         if (!selectedCharacterId) {
@@ -358,7 +432,17 @@ function EditorPage() {
             }
             const result = await apiUploadUserPromptsZip(file);
             alert(result.message || "ZIP file imported successfully!");
-            refreshFileTree();
+            // Since upload can drastically change the tree, a full refresh might be intended here.
+            // If FileTreePanel should go to root after upload, then changing fileTreeKey here is okay.
+            // For now, let FileTreePanel handle its refresh. If it's desired to go to root,
+            // then setFileTreeKey(Date.now()) could be called here.
+            // The current FileTreePanel will refresh its current path due to cache invalidation in api.js
+            // If a full root refresh is needed, that's a separate consideration.
+            // The prompt was about CUD operations, upload is a bulk operation.
+            // Let's assume the current behavior (refresh current path or rely on cache invalidation) is fine for now.
+            // If a root refresh is explicitly needed after ZIP upload, that's a different requirement.
+            // The `uploadUserPromptsZip` in api.js calls `cache.fileTree.clear()`, so the next
+            // `fetchTree` in `FileTreePanel` will be a fresh call.
         } catch (err) {
             setPageError(`Import failed: ${err.message}`);
         } finally {
@@ -390,12 +474,12 @@ function EditorPage() {
             <div className="mainContent">
                 <div className="leftPanelContainer">
                     <FileTreePanel
-                        key={fileTreeKey}
+                        key={fileTreeKey} // Key is now static unless other logic changes it
                         onFileSelect={handleOpenFile}
                         onCharacterSelect={setSelectedCharacterId}
                         onFileRenamed={handleFileRenamedInTree}
                         onFileDeleted={handleFileDeletedInTree}
-                        onFileCreated={refreshFileTree}
+                        onFileCreated={refreshFileTree} // refreshFileTree no longer changes the key
                         onError={setPageError}
                     />
                 </div>
@@ -484,14 +568,14 @@ function EditorPage() {
                     <div className="mobileExplorerOverlay" onClick={toggleMobileExplorer}></div>
                     <div className={`mobileExplorerPanel ${isMobileExplorerOpen ? 'open' : ''}`}>
                         <FileTreePanel
-                            key={`mobile-${fileTreeKey}`}
+                            key={`mobile-${fileTreeKey}`} // Key is now static
                             onFileSelect={handleMobileFileSelect}
                             onCharacterSelect={(charId) => {
                                 setSelectedCharacterId(charId);
                             }}
                             onFileRenamed={handleFileRenamedInTree}
                             onFileDeleted={handleFileDeletedInTree}
-                            onFileCreated={refreshFileTree}
+                            onFileCreated={refreshFileTree} // refreshFileTree no longer changes the key
                             onError={setPageError}
                         />
                     </div>

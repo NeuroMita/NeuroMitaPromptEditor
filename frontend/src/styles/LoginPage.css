@@ -4,31 +4,40 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: var(--bg-primary);
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
     padding: 20px;
     box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern font stack */
 }
 
-.login-form-wrapper {
-    background-color: var(--bg-secondary);
-    padding: 30px 40px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+.login-card {
+    background-color: var(--bg-tertiary);
+    padding: 35px 45px; /* Increased padding */
+    border-radius: 12px; /* More rounded corners */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* Softer, more spread shadow */
     width: 100%;
-    max-width: 400px;
+    max-width: 420px; /* Slightly wider card */
     text-align: center;
+    border: 1px solid var(--border-color-light);
 }
 
-.login-form-wrapper h2 {
+.login-title {
     color: var(--text-primary);
-    margin-bottom: 25px;
-    font-size: 1.8em;
+    margin-bottom: 10px;
+    font-size: 2.2em; /* Larger title */
+    font-weight: 600; /* Slightly bolder */
+}
+
+.login-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 30px; /* More space before form */
+    font-size: 1em;
+    line-height: 1.5;
 }
 
 .login-form .form-group {
-    margin-bottom: 15px; /* Reduced margin slightly */
+    margin-bottom: 20px; /* More space between form groups */
     text-align: left;
-    /* min-height: 70px; Removed for now, can cause too much empty space */
 }
 
 .login-form label {
@@ -36,76 +45,77 @@
     margin-bottom: 8px;
     color: var(--text-secondary);
     font-weight: 500;
+    font-size: 0.9em;
 }
 
 .login-form input[type="text"],
 .login-form input[type="password"] {
     width: 100%;
-    padding: 12px;
+    padding: 14px 16px; /* Larger input padding */
     border: 1px solid var(--input-border);
     background-color: var(--input-bg);
     color: var(--text-primary);
-    border-radius: 4px;
+    border-radius: 6px; /* Slightly more rounded inputs */
     font-size: 1em;
-    box-sizing: border-box; /* Ensure padding doesn't expand width */
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
+.login-form input[type="text"]::placeholder,
+.login-form input[type="password"]::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
 
 .login-form input[type="text"]:focus,
 .login-form input[type="password"]:focus {
     border-color: var(--input-focus-border);
     outline: none;
-    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
+    box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.2); /* Softer focus shadow */
 }
 
 .login-button {
     width: 100%;
-    padding: 12px;
+    padding: 14px; /* Larger button padding */
     font-size: 1.1em;
     font-weight: bold;
     background-color: var(--accent-primary);
     color: var(--text-on-accent);
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: background-color 0.2s ease;
-    margin-top: 10px; /* Added margin-top */
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    margin-top: 15px; /* Space above button */
+    display: flex; /* For spinner alignment */
+    align-items: center;
+    justify-content: center;
 }
 
 .login-button:hover:not(:disabled) {
     background-color: var(--accent-secondary);
+    transform: translateY(-1px); /* Subtle hover effect */
 }
+
+.login-button:active:not(:disabled) {
+    transform: translateY(0px); /* Button press effect */
+}
+
 
 .login-button:disabled {
     background-color: var(--button-disabled-bg);
     cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .error-message {
     color: var(--error-color);
     background-color: rgba(244, 71, 71, 0.1);
     border: 1px solid var(--error-color);
-    padding: 10px;
-    border-radius: 4px;
-    margin-bottom: 15px;
+    padding: 12px; /* Slightly larger padding */
+    border-radius: 6px;
+    margin-bottom: 20px;
     font-size: 0.9em;
     text-align: center;
-}
-
-.login-info {
-    margin-top: 25px;
-    font-size: 0.9em;
-    color: var(--text-secondary);
-}
-.login-info p {
-    margin-bottom: 5px;
-}
-.login-info ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.login-info li {
-    margin-bottom: 3px;
 }
 
 .login-page-loading {
@@ -118,7 +128,7 @@
 }
 
 .toggle-view-container {
-    margin-top: 20px;
+    margin-top: 25px; /* More space above toggle link */
     text-align: center;
 }
 
@@ -127,31 +137,50 @@
     border: none;
     color: var(--link-color); 
     cursor: pointer;
-    padding: 5px;
-    font-size: 0.9em;
-    text-decoration: underline;
+    padding: 8px; /* Larger touch target */
+    font-size: 0.95em; /* Slightly larger font */
 }
 
 .toggle-view-button:hover {
     color: var(--link-hover-color); 
-    text-decoration: none;
+    text-decoration: underline;
+}
+
+/* Simple Spinner for button */
+.spinner {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    width: 18px;
+    height: 18px;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 
 /* Mobile responsiveness */
 @media (max-width: 480px) {
-    .login-form-wrapper {
-        padding: 25px 20px;
+    .login-card {
+        padding: 30px 25px; /* Adjust padding for smaller screens */
+        margin: 0 10px; /* Ensure some margin from screen edges */
     }
 
-    .login-form-wrapper h2 {
-        font-size: 1.5em;
+    .login-title {
+        font-size: 1.8em;
+    }
+    .login-subtitle {
+        font-size: 0.95em;
     }
 
     .login-form input[type="text"],
     .login-form input[type="password"],
     .login-button {
         font-size: 1em;
-        padding: 10px;
+        padding: 12px 14px;
     }
 }

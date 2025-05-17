@@ -2,33 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../contexts/AppContext';
-import { registerUser as apiRegisterUser } from '../services/api'; // Import registerUser
+import { registerUser as apiRegisterUser } from '../services/api'; 
 import '../styles/LoginPage.css';
 
 function LoginPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState(''); // For registration
-    const [inviteCode, setInviteCode] = useState(''); // For registration
-    const [isRegisterView, setIsRegisterView] = useState(false); // Toggle between login and register
+    const [confirmPassword, setConfirmPassword] = useState(''); 
+    const [inviteCode, setInviteCode] = useState(''); 
+    const [isRegisterView, setIsRegisterView] = useState(false); 
 
-    const [isProcessing, setIsProcessing] = useState(false); // Combined loading state for login/register
+    const [isProcessing, setIsProcessing] = useState(false); 
     const { login, isAuthenticated, authError, setAuthError, isLoading: isAppLoading } = useAppContext();
     const navigate = useNavigate();
     const location = useLocation();
 
-    const from = location.state?.from?.pathname || "/editor"; // Redirect to editor page after successful login
+    const from = location.state?.from?.pathname || "/editor"; 
 
     useEffect(() => {
         if (isAuthenticated && !isAppLoading) {
             navigate(from, { replace: true });
         }
-        // Clear auth error when component mounts or view changes (e.g. login to register)
-        // This is now handled in toggleView and when submitting forms
-        // return () => {
-        //     setAuthError(null); 
-        // };
-    }, [isAuthenticated, navigate, from, isAppLoading]); // Removed setAuthError from deps
+    }, [isAuthenticated, navigate, from, isAppLoading]); 
 
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
@@ -38,12 +33,11 @@ function LoginPage() {
         }
         setIsProcessing(true);
         setAuthError(null);
-        const success = await login(username, password); // login comes from AppContext
+        const success = await login(username, password); 
         setIsProcessing(false);
         if (success) {
             navigate(from, { replace: true });
         }
-        // authError will be set by AppContext's login if it fails
     };
 
     const handleRegisterSubmit = async (e) => {
@@ -65,11 +59,10 @@ function LoginPage() {
         try {
             await apiRegisterUser(username, password, inviteCode);
             alert("Registration successful! Please log in.");
-            setIsRegisterView(false); // Switch back to login view
-            // Keep username, clear other fields for login
+            setIsRegisterView(false); 
             setPassword('');
             setConfirmPassword('');
-            setInviteCode(''); // This field is not in login view anyway
+            setInviteCode(''); 
         } catch (error) {
             setAuthError(error.message || "Registration failed. Please try again.");
         } finally {
@@ -79,22 +72,27 @@ function LoginPage() {
 
     const toggleView = () => {
         setIsRegisterView(!isRegisterView);
-        setAuthError(null); // Clear errors when switching views
-        // Clear all form fields when toggling for a cleaner experience
+        setAuthError(null); 
         setUsername('');
         setPassword('');
         setConfirmPassword('');
         setInviteCode('');
     };
 
-    if (isAppLoading && !isAuthenticated) { // Only show page loading if app context is loading and not yet authed
+    if (isAppLoading && !isAuthenticated) { 
         return <div className="login-page-loading">Loading...</div>;
     }
 
     return (
         <div className="login-page-container">
-            <div className="login-form-wrapper">
-                <h2>{isRegisterView ? 'Register New Account' : 'Login to Prompt Editor'}</h2>
+            <div className="login-card">
+                <h1 className="login-title">
+                    {isRegisterView ? 'Create Account' : 'Welcome Back'}
+                </h1>
+                <p className="login-subtitle">
+                    {isRegisterView ? 'Get started with the Prompt Editor.' : 'Sign in to continue to the Prompt Editor.'}
+                </p>
+
                 <form onSubmit={isRegisterView ? handleRegisterSubmit : handleLoginSubmit} className="login-form">
                     <div className="form-group">
                         <label htmlFor="username">Username</label>
@@ -107,6 +105,7 @@ function LoginPage() {
                             autoFocus
                             required
                             autoComplete="username"
+                            placeholder="Enter your username"
                         />
                     </div>
                     <div className="form-group">
@@ -120,6 +119,7 @@ function LoginPage() {
                             required
                             minLength={isRegisterView ? 6 : undefined}
                             autoComplete={isRegisterView ? "new-password" : "current-password"}
+                            placeholder={isRegisterView ? "Create a password (min. 6 chars)" : "Enter your password"}
                         />
                     </div>
                     {isRegisterView && (
@@ -135,6 +135,7 @@ function LoginPage() {
                                     required
                                     minLength={6}
                                     autoComplete="new-password"
+                                    placeholder="Confirm your password"
                                 />
                             </div>
                             <div className="form-group">
@@ -146,29 +147,23 @@ function LoginPage() {
                                     onChange={(e) => setInviteCode(e.target.value)}
                                     disabled={isProcessing}
                                     required
+                                    placeholder="Enter your invite code"
                                 />
                             </div>
                         </>
                     )}
                     {authError && <p className="error-message">{authError}</p>}
-                    <button type="submit" className="login-button" disabled={isProcessing}>
-                        {isProcessing ? 'Processing...' : (isRegisterView ? 'Register' : 'Login')}
+                    <button type="submit" className="login-button" disabled={isProcessing || (isRegisterView && password.length >0 && password.length < 6)}>
+                        {isProcessing ? (
+                            <span className="spinner" /> 
+                        ) : (isRegisterView ? 'Register' : 'Login')}
                     </button>
                 </form>
                 <div className="toggle-view-container">
                     <button type="button" onClick={toggleView} className="toggle-view-button">
-                        {isRegisterView ? 'Already have an account? Login' : 'Need an account? Register'}
+                        {isRegisterView ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
                     </button>
                 </div>
-                {!isRegisterView && (
-                    <div className="login-info">
-                        <p>Default users (if available):</p>
-                        <ul>
-                            <li>admin / password123</li>
-                            <li>testuser / testpass</li>
-                        </ul>
-                    </div>
-                )}
             </div>
         </div>
     );

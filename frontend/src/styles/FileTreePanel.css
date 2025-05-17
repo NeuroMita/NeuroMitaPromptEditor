@@ -6,7 +6,7 @@
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     border-right: 1px solid var(--border-color);
-    overflow-y: auto; /* Allow scrolling for long tree */
+    overflow-y: auto; 
 }
 
 .fileTreeHeader {
@@ -17,6 +17,7 @@
     background-color: var(--bg-tertiary);
     border-bottom: 1px solid var(--border-color);
     min-height: 30px;
+    flex-shrink: 0; 
 }
 
 .fileTreeHeader h4 {
@@ -25,24 +26,35 @@
     font-weight: 600;
 }
 
+.fileTreeHeaderActions {
+    display: flex;
+    gap: 6px; 
+}
 .fileTreeHeaderActions button {
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 1.2em;
+    font-size: 1.2em; 
     padding: 2px 4px;
     cursor: pointer;
+    display: flex; 
+    align-items: center;
+    justify-content: center;
 }
 .fileTreeHeaderActions button:hover {
     color: var(--text-primary);
-    background-color: var(--bg-secondary);
+    background-color: var(--bg-primary); 
+    border-radius: 3px;
+}
+.fileTreeHeaderActions button svg {
+    stroke-width: 2; 
 }
 
 .fileTreeList {
     list-style: none;
     padding: 0;
     margin: 0;
-    flex-grow: 1; /* Allows the list to take available space */
+    flex-grow: 1; 
 }
 
 .fileTreeItem {
@@ -50,67 +62,102 @@
     cursor: pointer;
     border-bottom: 1px solid var(--border-color-light);
     display: flex;
-    justify-content: space-between;
     align-items: center;
     font-size: 0.9em;
 }
+.fileTreeItem:focus-visible { 
+    outline: 1px dashed var(--accent-primary);
+    outline-offset: -1px;
+}
+
 
 .fileTreeItem:hover {
     background-color: var(--bg-tertiary);
 }
 
+.fileTreeItemTypeIcon {
+    margin-right: 8px;
+    flex-shrink: 0; 
+    color: var(--text-secondary); 
+}
+.fileTreeItem.characterDir .fileTreeItemTypeIcon,
+.fileTreeItem.characterDir .fileTreeItemName {
+    color: var(--accent-primary); 
+}
+
+/* Style for .script file icons and text */
+.fileTreeItemTypeIcon.scriptFileIcon {
+    color: var(--sh-keyword); /* Or another distinct color like var(--warning-color) */
+}
+.fileTreeItem.scriptFile .fileTreeItemName {
+    /* color: var(--sh-keyword); /* Optional: also color the text */
+    font-style: italic; /* Optional: make script names italic */
+}
+
+
 .fileTreeItemName {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-right: 8px; /* Space before action buttons */
+    margin-right: 8px; 
+    flex-grow: 1; 
 }
 
-.fileTreeItem.characterDir .fileTreeItemName {
-    font-weight: bold;
-    color: var(--accent-primary); /* Highlight character dirs */
-}
 
 .fileTreeItem.upLink {
     color: var(--link-color);
     font-style: italic;
 }
+.fileTreeItem.upLink .fileTreeItemTypeIcon {
+    color: var(--link-color);
+}
+
 
 .fileTreeItemActions {
     display: flex;
-    gap: 5px;
+    gap: 8px; 
+    margin-left: auto; 
+    flex-shrink: 0;
 }
 
 .fileTreeItemActions button {
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 0.9em; /* Slightly smaller icons */
+    font-size: 0.9em; 
     padding: 2px;
     cursor: pointer;
-    visibility: hidden; /* Hidden by default */
+    visibility: hidden; 
+    display: flex; 
+    align-items: center;
 }
-.fileTreeItem:hover .fileTreeItemActions button {
-    visibility: visible; /* Visible on item hover */
+.fileTreeItem:hover .fileTreeItemActions button,
+.fileTreeItem:focus-within .fileTreeItemActions button { 
+    visibility: visible; 
 }
 
 .fileTreeItemActions button:hover {
     color: var(--text-primary);
 }
+.fileTreeItemActions button svg {
+    stroke-width: 2.5; 
+}
+
 
 .fileTreeFormContainer {
-    padding: 10px;
+    padding: 10px 12px;
     background-color: var(--bg-tertiary);
     border-bottom: 1px solid var(--border-color);
     font-size: 0.9em;
 }
-.fileTreeFormContainer input[type="text"].fileTreeInput {
-    width: calc(100% - 16px); /* Account for padding */
+.fileTreeFormContainer input[type="text"].fileTreeInput { 
+    width: calc(100% - 0px); 
     margin-top: 5px;
     margin-bottom: 8px;
     background-color: var(--input-bg);
     color: var(--text-primary);
     border: 1px solid var(--input-border);
+    box-sizing: border-box;
 }
 .fileTreeFormActions {
     display: flex;
@@ -120,14 +167,22 @@
     padding: 4px 8px;
     font-size: 0.9em;
 }
+
 .fileTreeItem input[type="text"].fileTreeInput {
     flex-grow: 1;
-    margin: 0 8px;
+    margin: 0 8px 0 0; 
+    padding: 4px 6px;
     background-color: var(--input-bg);
     color: var(--text-primary);
     border: 1px solid var(--input-border);
-    padding: 4px;
+    border-radius: 3px;
+    font-size: 1em; 
 }
+
+.fileTreeItem > .fileTreeItemTypeIcon {
+    margin-right: 8px;
+}
+
 
 .fileTreeMessage {
     padding: 15px;

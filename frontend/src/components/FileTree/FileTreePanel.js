@@ -6,6 +6,16 @@ import {
     renameItem as apiRenameItem,
     createFileOrFolder as apiCreateItem
 } from '../../services/api';
+import {
+    Folder as FolderIcon,
+    File as FileIcon,
+    Settings as ScriptIcon, // Using Settings icon for .script files
+    Edit2 as EditIcon,
+    Trash2 as TrashIcon,
+    ChevronLeft as ChevronLeftIcon,
+    FilePlus as FilePlusIcon,
+    FolderPlus as FolderPlusIcon
+} from 'react-feather'; 
 import '../../styles/FileTreePanel.css';
 
 
@@ -47,13 +57,12 @@ function FileTreePanel({
     const handleItemClick = (item) => {
         if (item.is_dir) {
             if (item.is_character_dir && onCharacterSelect) {
-                onCharacterSelect(item.path); // Use item.path
+                onCharacterSelect(item.path); 
             } else if (onCharacterSelect) {
-                // If it's a directory but not a character directory, deselect any active character.
                 onCharacterSelect(null);
             }
-            fetchTree(item.path); // Navigate into the clicked directory
-        } else { // It's a file
+            fetchTree(item.path); 
+        } else { 
             onFileSelect(item);
         }
     };
@@ -143,13 +152,27 @@ function FileTreePanel({
 
     if (loading && treeData.length === 0) return <p className="fileTreeMessage loading-text">Loading tree...</p>;
 
+    const getItemIcon = (item) => {
+        if (item.is_dir) {
+            return <FolderIcon size={16} className="fileTreeItemTypeIcon" />;
+        }
+        if (item.name && item.name.toLowerCase().endsWith('.script')) {
+            return <ScriptIcon size={16} className="fileTreeItemTypeIcon scriptFileIcon" />;
+        }
+        return <FileIcon size={16} className="fileTreeItemTypeIcon" />;
+    };
+
     return (
         <div className="fileTreeContainer">
             <div className="fileTreeHeader">
                 <h4>Explorer</h4>
                 <div className="fileTreeHeaderActions">
-                    <button onClick={() => handleCreateStart('file')} title="New File">📄+</button>
-                    <button onClick={() => handleCreateStart('folder')} title="New Folder">📁+</button>
+                    <button onClick={() => handleCreateStart('file')} title="New File" aria-label="New File">
+                        <FilePlusIcon size={18} />
+                    </button>
+                    <button onClick={() => handleCreateStart('folder')} title="New Folder" aria-label="New Folder">
+                        <FolderPlusIcon size={18} />
+                    </button>
                 </div>
             </div>
 
@@ -176,8 +199,11 @@ function FileTreePanel({
                 <div
                     onClick={handleGoUp}
                     className="fileTreeItem upLink"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleGoUp()}
                 >
-                    ⬅️ .. (Up)
+                    <ChevronLeftIcon size={16} className="fileTreeItemTypeIcon" /> .. (Up)
                 </div>
             )}
             <ul className="fileTreeList">
@@ -185,19 +211,25 @@ function FileTreePanel({
                     <li
                         key={item.path} 
                         onClick={() => renamingItemPath !== item.path && handleItemClick(item)}
-                        className={`fileTreeItem ${item.is_character_dir ? 'characterDir' : ''}`}
+                        className={`fileTreeItem ${item.is_character_dir ? 'characterDir' : ''} ${!item.is_dir && item.name && item.name.toLowerCase().endsWith('.script') ? 'scriptFile' : ''}`}
                         title={item.path}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && renamingItemPath !== item.path && handleItemClick(item)}
                     >
                         {renamingItemPath === item.path ? (
                             <>
-                                {item.is_dir ? '📁' : '📄'}
+                                {getItemIcon(item)}
                                 <input
                                     type="text"
                                     value={newItemName}
                                     onChange={(e) => setNewItemName(e.target.value)}
                                     onClick={(e) => e.stopPropagation()}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleRenameConfirm(e)}
-                                    onBlur={() => { /* Consider auto-cancel or auto-save on blur */ }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleRenameConfirm(e);
+                                        if (e.key === 'Escape') {e.stopPropagation(); setRenamingItemPath(null);}
+                                    }}
+                                    onBlur={() => { /* Consider auto-cancel or auto-save on blur if needed */ }}
                                     autoFocus
                                     className="fileTreeInput"
                                 />
@@ -208,17 +240,22 @@ function FileTreePanel({
                             </>
                         ) : (
                             <>
-                                <span className="fileTreeItemName">{item.is_dir ? '📁' : '📄'} {item.name}</span>
+                                {getItemIcon(item)}
+                                <span className="fileTreeItemName">{item.name}</span>
                                 <div className="fileTreeItemActions">
-                                     <button onClick={(e) => handleRenameStart(e, item.path, item.name)} title="Rename">✏️</button>
-                                     <button onClick={(e) => handleDelete(e, item.path, item.name)} title="Delete">🗑️</button>
+                                     <button onClick={(e) => handleRenameStart(e, item.path, item.name)} title="Rename" aria-label="Rename">
+                                        <EditIcon size={14} />
+                                     </button>
+                                     <button onClick={(e) => handleDelete(e, item.path, item.name)} title="Delete" aria-label="Delete">
+                                        <TrashIcon size={14} />
+                                     </button>
                                 </div>
                             </>
                         )}
                     </li>
                 ))}
             </ul>
-            {treeData.length === 0 && !loading && currentRelativePath === '.' && <p className="fileTreeMessage">Your prompts directory is empty. Click 📄+ or 📁+ to create items.</p>}
+            {treeData.length === 0 && !loading && currentRelativePath === '.' && <p className="fileTreeMessage">Your prompts directory is empty. Click buttons above to create items.</p>}
             {treeData.length === 0 && !loading && currentRelativePath !== '.' && <p className="fileTreeMessage">This folder is empty.</p>}
         </div>
     );

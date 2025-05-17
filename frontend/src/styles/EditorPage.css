@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: var(--bg-primary); /* Changed from bg-main */
+  background-color: var(--bg-primary); 
   color: var(--text-primary);
   overflow: hidden;
 }
@@ -12,8 +12,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 15px;
-  background-color: var(--bg-secondary); /* Changed from bg-header */
+  padding: 0 10px; /* Reduced padding slightly for mobile */
+  background-color: var(--bg-secondary); 
   border-bottom: 1px solid var(--border-color);
   height: 50px;
   flex-shrink: 0;
@@ -23,13 +23,19 @@
 .header-left {
   display: flex;
   align-items: center;
+  flex-shrink: 0; 
+  overflow: hidden; 
+  min-width: 0; /* Added for flexbox shrinking */
 }
 
 .headerTitle {
-  font-size: 1.3em;
+  font-size: 1.2em; /* Adjusted for better mobile fit */
   margin: 0;
   color: var(--text-primary);
   white-space: nowrap;
+  text-overflow: ellipsis; 
+  overflow: hidden;
+  margin-left: 5px; /* Space from hamburger */
 }
 
 .currentUserDisplay {
@@ -39,26 +45,17 @@
   background-color: var(--bg-tertiary);
   padding: 3px 8px;
   border-radius: 3px;
-}
-.currentUserDisplayMobile {
-  font-size: 0.8em;
-  color: var(--text-secondary);
-  margin-left: 10px;
-  background-color: var(--bg-tertiary);
-  padding: 2px 6px;
-  border-radius: 3px;
   white-space: nowrap;
 }
-
 
 .headerActions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0; /* Let actions take their space, header-left will shrink title */
 }
 
-.headerButton,
-.headerActions label input[type="checkbox"] { /* Target general buttons in header */
+.headerButton { 
   padding: 6px 10px;
   font-size: 0.9em;
   background-color: var(--button-bg);
@@ -68,6 +65,9 @@
   cursor: pointer;
   transition: background-color 0.2s ease;
   white-space: nowrap;
+  display: flex; /* For aligning icons if used */
+  align-items: center; /* For aligning icons if used */
+  justify-content: center; /* For aligning icons if used */
 }
 .headerButton:hover:not(:disabled) {
   background-color: var(--button-hover-bg);
@@ -77,6 +77,9 @@
   color: var(--button-disabled-text);
   cursor: not-allowed;
 }
+.headerButton.generateButton { 
+  min-width: 100px; 
+}
 
 .headerCheckboxLabel {
   display: flex;
@@ -85,12 +88,12 @@
   cursor: pointer;
   color: var(--text-primary);
   font-size: 0.9em;
-  padding: 6px 0px; /* Match button padding for alignment */
+  padding: 6px 0px; 
+  white-space: nowrap;
 }
 .headerCheckboxLabel input[type="checkbox"] {
   margin-right: 5px;
   cursor: pointer;
-  /* Resetting button styles for checkbox itself if they got applied */
   background-color: initial; 
   border: initial;
   padding: initial;
@@ -102,6 +105,7 @@
   padding: 3px 8px;
   border-radius: 3px;
   margin-right: 5px;
+  white-space: nowrap;
 }
 .headerActions .pageStatus.loading {
   background-color: var(--bg-tertiary);
@@ -111,12 +115,16 @@
   background-color: var(--error-bg);
   color: var(--error-color);
 }
-.headerActions .pageStatus.error.small-error { /* For mobile actions panel */
+.pageStatus.small-error { 
     margin: 10px 0 0 0;
     width: 100%;
     box-sizing: border-box;
+    text-align: center;
 }
-
+.pageStatus.small-status { 
+    font-size: 0.9em;
+    padding: 8px;
+}
 
 /* Desktop Layout Specifics */
 .desktopContentWrapper {
@@ -137,7 +145,7 @@
   width: 280px;
   flex-shrink: 0;
   overflow-y: auto;
-  background-color: var(--bg-secondary); /* Changed from bg-panel */
+  background-color: var(--bg-secondary); 
 }
 .leftPanelContainer {
   border-right: 1px solid var(--border-color);
@@ -161,33 +169,52 @@
   transition: background-color 0.2s ease;
 }
 .logPanelResizeHandle:hover {
-  background-color: var(--accent-primary); /* Changed from accent-color */
+  background-color: var(--accent-primary); 
 }
 
 .bottomPanelContainer {
   flex-shrink: 0;
   overflow: hidden;
-  background-color: var(--bg-secondary); /* Changed from bg-panel */
+  background-color: var(--bg-secondary); 
 }
 
 
 /* Mobile Layout Specifics */
-.editorPage.mobile-view .headerTitle {
-  margin-left: 10px;
-}
-.editorPage.mobile-view .headerActions .headerButton {
-  padding: 6px 8px; /* Slightly smaller for mobile icons/text */
+.editorPage.mobile-view .header-left .headerTitle {
+  margin-left: 8px; /* More consistent spacing */
 }
 
 .hamburgerButton {
-  font-size: 1.5em; /* Make hamburger icon larger */
-  padding: 0 10px !important;
-  background: transparent !important;
-  border: none !important;
-  color: var(--text-primary) !important;
+  font-size: 1.2em; /* Adjusted icon size */
+  padding: 4px 8px !important; 
+  background: transparent !important; 
+  border: none !important; 
+  color: var(--text-primary) !important; 
+  line-height: 1; /* Ensure icon is vertically centered */
+}
+.hamburgerButton svg { /* Target SVG inside for feather icons */
+    vertical-align: middle;
 }
 .hamburgerButton:hover {
   background-color: var(--bg-tertiary) !important;
+}
+
+.mobileHeaderActionButton {
+    padding: 5px 8px !important; /* Smaller padding for mobile header buttons */
+    font-size: 0.85em !important;
+    min-width: auto !important; /* Allow to shrink */
+}
+.generateMobileButton {
+    background-color: var(--success-color) !important; /* Green color for generate */
+    border-color: var(--success-color) !important;
+    color: var(--text-on-accent) !important;
+    padding: 5px 8px !important; /* Ensure consistent padding */
+}
+.generateMobileButton:hover:not(:disabled) {
+    background-color: #3c8840 !important; /* Darker green for hover */
+}
+.generateMobileButton svg {
+    vertical-align: middle;
 }
 
 
@@ -198,16 +225,16 @@
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
-  z-index: 998; /* Below explorer panel */
+  z-index: 998; 
 }
 
 .mobileExplorerPanel {
   position: fixed;
-  top: 50px; /* Below header */
+  top: 50px; 
   left: 0;
   width: 80%;
   max-width: 300px;
-  height: calc(100vh - 50px); /* Full height below header */
+  height: calc(100vh - 50px); 
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   box-shadow: 2px 0 5px rgba(0,0,0,0.2);
@@ -219,30 +246,29 @@
 .mobileExplorerPanel.open {
   transform: translateX(0);
 }
-.mobileExplorerPanel .fileTreeContainer { /* Ensure FileTreePanel fills it */
+.mobileExplorerPanel .fileTreeContainer { 
     height: 100%;
-    border-right: none; /* Remove its own border as panel has one */
+    border-right: none; 
 }
 
 
 .mobileMainContentArea {
   flex-grow: 1;
-  overflow-y: auto; /* Allow content to scroll if it exceeds viewport */
-  display: flex; /* Make children fill height */
-  flex-direction: column; /* Make children fill height */
+  overflow-y: auto; 
+  display: flex; 
+  flex-direction: column; 
 }
-/* Ensure direct children of main content area fill its height */
-.mobileMainContentArea > div { /* e.g. TabManager, DslVariablesPanel, etc. */
+.mobileMainContentArea > div { 
     height: 100%;
     display: flex;
     flex-direction: column;
 }
 .mobileMainContentArea .tabManager .tabContent {
-    background-color: var(--bg-primary); /* Match page background */
+    background-color: var(--bg-primary); 
 }
 .mobileMainContentArea .dslVariablesPanel,
 .mobileMainContentArea .logPanel {
-    border-left: none; /* Remove side borders on mobile */
+    border-left: none; 
 }
 
 
@@ -253,7 +279,7 @@
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
-  height: 56px; /* Standard mobile nav height */
+  height: 56px; 
 }
 
 .mobileBottomNavBar button {
@@ -263,69 +289,102 @@
   border: none;
   border-radius: 0;
   cursor: pointer;
-  font-size: 0.75em; /* Smaller font for mobile tabs */
+  font-size: 0.7em; /* Smaller font for labels with icons */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6px 0;
+  padding: 4px 0; /* Adjusted padding for icons */
   line-height: 1.2;
 }
 .mobileBottomNavBar button .mobileNavIcon {
-  font-size: 1.4em; /* Icon size */
   margin-bottom: 2px;
+  display: flex; /* Helps center the SVG icon */
+  align-items: center;
+}
+.mobileBottomNavBar button .mobileNavIcon svg {
+  stroke-width: 2; /* Feather icons default, can adjust */
 }
 .mobileBottomNavBar button .mobileNavLabel {
   display: block;
+  margin-top: 2px;
 }
 
 .mobileBottomNavBar button.active {
   background-color: var(--bg-tertiary);
   color: var(--accent-primary);
-  font-weight: normal; /* Don't need bold if color changes */
+}
+.mobileBottomNavBar button.active .mobileNavIcon svg {
+    color: var(--accent-primary); /* Ensure icon color matches active state */
 }
 .mobileBottomNavBar button:hover:not(.active) {
   background-color: var(--bg-tertiary);
 }
 
-.mobileActionsPanel {
+.mobileSettingsPanel {
     padding: 15px;
     height: 100%;
     overflow-y: auto;
     background-color: var(--bg-primary);
-}
-.mobileActionsPanel h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
     color: var(--text-primary);
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 10px;
 }
-.mobileActionsGrid {
-    display: grid;
-    grid-template-columns: 1fr; /* Single column for now, can be 1fr 1fr for wider mobile */
-    gap: 10px;
+.mobileSettingsSection {
+    margin-bottom: 20px;
 }
-.mobileActionButton {
+.mobileSettingsSection h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-color-light);
+    padding-bottom: 5px;
+}
+.mobileSettingsSection .userInfo {
+    font-size: 0.95em;
+    background-color: var(--bg-secondary);
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color-light);
+}
+
+.mobileSettingButton {
     width: 100%;
-    padding: 12px;
-    font-size: 1em;
-    text-align: left; /* Align text to left for better readability */
+    padding: 10px 12px;
+    font-size: 0.95em;
+    text-align: left; 
     background-color: var(--bg-secondary);
     color: var(--text-primary);
     border: 1px solid var(--border-color-light);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    display: block; 
 }
-.mobileActionButton:hover:not(:disabled) {
+.mobileSettingButton:hover:not(:disabled) {
     background-color: var(--bg-tertiary);
 }
-.mobileActionButton.checkboxLabel {
+.mobileSettingButton:disabled {
+    background-color: var(--button-disabled-bg);
+    color: var(--button-disabled-text);
+    opacity: 0.7;
+}
+.mobileSettingButton.checkboxLabel {
     display: flex;
     align-items: center;
 }
-.mobileActionButton.checkboxLabel input {
-    margin-right: 8px;
+.mobileSettingButton.checkboxLabel input {
+    margin-right: 10px;
     width: 18px;
     height: 18px;
+    flex-shrink: 0;
+}
+.mobileSettingButton.logoutButton {
+    background-color: var(--error-bg);
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+.mobileSettingButton.logoutButton:hover:not(:disabled) {
+    background-color: #723030; 
 }
 
 
@@ -349,21 +408,30 @@
   background-color: var(--bg-primary);
 }
 
-/* Responsive adjustments for header actions on smaller mobile */
-@media (max-width: 400px) {
+/* Responsive adjustments for really small mobile screens */
+@media (max-width: 360px) {
   .editorPage.mobile-view .headerTitle {
-    font-size: 1.1em;
+    font-size: 1.0em; 
+    margin-left: 4px;
   }
-  .editorPage.mobile-view .headerActions .headerButton {
-    padding: 5px;
-    font-size: 0.8em;
+   .mobileBottomNavBar button .mobileNavLabel {
+    font-size: 0.85em; 
   }
-  .editorPage.mobile-view .headerActions .headerButton.generateButton {
-     min-width: 60px; /* Ensure generate text doesn't get too crushed */
+  .mobileBottomNavBar button .mobileNavIcon svg {
+    width: 16px;
+    height: 16px;
   }
-   .currentUserDisplayMobile {
-    font-size: 0.7em;
-    padding: 2px 4px;
-    margin-left: 5px;
+  .mobileSettingButton {
+      font-size: 0.9em;
+      padding: 8px 10px;
   }
+  .mobileHeaderActionButton {
+      padding: 4px 6px !important;
+      font-size: 0.8em !important;
+  }
+  .generateMobileButton svg {
+      width: 16px;
+      height: 16px;
+  }
+
 }

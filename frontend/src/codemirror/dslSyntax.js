@@ -24,18 +24,17 @@ export const dslTagNames = {
 export const dslTags = {
   [dslTagNames.placeholderLink]: Tag.define(t.link),
   [dslTagNames.specialTag]: Tag.define(t.tagName),
-  [dslTagNames.loadCommand]: Tag.define(t.strong), // Был t.strong, соответствует LoadCommand стилю
+  [dslTagNames.loadCommand]: Tag.define(t.strong),
   [dslTagNames.sectionMarker]: Tag.define(t.heading),
   [dslTagNames.insert]: Tag.define(t.atom),
-  [dslTagNames.tripleQuoteString]: Tag.define(t.string), // Был t.string, соответствует TripleQuoteString стилю
-  [dslTagNames.dslKeyword]: Tag.define(t.keyword), // Был t.keyword, соответствует Keyword стилю
+  [dslTagNames.tripleQuoteString]: Tag.define(t.string),
+  [dslTagNames.dslKeyword]: Tag.define(t.keyword),
   [dslTagNames.defaultText]: Tag.define(),
   // Стандартные теги, которые мы будем использовать напрямую
   [dslTagNames.lineComment]: t.lineComment,
   [dslTagNames.string]: t.string,
   [dslTagNames.number]: t.number,
 };
-
 
 const darkThemeColors = {
   background: "var(--cm-background, #282c34)",
@@ -69,13 +68,13 @@ const dslHighlightStyleObject = HighlightStyle.define([
     class: currentTheme.PlaceholderLink.className
   },
   {
-    tag: dslTags[dslTagNames.lineComment], // Используем наш dslTag для lineComment
+    tag: dslTags[dslTagNames.lineComment],
     color: currentTheme.Comment.color,
     fontStyle: currentTheme.Comment.fontStyle,
     class: currentTheme.Comment.className
   },
   {
-    tag: dslTags[dslTagNames.string], // Используем наш dslTag для string
+    tag: dslTags[dslTagNames.string],
     color: currentTheme.String.color,
     class: currentTheme.String.className
   },
@@ -85,7 +84,7 @@ const dslHighlightStyleObject = HighlightStyle.define([
     class: currentTheme.TripleQuoteString.className
   },
   {
-    tag: dslTags[dslTagNames.number], // Используем наш dslTag для number
+    tag: dslTags[dslTagNames.number],
     color: currentTheme.Number.color,
     class: currentTheme.Number.className
   },
@@ -107,7 +106,7 @@ const dslHighlightStyleObject = HighlightStyle.define([
     class: currentTheme.Insert.className
   },
   {
-    tag: t.keyword, // Общий t.keyword, если вдруг где-то используется напрямую
+    tag: t.keyword,
     color: currentTheme.Keyword.color,
     fontWeight: currentTheme.Keyword.fontWeight,
     class: currentTheme.Keyword.className
@@ -153,31 +152,26 @@ const getDslRules = (isTxtFile) => {
   return rules;
 };
 
-
 const createDslStreamLanguage = (isTxtFile) => {
   const currentRules = getDslRules(isTxtFile);
 
-  // tokenTable теперь сопоставляет уникальные строковые имена (из dslTagNames) с объектами Tag (из dslTags)
   const tokenTable = {};
   for (const nameKey in dslTagNames) {
-      const tokenNameString = dslTagNames[nameKey]; // "dslKeyword", "string", etc.
-      tokenTable[tokenNameString] = dslTags[tokenNameString]; // dslTags["dslKeyword"] (объект Tag)
+    const tokenNameString = dslTagNames[nameKey];
+    tokenTable[tokenNameString] = dslTags[tokenNameString];
   }
-  // Убедимся, что все теги, используемые в dslHighlightStyleObject, есть в tokenTable
-  // и что getDslRules возвращает правильные tokenName.
 
-  console.log("Initializing StreamLanguage. isTxtFile:", isTxtFile);
-  console.log("Current rules:", currentRules.map(r => ({id: r.id, regex: r.regex.source, tokenName: r.tokenName})));
-  console.log("Token table:", tokenTable);
-
+  // DEBUG: не раскомментировать (может понадобиться)
+  // console.log("Initializing StreamLanguage. isTxtFile:", isTxtFile);
+  // console.log("Current rules:", currentRules.map(r => ({id: r.id, regex: r.regex.source, tokenName: r.tokenName})));
+  // console.log("Token table:", tokenTable);
 
   return StreamLanguage.define({
-    startState: function() {
+    startState() {
       return { inTripleQuote: false };
     },
-    token: function(stream, state) {
+    token(stream, state) {
       if (state.inTripleQuote) {
-        // ... (логика тройных кавычек остается прежней)
         let closed = false;
         let escaped = false;
         while (!stream.eol()) {
@@ -191,35 +185,31 @@ const createDslStreamLanguage = (isTxtFile) => {
           }
           escaped = !escaped && char === '\\';
         }
-        return dslTagNames.tripleQuoteString; // Возвращаем строковое имя
+        return dslTagNames.tripleQuoteString;
       }
 
       if (stream.match(TRIPLE_QUOTE_MARKER)) {
         state.inTripleQuote = true;
-        return dslTagNames.tripleQuoteString; // Возвращаем строковое имя
+        return dslTagNames.tripleQuoteString;
       }
 
       for (const rule of currentRules) {
-        if (rule.regex.global) {
-            rule.regex.lastIndex = 0;
-        }
+        if (rule.regex.global) rule.regex.lastIndex = 0;
         if (stream.match(rule.regex)) {
-          // Теперь rule.tokenName это строка типа "dslKeyword"
-          console.log(`>>> Rule [${rule.id || 'no-id'}] matched text: "${stream.current()}", assigned tokenName: ${rule.tokenName}`);
-          return rule.tokenName; // Возвращаем строковое имя
+          // DEBUG: не раскомментировать (может понадобиться)
+          // console.log(
+          //   `>>> Rule [${rule.id || 'no-id'}] matched text: "${stream.current()}", assigned tokenName: ${rule.tokenName}`
+          // );
+          return rule.tokenName;
         }
       }
 
-      if (!stream.eol()) {
-        stream.next();
-      }
-      
-      return isTxtFile ? dslTagNames.defaultText : null; // Возвращаем строковое имя или null
+      if (!stream.eol()) stream.next();
+
+      return isTxtFile ? dslTagNames.defaultText : null;
     },
-    languageData: {
-      commentTokens: { line: "//" }
-    },
-    tokenTable // tokenTable теперь правильно сопоставляет "dslKeyword" -> Tag объект
+    languageData: { commentTokens: { line: "//" } },
+    tokenTable
   });
 };
 
@@ -239,12 +229,8 @@ export const dslEditorTheme = EditorView.theme({
     lineHeight: "inherit",
     tabSize: 4,
   },
-  "&.cm-editor.cm-focused": {
-    outline: "none !important",
-  },
-  ".cm-cursor, &.cm-focused .cm-cursor": {
-     borderLeftColor: darkThemeColors.caret,
-  },
+  "&.cm-editor.cm-focused": { outline: "none !important" },
+  ".cm-cursor, &.cm-focused .cm-cursor": { borderLeftColor: darkThemeColors.caret },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
     backgroundColor: `${darkThemeColors.selection} !important`,
   },
@@ -258,16 +244,13 @@ export const dslEditorTheme = EditorView.theme({
     minWidth: "30px",
     textAlign: "right",
   },
-  ".cm-activeLine": {
-    backgroundColor: darkThemeColors.lineHighlight
-  },
-  ".cm-activeLineGutter": {
-    backgroundColor: darkThemeColors.lineHighlight
-  }
+  ".cm-activeLine": { backgroundColor: darkThemeColors.lineHighlight },
+  ".cm-activeLineGutter": { backgroundColor: darkThemeColors.lineHighlight }
 }, { dark: true });
 
 export function dslSupport(isTxtFile = false) {
-  console.log("Creating dslSupport, isTxtFile:", isTxtFile);
+  // DEBUG: не раскомментировать (может понадобиться)
+  // console.log("Creating dslSupport, isTxtFile:", isTxtFile);
   const lang = createDslStreamLanguage(isTxtFile);
   return new LanguageSupport(lang);
 }

@@ -4,16 +4,28 @@
     flex-direction: column;
     height: 100%;
     background-color: var(--bg-secondary);
-    padding: 0; /* Panel header will have padding */
+    /* padding: 0; Panel header will have padding if not mobile */
     border-left: 1px solid var(--border-color);
 }
 
-/* PanelHeader class from App.css is used */
+.dslVariablesPanel .panelHeader { /* Added for desktop */
+    padding: 8px 12px;
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    min-height: 30px;
+    flex-shrink: 0;
+}
+.dslVariablesPanel .panelHeader h4 {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+}
+
 
 .variablesTextarea {
     flex-grow: 1;
-    width: calc(100% - 24px); /* Account for panel padding */
-    margin: 12px; /* Padding around textarea */
+    width: calc(100% - 24px); 
+    margin: 12px; 
     padding: 10px;
     border: 1px solid var(--input-border);
     border-radius: 4px;
@@ -22,7 +34,7 @@
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
     font-size: 0.9em;
     line-height: 1.5;
-    resize: none; /* Or vertical if preferred */
+    resize: none; 
 }
 
 .variablesTextarea:focus {
@@ -30,13 +42,22 @@
     border-color: var(--input-focus-border);
 }
 
-.dslVariablesPanel .panelButton { /* Scoped to this panel */
-    margin: 0 12px 12px 12px; /* Margin for the button */
+.dslVariablesPanel .panelButton { 
+    margin: 0 12px 12px 12px; 
     width: calc(100% - 24px);
 }
 
-.dslVariablesPanel .loading-text {
+.dslVariablesPanel .loading-text,
+.dslVariablesPanel .panelMessage { /* Combined for panel messages */
     padding: 10px 12px;
     color: var(--text-secondary);
     font-style: italic;
+    text-align: center;
+}
+
+.dslVariablesPanel .error-text.small-error {
+    font-size: 0.9em;
+    padding: 8px 12px;
+    margin: 0 12px 10px 12px;
+    text-align: left;
 }

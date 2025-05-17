@@ -9,7 +9,9 @@ function TabManager({
     onFileContentChange,
     onCloseTab,
     onSaveTab,
-    lineWrapping
+    lineWrapping,
+    isMobileView, // Added for passing to EditorArea
+    onOpenPathByString // Added for passing to EditorArea
 }) {
     const handleTabClick = useCallback((filePath) => {
         setActiveFilePath(filePath);
@@ -68,6 +70,8 @@ function TabManager({
                             onContentChange={handleEditorContentChange}
                             lineWrapping={lineWrapping}
                             onSave={() => onSaveTab?.(activeFile.path)}
+                            isMobileView={isMobileView}
+                            onOpenPathByString={onOpenPathByString}
                         />
                     )
                     : (

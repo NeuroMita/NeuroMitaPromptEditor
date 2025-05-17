@@ -1,7 +1,6 @@
 // File: frontend\src\pages\EditorPage.js
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAppContext } from '../contexts/AppContext';
-import { useSwipeable } from 'react-swipeable';
 import { useNavigate } from 'react-router-dom';
 
 import FileTreePanel from '../components/FileTree/FileTreePanel';
@@ -19,9 +18,16 @@ import {
 } from '../services/api';
 import '../styles/EditorPage.css';
 
-const MOBILE_PANELS = ['explorer', 'editor', 'variables', 'logs'];
 const MIN_LOG_PANEL_HEIGHT = 60;
 const DEFAULT_LOG_PANEL_HEIGHT = 200;
+
+const MOBILE_TABS = [
+    { id: 'editor', label: 'Editor', icon: '📝' },
+    { id: 'variables', label: 'Variables', icon: '⚙️' },
+    { id: 'logs', label: 'Logs', icon: '📜' },
+    { id: 'actions', label: 'Actions', icon: '🔧' }
+];
+
 
 function EditorPage() {
     const { 
@@ -43,9 +49,11 @@ function EditorPage() {
     const [logs, setLogs] = useState([]);
     const [isPageLoading, setIsPageLoading] = useState(false);
     const [pageError, setPageError] = useState(null);
-    const [activeMobilePanelIndex, setActiveMobilePanelIndex] = useState(1);
-    const activeMobilePanel = useMemo(() => MOBILE_PANELS[activeMobilePanelIndex], [activeMobilePanelIndex]);
+    
     const [isMobileView, setIsMobileView] = useState(window.innerWidth <= 768);
+    const [isMobileExplorerOpen, setIsMobileExplorerOpen] = useState(false);
+    const [activeMobileTab, setActiveMobileTab] = useState(MOBILE_TABS[0].id);
+
     const [logPanelHeight, setLogPanelHeight] = useState(DEFAULT_LOG_PANEL_HEIGHT);
     const [isResizingLogPanel, setIsResizingLogPanel] = useState(false);
     const initialMouseYRef = useRef(0);
@@ -56,32 +64,40 @@ function EditorPage() {
     const zipUploadInputRef = useRef(null);
 
     useEffect(() => {
-        const handleResize = () => setIsMobileView(window.innerWidth <= 768);
+        const handleResize = () => {
+            const mobile = window.innerWidth <= 768;
+            setIsMobileView(mobile);
+            if (!mobile && isMobileExplorerOpen) {
+                setIsMobileExplorerOpen(false); // Close explorer if resizing to desktop
+            }
+        };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
+    }, [isMobileExplorerOpen]);
+
+    const toggleMobileExplorer = useCallback(() => {
+        setIsMobileExplorerOpen(prev => !prev);
+    }, []);
+    
+    const handleMobileFileSelect = useCallback(async (fileNode) => {
+        await handleOpenFile(fileNode); // Use the existing open logic
+        if (fileNode && !fileNode.is_dir) {
+             setIsMobileExplorerOpen(false); // Close explorer after selection
+             setActiveMobileTab('editor'); // Switch to editor tab
+        } else if (fileNode && fileNode.is_dir) {
+            // If it's a directory, explorer stays open to show new content
+        } else {
+            setIsMobileExplorerOpen(false);
+        }
     }, []);
 
-    const handleMobilePanelChange = useCallback((index) => {
-        setActiveMobilePanelIndex(index);
-    }, []);
-
-    const swipeHandlers = useSwipeable({
-        onSwipedLeft: () => {
-            if (isMobileView) setActiveMobilePanelIndex(prev => Math.min(prev + 1, MOBILE_PANELS.length - 1));
-        },
-        onSwipedRight: () => {
-            if (isMobileView) setActiveMobilePanelIndex(prev => Math.max(prev - 1, 0));
-        },
-        preventScrollOnSwipe: true,
-        trackMouse: false
-    });
 
     const handleOpenFile = useCallback(async (fileNode) => {
         if (fileNode.is_dir) return;
         const existingFile = openFiles.find(f => f.path === fileNode.path);
         if (existingFile) {
             setActiveFilePath(fileNode.path);
-            if (isMobileView) setActiveMobilePanelIndex(MOBILE_PANELS.indexOf('editor'));
+             // No automatic tab switch here, let user control mobile tabs separately
             return;
         }
         setIsPageLoading(true);
@@ -93,14 +109,37 @@ function EditorPage() {
                 { path: fileData.path, name: fileNode.name, content: fileData.content, originalContent: fileData.content, isModified: false }
             ]);
             setActiveFilePath(fileData.path);
-            if (isMobileView) setActiveMobilePanelIndex(MOBILE_PANELS.indexOf('editor'));
         } catch (err) {
             setPageError(`Failed to open ${fileNode.name}: ${err.message}`);
             alert(`Failed to open ${fileNode.name}: ${err.message}`);
         } finally {
             setIsPageLoading(false);
         }
-    }, [openFiles, isMobileView]);
+    }, [openFiles]);
+    
+    const handleOpenPathByString = useCallback(async (filePathToOpen) => {
+        // This function is primarily for desktop Ctrl+Click.
+        // On mobile, direct interaction with FileTreePanel is preferred.
+        // It might be possible to find the file by iterating through the tree if loaded,
+        // or by calling an API to get minimal file info, then opening.
+        // For now, focusing on the main request, this remains as is.
+        console.log(`Attempting to open by string: ${filePathToOpen}`);
+        try {
+            // Simple approach: assume it's a full path and try to open
+            // This needs a "file node" like structure. We only have path string.
+            // This is a placeholder for a more robust implementation if needed on mobile.
+            // For now, rely on EditorArea's `!isMobileView` check for Ctrl+Click.
+            // A more robust way would be to search or fetch file details.
+            const dummyFileNode = { path: filePathToOpen, name: filePathToOpen.split(/[/\\]+/).pop(), is_dir: false };
+            await handleOpenFile(dummyFileNode);
+            if (isMobileView) {
+                setActiveMobileTab('editor');
+            }
+        } catch (err) {
+            setPageError(`Failed to open linked file ${filePathToOpen}: ${err.message}`);
+        }
+    }, [handleOpenFile, isMobileView]);
+
 
     const handleFileContentChange = useCallback((filePath, newContent) => {
         setOpenFiles(prevFiles =>
@@ -226,6 +265,7 @@ function EditorPage() {
             const result = await generatePrompt(selectedCharacterId, dslVariables, tags);
             setDslResult({ show: true, title: `DSL Result: ${selectedCharacterId}`, content: result.generated_prompt });
             setLogs(result.logs || []);
+            if (isMobileView) setActiveMobileTab('logs'); // Switch to logs tab on mobile after generation
         } catch (err) {
             setPageError(`Error generating prompt: ${err.message}`);
             alert(`Error generating prompt: ${err.message}`);
@@ -233,7 +273,7 @@ function EditorPage() {
         } finally {
             setIsPageLoading(false);
         }
-    }, [selectedCharacterId, dslVariables, openFiles, handleSaveAllFiles]);
+    }, [selectedCharacterId, dslVariables, openFiles, handleSaveAllFiles, isMobileView]);
 
     const handleClearLogs = useCallback(() => {
         setLogs([]);
@@ -335,6 +375,9 @@ function EditorPage() {
             const result = await apiUploadUserPromptsZip(file);
             alert(result.message || "ZIP file imported successfully!");
             refreshFileTree();
+            if (isMobileView && isMobileExplorerOpen) { // If explorer is open on mobile, refresh its content
+                 // FileTreePanel uses key to refresh, this should be enough
+            }
         } catch (err) {
             setPageError(`Import failed: ${err.message}`);
             alert(`Import failed: ${err.message}`);
@@ -385,12 +428,15 @@ function EditorPage() {
                         onCloseTab={handleCloseTab}
                         onSaveTab={handleSaveFile}
                         lineWrapping={lineWrapping}
+                        isMobileView={false} // Explicitly false for desktop
+                        onOpenPathByString={handleOpenPathByString}
                     />
                 </div>
                 <div className="rightPanelContainer">
                     <DslVariablesPanel
-                        characterId={selectedCharacterId} // Pass the full path
+                        characterId={selectedCharacterId}
                         onVariablesChange={setDslVariables}
+                        isMobileView={false}
                     />
                 </div>
             </div>
@@ -405,58 +451,96 @@ function EditorPage() {
         </div>
     );
 
+    const renderMobileActionsPanel = () => (
+        <div className="mobileActionsPanel">
+            <h3>Actions</h3>
+            <div className="mobileActionsGrid">
+                <button onClick={handleSaveAllFiles} disabled={!canSaveAll || isPageLoading} className="mobileActionButton">
+                    Save All
+                </button>
+                 <label htmlFor="lineWrappingCheckboxMobile" className="mobileActionButton checkboxLabel">
+                    <input
+                        type="checkbox"
+                        id="lineWrappingCheckboxMobile"
+                        checked={lineWrapping}
+                        onChange={(e) => setLineWrapping(e.target.checked)}
+                    />
+                    Wrap Lines
+                </label>
+                <button onClick={handleDownloadPrompts} disabled={isPageLoading} className="mobileActionButton">
+                    Download ZIP
+                </button>
+                <button onClick={() => zipUploadInputRef.current?.click()} disabled={isPageLoading} className="mobileActionButton">
+                    Import ZIP
+                </button>
+                <button onClick={handleLogoutClick} disabled={isPageLoading} className="mobileActionButton">
+                    Logout
+                </button>
+            </div>
+             {isPageLoading && <span className="pageStatus loading">Loading...</span>}
+             {pageError && <span className="pageStatus error small-error">Error: {pageError}</span>}
+        </div>
+    );
+
+
     const renderMobileLayout = () => (
         <>
-            <div {...swipeHandlers} className="swipeViewContainer">
-                {MOBILE_PANELS.map((panelId, index) => (
-                    <div
-                        key={panelId}
-                        className="swipePage"
-                        style={{ transform: `translateX(${(index - activeMobilePanelIndex) * 100}%)` }}
-                    >
-                        {panelId === 'explorer' && (
-                            <FileTreePanel
-                                key={fileTreeKey} 
-                                onFileSelect={handleOpenFile}
-                                onCharacterSelect={setSelectedCharacterId}
-                                onFileRenamed={handleFileRenamedInTree}
-                                onFileDeleted={handleFileDeletedInTree}
-                                onFileCreated={refreshFileTree}
-                                onError={setPageError}
-                            />
-                        )}
-                        {panelId === 'editor' && (
-                            <TabManager
-                                openFiles={openFiles}
-                                activeFilePath={activeFilePath}
-                                setActiveFilePath={setActiveFilePath}
-                                onFileContentChange={handleFileContentChange}
-                                onCloseTab={handleCloseTab}
-                                onSaveTab={handleSaveFile}
-                                lineWrapping={lineWrapping}
-                            />
-                        )}
-                        {panelId === 'variables' && (
-                            <DslVariablesPanel
-                                characterId={selectedCharacterId} // Pass the full path
-                                onVariablesChange={setDslVariables}
-                            />
-                        )}
-                        {panelId === 'logs' && (
-                            <LogPanel logs={logs} onClearLogs={handleClearLogs} />
-                        )}
+            {isMobileExplorerOpen && (
+                <>
+                    <div className="mobileExplorerOverlay" onClick={toggleMobileExplorer}></div>
+                    <div className={`mobileExplorerPanel ${isMobileExplorerOpen ? 'open' : ''}`}>
+                        <FileTreePanel
+                            key={`mobile-${fileTreeKey}`}
+                            onFileSelect={handleMobileFileSelect}
+                            onCharacterSelect={(charId) => {
+                                setSelectedCharacterId(charId);
+                                // Optionally close explorer or switch tab if needed
+                            }}
+                            onFileRenamed={handleFileRenamedInTree}
+                            onFileDeleted={handleFileDeletedInTree}
+                            onFileCreated={refreshFileTree}
+                            onError={setPageError}
+                        />
                     </div>
-                ))}
+                </>
+            )}
+            <div className="mobileMainContentArea">
+                {activeMobileTab === 'editor' && (
+                    <TabManager
+                        openFiles={openFiles}
+                        activeFilePath={activeFilePath}
+                        setActiveFilePath={setActiveFilePath}
+                        onFileContentChange={handleFileContentChange}
+                        onCloseTab={handleCloseTab}
+                        onSaveTab={handleSaveFile}
+                        lineWrapping={lineWrapping}
+                        isMobileView={true}
+                        onOpenPathByString={handleOpenPathByString}
+                    />
+                )}
+                {activeMobileTab === 'variables' && (
+                    <DslVariablesPanel
+                        characterId={selectedCharacterId}
+                        onVariablesChange={setDslVariables}
+                        isMobileView={true}
+                    />
+                )}
+                {activeMobileTab === 'logs' && (
+                    <LogPanel logs={logs} onClearLogs={handleClearLogs} />
+                )}
+                {activeMobileTab === 'actions' && renderMobileActionsPanel()}
             </div>
-            <div className="mobileToggleBar">
-                {MOBILE_PANELS.map((panel, index) => (
+            <div className="mobileBottomNavBar">
+                {MOBILE_TABS.map(tab => (
                     <button
-                        key={panel}
-                        onClick={() => handleMobilePanelChange(index)}
-                        className={activeMobilePanelIndex === index ? 'active' : ''}
-                        aria-label={`Switch to ${panel} view`}
+                        key={tab.id}
+                        onClick={() => setActiveMobileTab(tab.id)}
+                        className={activeMobileTab === tab.id ? 'active' : ''}
+                        aria-label={tab.label}
+                        title={tab.label}
                     >
-                        {panel.charAt(0).toUpperCase() + panel.slice(1)}
+                        <span className="mobileNavIcon">{tab.icon}</span>
+                        <span className="mobileNavLabel">{tab.label}</span>
                     </button>
                 ))}
             </div>
@@ -464,60 +548,77 @@ function EditorPage() {
     );
 
     return (
-        <div className="editorPage" ref={editorPageRef}>
+        <div className={`editorPage ${isMobileView ? 'mobile-view' : ''}`} ref={editorPageRef}>
             <header className="header" ref={headerRef}>
                 <div className="header-left">
+                    {isMobileView && (
+                        <button onClick={toggleMobileExplorer} className="headerButton hamburgerButton" aria-label="Toggle Explorer">
+                            ☰
+                        </button>
+                    )}
                     <h1 className="headerTitle">Prompt Editor</h1>
-                    {currentUser && <span className="currentUserDisplay">User: {currentUser.username}</span>}
+                    {!isMobileView && currentUser && <span className="currentUserDisplay">User: {currentUser.username}</span>}
                 </div>
                 <div className="headerActions">
-                    {isPageLoading && <span className="pageStatus loading">Loading...</span>}
-                    {pageError && <span className="pageStatus error">Error: {pageError}</span>}
-                     <label htmlFor="lineWrappingCheckbox" style={{ display: 'flex', alignItems: 'center', marginRight: '10px', cursor: 'pointer', color: 'var(--text-color-normal, #D4D4D4)' }}>
-                        <input
-                            type="checkbox"
-                            id="lineWrappingCheckbox"
-                            checked={lineWrapping}
-                            onChange={(e) => setLineWrapping(e.target.checked)}
-                            style={{ marginRight: '5px', cursor: 'pointer' }}
-                        />
-                        Wrap Lines
-                    </label>
-                    <button onClick={() => handleSaveFile(activeFilePath)} disabled={!canSaveCurrent || isPageLoading} title="Save current file (Ctrl+S)">
-                        {isMobileView ? "💾" : "Save"}
+                    {isPageLoading && !isMobileView && <span className="pageStatus loading">Loading...</span>}
+                    {pageError && !isMobileView && <span className="pageStatus error">Error: {pageError}</span>}
+                    
+                    {!isMobileView && (
+                         <label htmlFor="lineWrappingCheckboxDesktop" className="headerCheckboxLabel">
+                            <input
+                                type="checkbox"
+                                id="lineWrappingCheckboxDesktop"
+                                checked={lineWrapping}
+                                onChange={(e) => setLineWrapping(e.target.checked)}
+                            />
+                            Wrap Lines
+                        </label>
+                    )}
+
+                    <button className="headerButton" onClick={() => handleSaveFile(activeFilePath)} disabled={!canSaveCurrent || isPageLoading} title="Save current file (Ctrl+S)">
+                        Save
                     </button>
-                    <button onClick={handleSaveAllFiles} disabled={!canSaveAll || isPageLoading} title="Save all modified files (Ctrl+Alt+S)">
-                        {isMobileView ? "💾∀" : "Save All"}
+                    {!isMobileView && (
+                        <button className="headerButton" onClick={handleSaveAllFiles} disabled={!canSaveAll || isPageLoading} title="Save all modified files (Ctrl+Alt+S)">
+                            Save All
+                        </button>
+                    )}
+                    <button className="headerButton" onClick={handleRunDsl} disabled={!selectedCharacterId || isPageLoading} title={displayCharName ? `Generate for ${displayCharName}` : "Generate..."}>
+                        {displayCharName ? `Generate ${isMobileView && displayCharName.length > 6 ? displayCharName.slice(0,5) + '…' : displayCharName}` : "Generate"}
                     </button>
-                    <button onClick={handleRunDsl} disabled={!selectedCharacterId || isPageLoading}>
-                        {isMobileView 
-                            ? (displayCharName ? `▶ ${displayCharName.length > 6 ? displayCharName.slice(0,6) + '…' : displayCharName}` : "▶ Gen") 
-                            : (displayCharName ? `Generate for ${displayCharName}` : "Generate...")}
-                    </button>
-                    <button onClick={handleDownloadPrompts} disabled={isPageLoading} title="Download all your prompts as ZIP">
-                        {isMobileView ? "📥" : "Download ZIP"}
-                    </button>
-                    <input 
-                        type="file" 
-                        accept=".zip" 
-                        ref={zipUploadInputRef} 
-                        onChange={handleZipFileSelected} 
-                        style={{ display: 'none' }} 
-                        aria-hidden="true"
-                    />
-                    <button 
-                        onClick={() => zipUploadInputRef.current?.click()} 
-                        disabled={isPageLoading} 
-                        title="Import prompts from a ZIP file"
-                    >
-                        {isMobileView ? "📤" : "Import ZIP"}
-                    </button>
-                    <button onClick={handleLogoutClick} disabled={isPageLoading} title="Logout">
-                        {isMobileView ? "🚪" : "Logout"}
-                    </button>
+                    
+                    {!isMobileView && (
+                        <>
+                            <button className="headerButton" onClick={handleDownloadPrompts} disabled={isPageLoading} title="Download all your prompts as ZIP">
+                                Download ZIP
+                            </button>
+                            <input 
+                                type="file" 
+                                accept=".zip" 
+                                ref={zipUploadInputRef} 
+                                onChange={handleZipFileSelected} 
+                                style={{ display: 'none' }} 
+                                aria-hidden="true"
+                            />
+                            <button 
+                                className="headerButton"
+                                onClick={() => zipUploadInputRef.current?.click()} 
+                                disabled={isPageLoading} 
+                                title="Import prompts from a ZIP file"
+                            >
+                                Import ZIP
+                            </button>
+                            <button className="headerButton" onClick={handleLogoutClick} disabled={isPageLoading} title="Logout">
+                                Logout
+                            </button>
+                        </>
+                    )}
+                     {isMobileView && currentUser && <span className="currentUserDisplayMobile">User: {currentUser.username}</span>}
                 </div>
             </header>
+            
             {isMobileView ? renderMobileLayout() : renderDesktopLayout()}
+            
             {dslResult.show && (
                 <DslResultModal
                     title={dslResult.title}

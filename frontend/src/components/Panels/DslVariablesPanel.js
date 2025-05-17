@@ -1,7 +1,6 @@
 // File: frontend\src\components\Panels\DslVariablesPanel.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCharacterStaticDefaults } from '../../services/api';
-// Используем ваш CSS
 import '../../styles/DslVariablesPanel.css';
 
 const getDisplayName = (path) => {
@@ -50,18 +49,17 @@ const stringToVariables = (str) => {
     return newVars;
 };
 
-function DslVariablesPanel({ characterId, onVariablesChange }) {
+function DslVariablesPanel({ characterId, onVariablesChange, isMobileView }) {
     const [textAreaValue, setTextAreaValue] = useState('');
     const [apiDefaultVariables, setApiDefaultVariables] = useState({});
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null); // Не отображаем, но можем использовать для отладки
+    const [error, setError] = useState(null); 
 
     const getLocalStorageKey = useCallback((charId) => {
         if (!charId) return null;
         return `userVars-${charId}`;
     }, []);
 
-    // Загрузка переменных при смене characterId
     useEffect(() => {
         if (characterId) {
             setIsLoading(true);
@@ -88,7 +86,7 @@ function DslVariablesPanel({ characterId, onVariablesChange }) {
                         }
                     }
                     setTextAreaValue(variablesToString(varsToDisplay));
-                    onVariablesChange(varsToDisplay); // Сразу передаем актуальные переменные
+                    onVariablesChange(varsToDisplay); 
                 })
                 .catch(err => {
                     console.error(`Failed to fetch static default variables for '${characterName}' (from path '${characterId}'):`, err);
@@ -113,14 +111,12 @@ function DslVariablesPanel({ characterId, onVariablesChange }) {
         const newText = e.target.value;
         setTextAreaValue(newText);
 
-        // Сразу парсим и обновляем переменные + localStorage
         const parsedVars = stringToVariables(newText);
-        onVariablesChange(parsedVars); // Передаем наверх для использования в DSL
+        onVariablesChange(parsedVars); 
 
         const storageKey = getLocalStorageKey(characterId);
         if (storageKey) {
-            if (Object.keys(parsedVars).length > 0 || newText.trim() === "") { // Сохраняем, если есть переменные или текст пуст (очистка)
-                 // Сравниваем с дефолтами, чтобы не хранить лишнего
+            if (Object.keys(parsedVars).length > 0 || newText.trim() === "") { 
                 const varsToStore = {};
                 let hasCustomValue = false;
                 for (const key in parsedVars) {
@@ -129,15 +125,11 @@ function DslVariablesPanel({ characterId, onVariablesChange }) {
                         hasCustomValue = true;
                     }
                 }
-                 // Если есть хотя бы одно кастомное значение, или если пользователь очистил все (и это отличается от дефолтов)
                 if (hasCustomValue || (Object.keys(parsedVars).length === 0 && Object.keys(apiDefaultVariables).length > 0) ) {
                     localStorage.setItem(storageKey, JSON.stringify(varsToStore));
                 } else {
-                    localStorage.removeItem(storageKey); // Если все значения равны дефолтным, удаляем из стораджа
+                    localStorage.removeItem(storageKey); 
                 }
-
-            } else { // Если парсинг не дал переменных, но текст не пустой - это может быть ошибка ввода, не сохраняем
-                // localStorage.removeItem(storageKey); // Или можно не трогать сторадж
             }
         }
     };
@@ -154,15 +146,16 @@ function DslVariablesPanel({ characterId, onVariablesChange }) {
     
     const displayName = getDisplayName(characterId);
 
-    // PanelHeader теперь должен быть частью EditorPage или другого родительского компонента
-    // Здесь мы просто рендерим textarea и кнопку
-
     return (
         <div className="dslVariablesPanel">
-            {/* Заголовок панели теперь должен быть в EditorPage или в общем компоненте PanelHeader */}
-            {/* <div className="panelHeader">Variables: {displayName || "Select Character"}</div> */}
+            {!isMobileView && (
+                <div className="panelHeader">
+                    <h4>Variables: {displayName || "Select Character"}</h4>
+                </div>
+            )}
             
             {isLoading && <p className="loading-text">Loading variables...</p>}
+            {error && <p className="error-text small-error">{error}</p>}
             {!isLoading && characterId && (
                 <>
                     <textarea
@@ -173,7 +166,7 @@ function DslVariablesPanel({ characterId, onVariablesChange }) {
                         disabled={!characterId}
                     />
                     <button 
-                        className="panelButton" // Используем ваш класс
+                        className="panelButton"
                         onClick={handleRestoreDefaults} 
                         disabled={!characterId || Object.keys(apiDefaultVariables).length === 0}
                     >
@@ -181,8 +174,8 @@ function DslVariablesPanel({ characterId, onVariablesChange }) {
                     </button>
                 </>
             )}
-            {!characterId && !isLoading && (
-                <p className="loading-text" style={{textAlign: 'center', padding: '20px'}}>
+            {!characterId && !isLoading && !error && (
+                <p className="panelMessage" style={{textAlign: 'center', padding: '20px'}}>
                     Select a character to edit its variables.
                 </p>
             )}

@@ -167,9 +167,31 @@ Fearless
 <текст вместо {{SysInfo}}>
 ```
 
+## 9. Кастомные переменные
+
+Начиная с версии v1 можно создать скрипт инициализации кастомных переменных.
+
+Пример:
+```
+LOG "Initialization of variables"
+
+IF my_custom_variable == None THEN // При первом старте будет иметь значение None
+	LOG "my_custom_variable is null: " + my_custom_variable
+	SET my_custom_variable = "123" // заменяем на новое значение
+	LOG "now it is: " + my_custom_variable // теперь переменная my_custom_variable = "123"
+ELSE // При втором запуске/запросе переменная уже не будет пустой:
+	LOG "my_custom_variable is not null" + my_custom_variable // Вывод: "123"
+ENDIF
+```
+
+и подключить его в main_template.txt:
+```
+[<Scripts/init.script>]
+```
+
 ---
 
-## 9. Советы
+## 10. Советы
 1. `LOG` поможет понять, почему скрипт выбрал ту или иную ветку.  
 2. Держите логику в `.script`, тексты — в `.txt`.  
 3. Общие материалы кладите в `_CommonPrompts` / `_CommonScripts`.  

@@ -194,16 +194,26 @@ class DslInterpreter:
         finally:
             self.resolver.pop_base_context()
 
-    def _eval_expr(self, expr: str,
-                   script_path_for_error: str, # This is the original rel_path or resolved_id
-                   line_num: int,
-                   line_content: str):
+    def _eval_expr(
+        self,
+        expr: str,
+        script_path_for_error: str,
+        line_num: int,
+        line_content: str,
+    ):
         safe_globals = {
             "__builtins__": {
-                "str": str, "int": int, "float": float,
-                "len": len, "round": round, "abs": abs,
-                "max": max, "min": min, "True": True,
-                "False": False, "None": None,
+                "str": str,
+                "int": int,
+                "float": float,
+                "len": len,
+                "round": round,
+                "abs": abs,
+                "max": max,
+                "min": min,
+                "True": True,
+                "False": False,
+                "None": None,
             }
         }
         local_vars = self.character.variables.copy()
@@ -212,46 +222,63 @@ class DslInterpreter:
             err_msg = custom_msg or f"Error evaluating '{expr}': {type(e).__name__} - {e}"
             dsl_script_logger.error(
                 f"{err_msg} in script '{os.path.basename(script_path_for_error)}' line {line_num}: \"{line_content.strip()}\"",
-                exc_info=True
+                exc_info=True,
             )
             raise DslError(
                 err_msg,
                 script_path=script_path_for_error,
                 line_num=line_num,
                 line_content=line_content,
-                original_exception=e
+                original_exception=e,
             ) from e
 
-        try:
-            if expr.lstrip().startswith(("f'", 'f"', 'f"""')):
-                return eval(expr, safe_globals, local_vars)
-            return eval(expr, safe_globals, local_vars)
-        except TypeError as e:
-            msg_lower = str(e).lower()
-            is_concat_problem = (
-                "can only concatenate str" in msg_lower
-                or (
-                    "unsupported operand type(s) for +" in msg_lower
-                    and "str" in msg_lower
-                )
-            )
-            if not is_concat_problem:
-                _raise_dsl_error(e)
+        max_missing_fills = 10
+        fills = 0
 
-            dsl_script_logger.debug(
-                "Attempting auto-str cast for TypeError in expression '%s' (%s:%d)",
-                expr, os.path.basename(script_path_for_error), line_num
-            )
-            fixed_locals = {
-                k: (str(v) if isinstance(v, (int, float, bool)) else v)
-                for k, v in local_vars.items()
-            }
+        while True:
             try:
-                return eval(expr, safe_globals, fixed_locals)
-            except Exception as retry_exc:
-                _raise_dsl_error(e, f"Error evaluating '{expr}' (even after auto-str cast attempt for TypeError): {type(e).__name__} - {e}")
-        except (NameError, Exception) as e:
-            _raise_dsl_error(e)
+                if expr.lstrip().startswith(("f'", 'f"', 'f"""')):
+                    return eval(expr, safe_globals, local_vars)
+                return eval(expr, safe_globals, local_vars)
+            except NameError as ne:
+                m = re.search(r"name '([^']+)' is not defined", str(ne))
+                if not m or fills >= max_missing_fills:
+                    _raise_dsl_error(ne)
+                var_name = m.group(1)
+                dsl_execution_logger.debug(
+                    "Auto-initializing unknown variable '%s' with None", var_name
+                )
+                local_vars[var_name] = None
+                fills += 1
+                continue
+            except TypeError as e:
+                msg_lower = str(e).lower()
+                is_concat_problem = "can only concatenate str" in msg_lower or (
+                    "unsupported operand type(s) for +" in msg_lower and "str" in msg_lower
+                )
+                if not is_concat_problem:
+                    _raise_dsl_error(e)
+                dsl_script_logger.debug(
+                    "Attempting auto-str cast for TypeError in expression '%s' (%s:%d)",
+                    expr,
+                    os.path.basename(script_path_for_error),
+                    line_num,
+                )
+                fixed_locals = {
+                    k: (str(v) if isinstance(v, (int, float, bool, type(None))) else v)
+                    for k, v in local_vars.items()
+                }
+                try:
+                    if expr.lstrip().startswith(("f'", 'f"', 'f"""')):
+                        return eval(expr, safe_globals, fixed_locals)
+                    return eval(expr, safe_globals, fixed_locals)
+                except Exception:
+                    _raise_dsl_error(
+                        e,
+                        f"Error evaluating '{expr}' (even after auto-str cast attempt for TypeError): {type(e).__name__} - {e}",
+                    )
+            except Exception as e:
+                _raise_dsl_error(e)
 
 
     def _eval_condition(self, cond: str, script_path_for_error: str, line_num: int, line_content: str):

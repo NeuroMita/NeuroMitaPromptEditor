@@ -80,11 +80,11 @@ interp.set_insert("PlayerName", "Алиса")
 ```
 
 * Взять конкретную секцию:  
-  ```dsl
+  ```js
   RETURN LOAD Greeting FROM "Main/phrases.txt"
   ```
 * Взять весь файл (маркеры секций будут убраны):  
-  ```dsl
+  ```js
   RETURN LOAD "Main/phrases.txt"
   ```
 
@@ -112,7 +112,7 @@ interp.set_insert("PlayerName", "Алиса")
 
 ### 7.3 Мини-пример скрипта
 
-```dsl
+```js
 // разный текст в зависимости от настроения
 IF mood > 70 THEN
     RETURN "Настроение отличное!"
@@ -148,7 +148,7 @@ Current mood:
 
 ### build_mood.script
 
-```dsl
+```js
 IF bravery > 50 THEN
     RETURN "Fearless"
 ELSE
@@ -172,7 +172,7 @@ Fearless
 Начиная с версии v1 можно создать скрипт инициализации кастомных переменных.
 
 Пример:
-```
+```js
 LOG "Initialization of variables"
 
 IF my_custom_variable == None THEN // При первом старте будет иметь значение None

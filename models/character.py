@@ -2,6 +2,7 @@
 import logging
 import os # Добавили os
 from app.logic.dsl_engine import DslInterpreter, DslError
+from app.logic.path_resolver import LocalPathResolver
 import datetime
 import sys
 import traceback
@@ -117,7 +118,12 @@ class Character:
         self.set_variable("SYSTEM_DATETIME", datetime.datetime.now().strftime("%Y %B %d (%A) %H:%M"))
 
         try:
-            interpreter = DslInterpreter(self)
+            path_resolver_instance = LocalPathResolver(
+                global_prompts_root=self.prompts_root, 
+                character_base_data_path=self.base_data_path
+            )
+
+            interpreter = DslInterpreter(self, path_resolver_instance)
 
             if tags:
                 for tag_name, value in tags.items():

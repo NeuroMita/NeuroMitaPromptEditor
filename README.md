@@ -173,6 +173,7 @@ Fearless
 
 Пример:
 ```js
+// Scripts/init.script
 LOG "Initialization of variables"
 
 IF my_custom_variable == None THEN // При первом старте будет иметь значение None

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtCore import QDir
-from app.utils.logger import editor_logger # Используем наш настроенный логгер
+from utils.logger import editor_logger # Используем наш настроенный логгер
 
 def static_resolve_editor_hyperlink(prompts_root_abs_path_str: str, current_file_abs_path: str, link_target_in_placeholder: str) -> str | None:
     if not prompts_root_abs_path_str:

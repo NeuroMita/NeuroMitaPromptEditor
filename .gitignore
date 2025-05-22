@@ -4,3 +4,5 @@ Logs/*
 dist
 build
 *.spec
+/Prompts
+/.idea

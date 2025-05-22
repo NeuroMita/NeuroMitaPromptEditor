@@ -13,7 +13,7 @@ try:
 except ImportError:
     tiktoken = None
 
-from app.syntax.styles import SyntaxStyleDark
+from syntax.styles import SyntaxStyleDark
 
 
 class DslResultDialog(QDialog):

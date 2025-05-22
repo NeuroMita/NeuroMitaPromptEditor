@@ -5,10 +5,10 @@ from PySide6.QtWidgets import (
     QTabWidget, QMessageBox, QFileDialog
 )
 from PySide6.QtGui import QFont, QTextCursor
-from app.widgets.custom_text_edit import CustomTextEdit
-from app.syntax.styles import SyntaxStyleDark
-from app.syntax.highlighter import PromptSyntaxHighlighter
-from app.utils.path_helpers import static_resolve_editor_hyperlink
+from widgets.custom_text_edit import CustomTextEdit
+from syntax.styles import SyntaxStyleDark
+from syntax.highlighter import PromptSyntaxHighlighter
+from utils.path_helpers import static_resolve_editor_hyperlink
 
 _log = logging.getLogger(__name__)
 

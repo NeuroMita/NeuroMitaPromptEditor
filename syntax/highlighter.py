@@ -9,8 +9,8 @@ from PySide6.QtGui import (
     QFont,
 )
 
-from app.syntax.styles import HIGHLIGHTING_RULES_DARK_TUPLES
-from app.utils.logger import editor_logger
+from syntax.styles import HIGHLIGHTING_RULES_DARK_TUPLES, SyntaxStyleDark
+from utils.logger import editor_logger
 
 
 class PromptSyntaxHighlighter(QSyntaxHighlighter):
@@ -177,8 +177,17 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
             else None
         )
 
+        is_postscript_file = current_doc_path is not None and current_doc_path.lower().endswith(".postscript")
+
+        if is_postscript_file:
+            if not hasattr(self, 'postscript_rules'):
+                self.highlight_postscript()
+            rules_to_apply = self.postscript_rules
+        else:
+            rules_to_apply = self.rules
+
         # --------- применяем все правила -------------------------------
-        for regex, base_fmt, is_link_rule, pattern_dbg in self.rules:
+        for regex, base_fmt, is_link_rule, pattern_dbg in rules_to_apply:
             #  ❗️Отключаем DSL-ключевые слова внутри .txt-файла
             if is_txt_file and self._DSL_KEYWORDS_RE.search(regex.pattern()):
                 continue
@@ -224,3 +233,28 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
 
         # --------- поверх всего — раскраска \"\"\" … \"\"\" -------------
         self._apply_multiline_string_highlighting(text)
+
+
+    def highlight_postscript(self):
+        # In PromptSyntaxHighlighter constructor or a new method for postscript rules
+        self.postscript_rules = []
+        keyword_format = QTextCharFormat()
+        keyword_format.setForeground(SyntaxStyleDark.Keyword["foreground"])  # Assuming Keyword style exists
+        string_format = QTextCharFormat()
+        string_format.setForeground(SyntaxStyleDark.String["foreground"])
+        comment_format = QTextCharFormat()
+        comment_format.setForeground(SyntaxStyleDark.Comment["foreground"])
+
+        # Postscript Keywords
+        postscript_keywords = r"\b(RULE|MATCH|TEXT|REGEX|CAPTURE|AS|ACTIONS|END_ACTIONS|END_RULE|SET|LOG|REMOVE_MATCH|REPLACE_MATCH|WITH|FLOAT|INT|STR|DEFAULT)\b"
+        self.postscript_rules.append(
+            (QRegularExpression(postscript_keywords, QRegularExpression.CaseInsensitiveOption), keyword_format, False, "Postscript Keywords"))
+
+        # Strings
+        self.postscript_rules.append((QRegularExpression(r"(\".*?\"|\'.*?\')"), string_format, False, "Strings"))
+
+        # Comments
+        self.postscript_rules.append((QRegularExpression(r"//[^\n]*"), comment_format, False, "Comments"))
+
+        # Variable names (simple example)
+        # self.postscript_rules.append((QRegularExpression(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"), default_text_format)) # If needed

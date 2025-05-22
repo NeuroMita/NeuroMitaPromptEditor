@@ -6,18 +6,23 @@ from PySide6.QtCore import Qt
 current_dir = os.path.dirname(os.path.abspath(__file__)) 
 project_root = os.path.dirname(current_dir)             
 
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-from app.ui.main_window import PromptEditorWindow
-from app.utils.logger import editor_logger 
+
+from ui.main_window import PromptEditorWindow
+from utils.logger import editor_logger 
 
 def run_application():
     editor_logger.info("Запуск приложения Prompt Editor...")
 
     if hasattr(Qt, 'AA_EnableHighDpiScaling'):
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+      QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
-        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+      QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     app = QApplication(sys.argv)
 

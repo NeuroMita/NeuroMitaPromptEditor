@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Signal
-from app.syntax.styles import SyntaxStyleDark
+from syntax.styles import SyntaxStyleDark
 
 
 class DslVariablesDock(QDockWidget):

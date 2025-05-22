@@ -6,21 +6,21 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QSettings
 
 # ---------- локальные блоки ----------
-from .tree_panel          import FileTreePanel
-from .tab_manager         import TabManager
-from .dsl_variables_dock  import DslVariablesDock
-from app.widgets.log_panel import LogPanel
+from ui.tree_panel          import FileTreePanel
+from ui.tab_manager         import TabManager
+from ui.dsl_variables_dock  import DslVariablesDock
+from widgets.log_panel import LogPanel
 
 # ---------- утилиты / константы -------
-from app.config import PROMPTS_DIR_NAME, SETTINGS_ORG_NAME, SETTINGS_APP_NAME
-from app.utils.path_helpers import find_or_ask_prompts_root, select_prompts_directory_dialog
-from app.utils.logger       import add_editor_log_handler, get_dsl_execution_logger, editor_logger, get_dsl_script_logger
-from app.dsl_manager        import DSL_ENGINE_AVAILABLE, CharacterClass
-from app.widgets.dsl_result_dialog import DslResultDialog
+from config import PROMPTS_DIR_NAME, SETTINGS_ORG_NAME, SETTINGS_APP_NAME
+from utils.path_helpers import find_or_ask_prompts_root, select_prompts_directory_dialog
+from utils.logger       import add_editor_log_handler, get_dsl_execution_logger, editor_logger, get_dsl_script_logger
+from dsl_manager        import DSL_ENGINE_AVAILABLE, CharacterClass
+from widgets.dsl_result_dialog import DslResultDialog
 
 # ---------- модели персонажей ----------
-from app.models.character import Character
-from app.models.characters import (
+from models.character import Character
+from models.characters import (
     CrazyMita, KindMita, ShortHairMita,
     CappyMita, MilaMita, CreepyMita, SleepyMita
 )
@@ -77,7 +77,7 @@ class PromptEditorWindow(QMainWindow):
             
             editor_logger.info("Попытка автоматического определения папки Prompts или запрос у пользователя.")
             try:
-                import app.config as cfg_mod
+                import config as cfg_mod
                 cfg_path = cfg_mod.__file__
             except Exception:
                 cfg_path = os.getcwd()

@@ -152,6 +152,10 @@ class PromptEditorWindow(QMainWindow):
         fm.addSeparator()
         fm.addAction("Выход", self.close).setShortcut("Ctrl+Q")
 
+        # -------- Инструменты --------
+        tm = mb.addMenu("&Инструменты")
+        tm.addAction("Проверить синтаксис", self._check_syntax).setShortcut("Ctrl+Shift+C")
+
         # -------- Вид --------
         vm = mb.addMenu("&Вид")
 
@@ -194,6 +198,39 @@ class PromptEditorWindow(QMainWindow):
             ed.clear()
             self.vars_dock.setWindowTitle("Параметры DSL")
 
+    def _check_syntax(self):
+        from syntax.syntax_checker import PostScriptSyntaxChecker, SyntaxError # Импортируем здесь, чтобы избежать циклических зависимостей
+
+        current_editor = self.tabs.currentWidget()
+        if not current_editor:
+            QMessageBox.information(self, "Проверка синтаксиса", "Нет открытых файлов для проверки.")
+            return
+
+        file_path = current_editor.get_tab_file_path()
+        if not file_path:
+            QMessageBox.information(self, "Проверка синтаксиса", "Файл не сохранен. Сохраните файл перед проверкой синтаксиса.")
+            return
+
+        file_content = current_editor.toPlainText()
+        checker = PostScriptSyntaxChecker()
+        errors: List[SyntaxError] = []
+        
+        if file_path.lower().endswith(".postscript"):
+            errors = checker.check_postscript_syntax(file_content, file_path)
+        elif file_path.lower().endswith(".script"):
+            errors = checker.check_dsl_syntax(file_content, file_path)
+        else:
+            QMessageBox.warning(self, "Проверка синтаксиса", "Неподдерживаемое расширение файла для проверки синтаксиса. Поддерживаются .postscript и .script.")
+            return
+
+        if errors:
+            error_messages = "\n".join([str(e) for e in errors])
+            DslResultDialog("Ошибки синтаксиса", error_messages, self).show()
+            editor_logger.warning(f"Синтаксические ошибки в {file_path}:\n{error_messages}")
+        else:
+            QMessageBox.information(self, "Проверка синтаксиса", f"Синтаксис файла '{os.path.basename(file_path)}' в порядке. Ошибок не найдено.")
+            editor_logger.info(f"Синтаксис файла '{file_path}' в порядке.")
+
     def _run_dsl(self):
         if not DSL_ENGINE_AVAILABLE:
             QMessageBox.warning(self, "DSL", "DSL-движок недоступен.")
@@ -201,13 +238,12 @@ class PromptEditorWindow(QMainWindow):
         if not self.selected_char:
             QMessageBox.warning(self, "DSL", "Персонаж не выбран.")
             return
-        if not self.prompts_root: # <<< НОВАЯ ПРОВЕРКА
+        if not self.prompts_root:
             editor_logger.error("Prompts root directory is not set. Cannot run DSL.")
             QMessageBox.warning(self, "DSL Ошибка", "Корневая папка Prompts не установлена.")
             return
 
         vars_dict = self._parse_vars()
-        # <<< ИЗМЕНЕНО: передаем self.prompts_root в конструктор CharacterClass
         char = CharacterClass(self.selected_char, self.selected_char, self.prompts_root, vars_dict)
         try:
             sys_info_fake = ["[SYS_INFO]: Пример Системного Сообщения.", "[SYS_INFO]_2 Пример второго системного сообщения."]
@@ -216,7 +252,7 @@ class PromptEditorWindow(QMainWindow):
             DslResultDialog(f"DSL: {self.selected_char}", prompt, self).show()
         except Exception as e:
             QMessageBox.critical(self, "DSL-ошибка", str(e))
-            editor_logger.error(f"Error running DSL for {self.selected_char}: {e}", exc_info=True) # Добавим логирование
+            editor_logger.error(f"Error running DSL for {self.selected_char}: {e}", exc_info=True)
 
     def _parse_vars(self) -> dict:
         out = {}

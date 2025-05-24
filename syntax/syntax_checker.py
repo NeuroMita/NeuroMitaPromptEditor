@@ -168,8 +168,8 @@ class PostScriptSyntaxChecker:
                     self._add_error("Команда SET требует оператора '='.", num, raw_line)
                 else:
                     var_name, expr = [s.strip() for s in args.split("=", 1)]
-                    if not var_name or not re.match(r"^[A-Z0-9_]+$", var_name):
-                        self._add_error(f"Некорректное имя переменной '{var_name}'. Используйте только заглавные буквы, цифры и подчеркивания.", num, raw_line, "Variable Naming")
+                    if not var_name or not re.match(r"^[a-zA-Z0-9_]+$", var_name):
+                        self._add_error(f"Некорректное имя переменной '{var_name}'. Используйте только буквы, цифры и подчеркивания.", num, raw_line, "Variable Naming")
                     self._validate_expression(expr, num, raw_line)
                     self.variables[var_name] = None # Просто регистрируем переменную
             elif command == "LOG":
@@ -307,7 +307,7 @@ class PostScriptSyntaxChecker:
                         self._add_error("Команда SET требует оператора '='.", num, raw_line)
                     else:
                         var_name, expr = [s.strip() for s in args.split("=", 1)]
-                        if not var_name or not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", var_name):
+                        if not var_name or not re.match(r"^[a-zA-Z0-9_]+$", var_name):
                             self._add_error(f"Некорректное имя переменной '{var_name}'. Используйте допустимые имена переменных Python.", num, raw_line, "Variable Naming")
                         self._validate_expression(expr, num, raw_line)
                 elif command == "LOG":
@@ -356,7 +356,7 @@ class PostScriptSyntaxChecker:
                     if (label_part.startswith('"') and not label_part.endswith('"')) or \
                        (label_part.startswith("'") and not label_part.endswith("'")):
                         self._add_error("Несбалансированные кавычки в метке DEBUG_DISPLAY.", num, raw_line, "Format Error")
-                    if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", var_name_part):
+                    if not re.match(r"^[a-zA-Z0-9_]+$", var_name_part):
                         self._add_error(f"Некорректное имя переменной '{var_name_part}' в DEBUG_DISPLAY. Используйте допустимые имена переменных Python.", num, raw_line, "Variable Naming")
                 continue
 

@@ -6,3 +6,4 @@ build
 *.spec
 /Prompts
 /.idea
+Install.py

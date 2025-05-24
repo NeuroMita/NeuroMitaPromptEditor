@@ -164,6 +164,12 @@ class PostScriptSyntaxChecker:
                     self._add_error("ENDIF не должен иметь аргументов.", num, raw_line)
             # Проверка команд SET, LOG, RETURN
             elif command == "SET":
+                is_local = False
+                parts_after_set = args.split(maxsplit=1)
+                if len(parts_after_set) > 1 and parts_after_set[0].upper() == "LOCAL":
+                    is_local = True
+                    args = parts_after_set[1] # Remaining part after "LOCAL"
+
                 if "=" not in args:
                     self._add_error("Команда SET требует оператора '='.", num, raw_line)
                 else:
@@ -171,7 +177,8 @@ class PostScriptSyntaxChecker:
                     if not var_name or not re.match(r"^[a-zA-Z0-9_]+$", var_name):
                         self._add_error(f"Некорректное имя переменной '{var_name}'. Используйте только буквы, цифры и подчеркивания.", num, raw_line, "Variable Naming")
                     self._validate_expression(expr, num, raw_line)
-                    self.variables[var_name] = None # Просто регистрируем переменную
+                    if not is_local: # Локальные переменные не нужно регистрировать в self.variables
+                        self.variables[var_name] = None # Просто регистрируем переменную
             elif command == "LOG":
                 if not args:
                     self._add_error("Команда LOG требует аргумент.", num, raw_line)

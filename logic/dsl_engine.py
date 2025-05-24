@@ -187,6 +187,7 @@ class DslInterpreter:
         self.resolver = resolver # Store the provided resolver instance
         char_ctx_filter.set_character_id(getattr(character, "char_id", "NO_CHAR_INIT"))
         self._insert_values: dict[str, str] = {}
+        self._local_vars: dict[str, Any] = {} # New: for local variables
 
     @contextmanager
     def _use_base(self, base_dir_resolved_id: str):
@@ -218,7 +219,8 @@ class DslInterpreter:
                 "None": None,
             }
         }
-        local_vars = self.character.variables.copy()
+        # Combine local and character variables, with local taking precedence
+        combined_vars = {**self.character.variables, **self._local_vars}
 
         def _raise_dsl_error(e: Exception, custom_msg: str = ""):
             err_msg = custom_msg or f"Error evaluating '{expr}': {type(e).__name__} - {e}"
@@ -240,17 +242,19 @@ class DslInterpreter:
         while True:
             try:
                 if expr.lstrip().startswith(("f'", 'f"', 'f"""')):
-                    return eval(expr, safe_globals, local_vars)
-                return eval(expr, safe_globals, local_vars)
+                    return eval(expr, safe_globals, combined_vars)
+                return eval(expr, safe_globals, combined_vars)
             except NameError as ne:
                 m = re.search(r"name '([^']+)' is not defined", str(ne))
                 if not m or fills >= max_missing_fills:
                     _raise_dsl_error(ne)
                 var_name = m.group(1)
                 dsl_execution_logger.debug(
-                    "Auto-initializing unknown variable '%s' with None", var_name
+                    "Auto-initializing unknown variable '%s' with None in local scope", var_name
                 )
-                local_vars[var_name] = None
+                # Auto-initialize in local_vars, not character variables
+                self._local_vars[var_name] = None 
+                combined_vars[var_name] = None # Update combined_vars for next eval attempt
                 fills += 1
                 continue
             except TypeError as e:
@@ -268,7 +272,7 @@ class DslInterpreter:
                 )
                 fixed_locals = {
                     k: (str(v) if isinstance(v, (int, float, bool, type(None))) else v)
-                    for k, v in local_vars.items()
+                    for k, v in combined_vars.items()
                 }
                 try:
                     if expr.lstrip().startswith(("f'", 'f"', 'f"""')):
@@ -369,6 +373,9 @@ class DslInterpreter:
             ) from e
 
     def execute_dsl_script(self, rel_script_path: str) -> str:
+        # Clear local variables at the start of each script execution
+        self._local_vars.clear() 
+
         resolved_script_id: str = ""
         returned_value_for_log: bool | None = None
         try:
@@ -494,11 +501,23 @@ class DslInterpreter:
 
                     if command == "SET":
                         if "=" not in args: raise DslError("SET requires '='", resolved_script_id, num, raw)
+                        
+                        is_local = False
+                        parts_after_set = args.split(maxsplit=1)
+                        if len(parts_after_set) > 1 and parts_after_set[0].upper() == "LOCAL":
+                            is_local = True
+                            args = parts_after_set[1] # Remaining part after "LOCAL"
+
                         var, expr = [s.strip() for s in args.split("=", 1)]
                         expr = self._expand_inline_loads(expr, script_path_for_error=resolved_script_id, line_num=num, line_content=raw)
                         value = self._eval_expr(expr, resolved_script_id, num, raw)
-                        self.character.variables[var] = value
-                        dsl_execution_logger.debug(f"SET {var} = {value} ({os.path.basename(rel_script_path)}:{num})")
+                        
+                        if is_local:
+                            self._local_vars[var] = value
+                            dsl_execution_logger.debug(f"SET LOCAL {var} = {value} ({os.path.basename(rel_script_path)}:{num})")
+                        else:
+                            self.character.variables[var] = value
+                            dsl_execution_logger.debug(f"SET {var} = {value} ({os.path.basename(rel_script_path)}:{num})")
                         continue
 
                     if command == "LOG":

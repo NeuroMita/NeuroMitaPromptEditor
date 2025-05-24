@@ -30,7 +30,7 @@ class SyntaxStyleDark:
 HIGHLIGHTING_RULES_DARK_TUPLES = [
     (r"//[^\n]*", SyntaxStyleDark.get_format(SyntaxStyleDark.Comment), False),
     (r"(\".*?\"|\'.*?\')", SyntaxStyleDark.get_format(SyntaxStyleDark.String), False),
-    (r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|AND|OR|TRUE|FALSE|NONE)\b", SyntaxStyleDark.get_format(SyntaxStyleDark.Keyword), False), # CaseInsensitiveOption будет добавлена в highlighter
+    (r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|AND|OR|TRUE|FALSE|NONE|LOCAL)\b", SyntaxStyleDark.get_format(SyntaxStyleDark.Keyword), False), # CaseInsensitiveOption будет добавлена в highlighter
     (r"<[/!]?[a-zA-Z_][^>]*>", SyntaxStyleDark.get_format(SyntaxStyleDark.SpecialTag), False),
     (r"\b\d+(\.\d+)?\b", SyntaxStyleDark.get_format(SyntaxStyleDark.Number), False),
     (r"(\[<)([^\]>]+?\.(?:script|txt))(>\])", SyntaxStyleDark.get_format(SyntaxStyleDark.Placeholder), True), # is_link_rule = True

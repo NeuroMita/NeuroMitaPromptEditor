@@ -27,7 +27,7 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
 
     # ключевые слова DSL, которые должны подсвечиваться без учёта регистра
     _DSL_KEYWORDS_RE = re.compile(
-        r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|AND|OR|TRUE|FALSE|NONE)\b",
+        r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|AND|OR|TRUE|FALSE|NONE|LOCAL)\b",
         re.IGNORECASE,
     )
 
@@ -246,7 +246,7 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
         comment_format.setForeground(SyntaxStyleDark.Comment["foreground"])
 
         # Postscript Keywords
-        postscript_keywords = r"\b(RULE|MATCH|TEXT|REGEX|CAPTURE|AS|ACTIONS|END_ACTIONS|END_RULE|SET|LOG|REMOVE_MATCH|REPLACE_MATCH|WITH|FLOAT|INT|STR|DEFAULT)\b"
+        postscript_keywords = r"\b(RULE|MATCH|TEXT|REGEX|CAPTURE|AS|ACTIONS|END_ACTIONS|END_RULE|SET|LOG|REMOVE_MATCH|REPLACE_MATCH|WITH|FLOAT|INT|STR|DEFAULT|LOCAL)\b"
         self.postscript_rules.append(
             (QRegularExpression(postscript_keywords, QRegularExpression.CaseInsensitiveOption), keyword_format, False, "Postscript Keywords"))
 

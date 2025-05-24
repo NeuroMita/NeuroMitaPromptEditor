@@ -242,8 +242,8 @@ class PostScriptSyntaxChecker:
                 if current_rule_name: # Предыдущее правило не было закрыто
                     self._add_error(f"Незакрытое правило '{current_rule_name}'. Ожидался END_RULE.", num-1, logical_lines[num-2], "Unterminated Rule")
                 current_rule_name = rule_match.group(1).strip()
-                if not re.match(r"^[A-Z0-9_]+$", current_rule_name):
-                    self._add_error(f"Некорректное имя правила '{current_rule_name}'. Используйте только заглавные буквы, цифры и подчеркивания.", num, raw_line, "Rule Naming")
+                if not re.match(r"^[a-zA-Z0-9_]+$", current_rule_name):
+                    self._add_error(f"Некорректное имя правила '{current_rule_name}'. Используйте только буквы, цифры и подчеркивания.", num, raw_line, "Rule Naming")
                 if current_rule_name in self.defined_rules:
                     self._add_error(f"Повторное определение правила '{current_rule_name}'.", num, raw_line, "Duplicate Rule")
                 self.defined_rules[current_rule_name] = False # False означает, что MATCH еще не был найден

@@ -168,7 +168,7 @@ class PostScriptSyntaxChecker:
                 parts_after_set = args.split(maxsplit=1)
                 if len(parts_after_set) > 1 and parts_after_set[0].upper() == "LOCAL":
                     is_local = True
-                    args = parts_after_set[1] # Remaining part after "LOCAL"
+                    args = parts_after_set[1]  # Remaining part after "LOCAL"
 
                 if "=" not in args:
                     self._add_error("Команда SET требует оператора '='.", num, raw_line)

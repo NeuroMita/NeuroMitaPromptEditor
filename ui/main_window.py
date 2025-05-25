@@ -3,7 +3,7 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QMainWindow, QSplitter, QStatusBar, QLabel, QMessageBox
 )
-from PySide6.QtCore import Qt, QSettings
+from PySide6.QtCore import Qt, QSettings, QItemSelectionModel
 
 # ---------- локальные блоки ----------
 from ui.tree_panel          import FileTreePanel
@@ -95,8 +95,28 @@ class PromptEditorWindow(QMainWindow):
         # --- Загружаем остальные настройки UI (состояние окна, разделителя) ---
         self._load_window_layout_settings() # Новый метод вместо части старого _load_settings
 
-        self._setup_loggers()
-        self._update_title() # Обновит заголовок, если символ выбран (маловероятно на этом этапе)
+        # Загружаем и открываем последний открытый файл
+        last_opened_file = self.settings.value("lastOpenedFile")
+        if last_opened_file and os.path.isfile(last_opened_file):
+            self.tabs.open_file(last_opened_file)
+            editor_logger.info(f"Открыт последний файл: {last_opened_file}")
+            
+            # Программно выбираем файл в дереве, чтобы обновить selected_char и UI
+            file_index = self.tree._model.index(last_opened_file)
+            if file_index.isValid():
+                self.tree.selectionModel().setCurrentIndex(file_index, QItemSelectionModel.ClearAndSelect)
+                editor_logger.info(f"Выбран файл в дереве: {last_opened_file}")
+            else:
+                editor_logger.warning(f"Не удалось найти индекс файла в дереве: {last_opened_file}")
+                self._on_char_selected("") # Сбросить выбор персонажа, если файл не найден в дереве
+
+            self._update_title() # Вызываем _update_title после открытия файла и выбора в дереве
+        else:
+            if last_opened_file:
+                editor_logger.warning(f"Сохраненный путь к последнему файлу '{last_opened_file}' недействителен.")
+            else:
+                editor_logger.info("Путь к последнему открытому файлу не найден в настройках.")
+            self._update_title() # Вызываем _update_title, чтобы установить заголовок "Нет открытых файлов" и сбросить персонажа
 
         if not self.prompts_root:
             QMessageBox.warning(self, "Prompts", "Корневая папка Prompts не выбрана. Функциональность будет ограничена.")
@@ -127,6 +147,7 @@ class PromptEditorWindow(QMainWindow):
         self.tree.file_open_requested.connect(self.tabs.open_file)
         self.tree.character_selected.connect(self._on_char_selected)
         self.tabs.modified_set_changed.connect(lambda: self.tree.viewport().update())
+        self.tabs.currentChanged.connect(self._update_title) # Добавляем это подключение
         self.vars_dock.reset_requested.connect(self._reset_vars)
 
         # toolbar
@@ -306,13 +327,30 @@ class PromptEditorWindow(QMainWindow):
     def _update_title(self):
         base = f"Редактор Промптов — {SETTINGS_APP_NAME}"
         ed   = self.tabs.currentWidget()
+        
+        current_char_id = None
         if hasattr(ed, "get_tab_file_path") and ed:
             path = ed.get_tab_file_path() or "Новый файл"
             star = "*" if ed.document().isModified() else ""
             self.setWindowTitle(f"{os.path.basename(path)}{star} — {base}")
             self.path_lbl.setText(path)
+
+            # Попытка определить персонажа из пути файла
+            if self.prompts_root and path != "Новый файл":
+                try:
+                    relative_path = Path(path).relative_to(self.prompts_root)
+                    # Предполагаем, что имя персонажа - это первая папка после prompts_root
+                    current_char_id = str(relative_path.parts[0])
+                except ValueError:
+                    editor_logger.debug(f"Не удалось определить персонажа из пути файла (вне prompts_root): {path}")
+                except IndexError:
+                    editor_logger.debug(f"Путь к файлу слишком короткий для определения персонажа: {path}")
         else:
             self.setWindowTitle(base); self.path_lbl.setText("Нет открытых файлов")
+
+        # Обновляем выбранного персонажа и UI, если он изменился
+        if current_char_id != self.selected_char:
+            self._on_char_selected(current_char_id or "")
 
     # ---------------- settings / loggers ----------------------
     def closeEvent(self, ev):
@@ -321,6 +359,15 @@ class PromptEditorWindow(QMainWindow):
     def _save_settings(self):
         self.settings.setValue("windowState", self.saveState())
         self.settings.setValue("splitter",    self.splitter.saveState())
+        
+        current_editor = self.tabs.currentWidget()
+        if current_editor and hasattr(current_editor, 'get_tab_file_path'):
+            last_file_path = current_editor.get_tab_file_path()
+            if last_file_path:
+                self.settings.setValue("lastOpenedFile", last_file_path)
+        else:
+            self.settings.remove("lastOpenedFile") # Очищаем, если нет открытых файлов
+
         if self.selected_char:
             self.settings.setValue(
                 f"{self.selected_char.lower()}_vars",

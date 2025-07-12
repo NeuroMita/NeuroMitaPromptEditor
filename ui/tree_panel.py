@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDir, Signal, Qt
 
-from app.ui.file_tree_delegate import FileTreeDelegate
+from ui.file_tree_delegate import FileTreeDelegate
 
 _log = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ class FileTreePanel(QTreeView):
         if not idx.isValid():
             return
         path = self._model.filePath(idx)
-        if os.path.isfile(path) and path.lower().endswith((".txt", ".script")):
+        if os.path.isfile(path) and path.lower().endswith((".txt", ".script", ".postscript")):
             self.file_open_requested.emit(path)
 
     def _on_select_changed(self, idx, _prev):

@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont, QColor, QIcon
 from PySide6.QtCore import Signal, Slot, Qt, QObject
 
-from app.syntax.styles import SyntaxStyleDark
+from syntax.styles import SyntaxStyleDark
 
 
 class QtLogHandler(QObject, logging.Handler):

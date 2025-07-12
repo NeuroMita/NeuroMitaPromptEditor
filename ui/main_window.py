@@ -3,24 +3,24 @@ from pathlib import Path
 from PySide6.QtWidgets import (
     QMainWindow, QSplitter, QStatusBar, QLabel, QMessageBox
 )
-from PySide6.QtCore import Qt, QSettings
+from PySide6.QtCore import Qt, QSettings, QItemSelectionModel
 
 # ---------- локальные блоки ----------
-from .tree_panel          import FileTreePanel
-from .tab_manager         import TabManager
-from .dsl_variables_dock  import DslVariablesDock
-from app.widgets.log_panel import LogPanel
+from ui.tree_panel          import FileTreePanel
+from ui.tab_manager         import TabManager
+from ui.dsl_variables_dock  import DslVariablesDock
+from widgets.log_panel import LogPanel
 
 # ---------- утилиты / константы -------
-from app.config import PROMPTS_DIR_NAME, SETTINGS_ORG_NAME, SETTINGS_APP_NAME
-from app.utils.path_helpers import find_or_ask_prompts_root, select_prompts_directory_dialog
-from app.utils.logger       import add_editor_log_handler, get_dsl_execution_logger, editor_logger, get_dsl_script_logger
-from app.dsl_manager        import DSL_ENGINE_AVAILABLE, CharacterClass
-from app.widgets.dsl_result_dialog import DslResultDialog
+from config import PROMPTS_DIR_NAME, SETTINGS_ORG_NAME, SETTINGS_APP_NAME
+from utils.path_helpers import find_or_ask_prompts_root, select_prompts_directory_dialog
+from utils.logger       import add_editor_log_handler, get_dsl_execution_logger, editor_logger, get_dsl_script_logger
+from dsl_manager        import DSL_ENGINE_AVAILABLE, CharacterClass
+from widgets.dsl_result_dialog import DslResultDialog
 
 # ---------- модели персонажей ----------
-from app.models.character import Character
-from app.models.characters import (
+from models.character import Character
+from models.characters import (
     CrazyMita, KindMita, ShortHairMita,
     CappyMita, MilaMita, CreepyMita, SleepyMita
 )
@@ -77,7 +77,7 @@ class PromptEditorWindow(QMainWindow):
             
             editor_logger.info("Попытка автоматического определения папки Prompts или запрос у пользователя.")
             try:
-                import app.config as cfg_mod
+                import config as cfg_mod
                 cfg_path = cfg_mod.__file__
             except Exception:
                 cfg_path = os.getcwd()
@@ -95,8 +95,28 @@ class PromptEditorWindow(QMainWindow):
         # --- Загружаем остальные настройки UI (состояние окна, разделителя) ---
         self._load_window_layout_settings() # Новый метод вместо части старого _load_settings
 
-        self._setup_loggers()
-        self._update_title() # Обновит заголовок, если символ выбран (маловероятно на этом этапе)
+        # Загружаем и открываем последний открытый файл
+        last_opened_file = self.settings.value("lastOpenedFile")
+        if last_opened_file and os.path.isfile(last_opened_file):
+            self.tabs.open_file(last_opened_file)
+            editor_logger.info(f"Открыт последний файл: {last_opened_file}")
+            
+            # Программно выбираем файл в дереве, чтобы обновить selected_char и UI
+            file_index = self.tree._model.index(last_opened_file)
+            if file_index.isValid():
+                self.tree.selectionModel().setCurrentIndex(file_index, QItemSelectionModel.ClearAndSelect)
+                editor_logger.info(f"Выбран файл в дереве: {last_opened_file}")
+            else:
+                editor_logger.warning(f"Не удалось найти индекс файла в дереве: {last_opened_file}")
+                self._on_char_selected("") # Сбросить выбор персонажа, если файл не найден в дереве
+
+            self._update_title() # Вызываем _update_title после открытия файла и выбора в дереве
+        else:
+            if last_opened_file:
+                editor_logger.warning(f"Сохраненный путь к последнему файлу '{last_opened_file}' недействителен.")
+            else:
+                editor_logger.info("Путь к последнему открытому файлу не найден в настройках.")
+            self._update_title() # Вызываем _update_title, чтобы установить заголовок "Нет открытых файлов" и сбросить персонажа
 
         if not self.prompts_root:
             QMessageBox.warning(self, "Prompts", "Корневая папка Prompts не выбрана. Функциональность будет ограничена.")
@@ -127,6 +147,7 @@ class PromptEditorWindow(QMainWindow):
         self.tree.file_open_requested.connect(self.tabs.open_file)
         self.tree.character_selected.connect(self._on_char_selected)
         self.tabs.modified_set_changed.connect(lambda: self.tree.viewport().update())
+        self.tabs.currentChanged.connect(self._update_title) # Добавляем это подключение
         self.vars_dock.reset_requested.connect(self._reset_vars)
 
         # toolbar
@@ -151,6 +172,10 @@ class PromptEditorWindow(QMainWindow):
         fm.addAction("Сохранить все",    self.tabs.save_all        ).setShortcut("Ctrl+Alt+S")
         fm.addSeparator()
         fm.addAction("Выход", self.close).setShortcut("Ctrl+Q")
+
+        # -------- Инструменты --------
+        tm = mb.addMenu("&Инструменты")
+        tm.addAction("Проверить синтаксис", self._check_syntax).setShortcut("Ctrl+Shift+C")
 
         # -------- Вид --------
         vm = mb.addMenu("&Вид")
@@ -194,6 +219,39 @@ class PromptEditorWindow(QMainWindow):
             ed.clear()
             self.vars_dock.setWindowTitle("Параметры DSL")
 
+    def _check_syntax(self):
+        from syntax.syntax_checker import PostScriptSyntaxChecker, SyntaxError # Импортируем здесь, чтобы избежать циклических зависимостей
+
+        current_editor = self.tabs.currentWidget()
+        if not current_editor:
+            QMessageBox.information(self, "Проверка синтаксиса", "Нет открытых файлов для проверки.")
+            return
+
+        file_path = current_editor.get_tab_file_path()
+        if not file_path:
+            QMessageBox.information(self, "Проверка синтаксиса", "Файл не сохранен. Сохраните файл перед проверкой синтаксиса.")
+            return
+
+        file_content = current_editor.toPlainText()
+        checker = PostScriptSyntaxChecker()
+        errors: List[SyntaxError] = []
+        
+        if file_path.lower().endswith(".postscript"):
+            errors = checker.check_postscript_syntax(file_content, file_path)
+        elif file_path.lower().endswith(".script"):
+            errors = checker.check_dsl_syntax(file_content, file_path)
+        else:
+            QMessageBox.warning(self, "Проверка синтаксиса", "Неподдерживаемое расширение файла для проверки синтаксиса. Поддерживаются .postscript и .script.")
+            return
+
+        if errors:
+            error_messages = "\n".join([str(e) for e in errors])
+            DslResultDialog("Ошибки синтаксиса", error_messages, self).show()
+            editor_logger.warning(f"Синтаксические ошибки в {file_path}:\n{error_messages}")
+        else:
+            QMessageBox.information(self, "Проверка синтаксиса", f"Синтаксис файла '{os.path.basename(file_path)}' в порядке. Ошибок не найдено.")
+            editor_logger.info(f"Синтаксис файла '{file_path}' в порядке.")
+
     def _run_dsl(self):
         if not DSL_ENGINE_AVAILABLE:
             QMessageBox.warning(self, "DSL", "DSL-движок недоступен.")
@@ -201,13 +259,12 @@ class PromptEditorWindow(QMainWindow):
         if not self.selected_char:
             QMessageBox.warning(self, "DSL", "Персонаж не выбран.")
             return
-        if not self.prompts_root: # <<< НОВАЯ ПРОВЕРКА
+        if not self.prompts_root:
             editor_logger.error("Prompts root directory is not set. Cannot run DSL.")
             QMessageBox.warning(self, "DSL Ошибка", "Корневая папка Prompts не установлена.")
             return
 
         vars_dict = self._parse_vars()
-        # <<< ИЗМЕНЕНО: передаем self.prompts_root в конструктор CharacterClass
         char = CharacterClass(self.selected_char, self.selected_char, self.prompts_root, vars_dict)
         try:
             sys_info_fake = ["[SYS_INFO]: Пример Системного Сообщения.", "[SYS_INFO]_2 Пример второго системного сообщения."]
@@ -216,7 +273,7 @@ class PromptEditorWindow(QMainWindow):
             DslResultDialog(f"DSL: {self.selected_char}", prompt, self).show()
         except Exception as e:
             QMessageBox.critical(self, "DSL-ошибка", str(e))
-            editor_logger.error(f"Error running DSL for {self.selected_char}: {e}", exc_info=True) # Добавим логирование
+            editor_logger.error(f"Error running DSL for {self.selected_char}: {e}", exc_info=True)
 
     def _parse_vars(self) -> dict:
         out = {}
@@ -270,13 +327,30 @@ class PromptEditorWindow(QMainWindow):
     def _update_title(self):
         base = f"Редактор Промптов — {SETTINGS_APP_NAME}"
         ed   = self.tabs.currentWidget()
+        
+        current_char_id = None
         if hasattr(ed, "get_tab_file_path") and ed:
             path = ed.get_tab_file_path() or "Новый файл"
             star = "*" if ed.document().isModified() else ""
             self.setWindowTitle(f"{os.path.basename(path)}{star} — {base}")
             self.path_lbl.setText(path)
+
+            # Попытка определить персонажа из пути файла
+            if self.prompts_root and path != "Новый файл":
+                try:
+                    relative_path = Path(path).relative_to(self.prompts_root)
+                    # Предполагаем, что имя персонажа - это первая папка после prompts_root
+                    current_char_id = str(relative_path.parts[0])
+                except ValueError:
+                    editor_logger.debug(f"Не удалось определить персонажа из пути файла (вне prompts_root): {path}")
+                except IndexError:
+                    editor_logger.debug(f"Путь к файлу слишком короткий для определения персонажа: {path}")
         else:
             self.setWindowTitle(base); self.path_lbl.setText("Нет открытых файлов")
+
+        # Обновляем выбранного персонажа и UI, если он изменился
+        if current_char_id != self.selected_char:
+            self._on_char_selected(current_char_id or "")
 
     # ---------------- settings / loggers ----------------------
     def closeEvent(self, ev):
@@ -285,6 +359,15 @@ class PromptEditorWindow(QMainWindow):
     def _save_settings(self):
         self.settings.setValue("windowState", self.saveState())
         self.settings.setValue("splitter",    self.splitter.saveState())
+        
+        current_editor = self.tabs.currentWidget()
+        if current_editor and hasattr(current_editor, 'get_tab_file_path'):
+            last_file_path = current_editor.get_tab_file_path()
+            if last_file_path:
+                self.settings.setValue("lastOpenedFile", last_file_path)
+        else:
+            self.settings.remove("lastOpenedFile") # Очищаем, если нет открытых файлов
+
         if self.selected_char:
             self.settings.setValue(
                 f"{self.selected_char.lower()}_vars",

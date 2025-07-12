@@ -1,6 +1,6 @@
 # characters.py
 import logging
-from app.models.character import Character
+from models.character import Character
 
 _log = logging.getLogger(__name__)
 

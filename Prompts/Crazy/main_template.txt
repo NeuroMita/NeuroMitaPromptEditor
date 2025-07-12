@@ -1,0 +1,7 @@
+[<Scripts/init.script>]
+[<Structural/response_structure.txt>]
+[<Main/main.script>]
+[<Main/common.txt>]
+[<Context/examples.script>] 
+[<Main/player.txt>]
+[<Structural/VariableEffects.script>]

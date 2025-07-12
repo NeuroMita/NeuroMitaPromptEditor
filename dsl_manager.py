@@ -1,5 +1,5 @@
 
-from app.utils.logger import editor_logger
+from utils.logger import editor_logger
 
 CharacterClass = None
 DSL_ENGINE_AVAILABLE = False
@@ -7,13 +7,13 @@ DSL_ENGINE_AVAILABLE = False
 def load_dsl_engine():
     global CharacterClass, DSL_ENGINE_AVAILABLE
     try:
-        from app.models.character import Character
+        from models.character import Character
         CharacterClass = Character
         
-        import app.logic.dsl_engine 
+        import logic.dsl_engine 
         
         DSL_ENGINE_AVAILABLE = True
-        editor_logger.info("Модули 'app.models.character' и 'app.logic.dsl_engine' успешно импортированы/доступны.")
+        editor_logger.info("Модули 'models.character' и 'logic.dsl_engine' успешно импортированы/доступны.")
     except ImportError as e:
         DSL_ENGINE_AVAILABLE = False
         editor_logger.error(f"Не удалось импортировать DSL компоненты: {e}. Функциональность DSL будет недоступна.")

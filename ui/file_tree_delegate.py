@@ -49,6 +49,9 @@ class FileTreeDelegate(QStyledItemDelegate):
         if file_info.isFile() and file_info.suffix().lower() == "script":
             if not self.script_icon.isNull():
                 option.icon = self.script_icon
+        elif file_info.isFile() and file_info.suffix().lower() == "postscript":
+            if not self.script_icon.isNull():
+                option.icon = self.script_icon
 
         # персонаж-папка Prompts/*
         elif file_info.isDir() and self.prompts_root_resolver:

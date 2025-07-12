@@ -6,8 +6,8 @@ from PySide6.QtGui import (QColor, QFont, QKeySequence, QMouseEvent, QPainter,
                            QTextBlock, QTextCharFormat, QTextCursor)
 from PySide6.QtWidgets import QApplication, QPlainTextEdit, QWidget
 
-from app.syntax.highlighter import PromptSyntaxHighlighter
-from app.utils.logger import editor_logger
+from syntax.highlighter import PromptSyntaxHighlighter
+from utils.logger import editor_logger
 
 
 # ─────────────────────────  Line-number area  ──────────────────────────

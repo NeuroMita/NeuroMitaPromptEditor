@@ -1,8 +1,8 @@
 # character.py
 import logging
 import os # Добавили os
-from app.logic.dsl_engine import DslInterpreter, DslError
-from app.logic.path_resolver import LocalPathResolver
+from logic.dsl_engine import DslInterpreter, DslError
+from logic.path_resolver import LocalPathResolver
 import datetime
 import sys
 import traceback

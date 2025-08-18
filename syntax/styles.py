@@ -11,6 +11,7 @@ class SyntaxStyleDark:
     String = {"foreground": QColor("#98C379")}
     Number = {"foreground": QColor("#D19A66")}
     SpecialTag = {"foreground": QColor("#E5C07B")}
+    VarInsert = {"foreground": QColor("#56B6C2"), "font_weight": QFont.Bold}
 
     @staticmethod
     def get_format(style_dict):
@@ -28,10 +29,28 @@ class SyntaxStyleDark:
         return fmt
 
 HIGHLIGHTING_RULES_DARK_TUPLES = [
+    # Matches: // comment text
     (r"//[^\n]*", SyntaxStyleDark.get_format(SyntaxStyleDark.Comment), False),
-    (r"(\".*?\"|\'.*?\')", SyntaxStyleDark.get_format(SyntaxStyleDark.String), False),
-    (r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|AND|OR|TRUE|FALSE|NONE|LOCAL)\b", SyntaxStyleDark.get_format(SyntaxStyleDark.Keyword), False), # CaseInsensitiveOption будет добавлена в highlighter
+    
+    # Matches: "string" or 'string'
+    (r"(\"[^\"]*\"|'[^']*')", SyntaxStyleDark.get_format(SyntaxStyleDark.String), False),
+    
+    # Matches: IF, THEN, ELSEIF, ELSE, ENDIF, SET, RETURN, LOAD, LOG, ADD_SYSTEM_INFO, AND, OR, TRUE, FALSE, NONE, LOCAL
+    (r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|ADD_SYSTEM_INFO|AND|OR|TRUE|FALSE|NONE|LOCAL)\b",
+     SyntaxStyleDark.get_format(SyntaxStyleDark.Keyword), False),
+    
+    # Matches: <tag>, </tag>, <!tag>
     (r"<[/!]?[a-zA-Z_][^>]*>", SyntaxStyleDark.get_format(SyntaxStyleDark.SpecialTag), False),
+    
+    # Matches: 123, 123.456
     (r"\b\d+(\.\d+)?\b", SyntaxStyleDark.get_format(SyntaxStyleDark.Number), False),
-    (r"(\[<)([^\]>]+?\.(?:script|txt))(>\])", SyntaxStyleDark.get_format(SyntaxStyleDark.Placeholder), True), # is_link_rule = True
+    
+    # Matches: [<file.script>], [<path/file.txt>], [<module.system>]
+    (r"(\[<)([^>]+\.(?:script|txt|system))(>\])", SyntaxStyleDark.get_format(SyntaxStyleDark.Placeholder), True),
+    
+    # Matches: [{VAR_NAME}], [{player_name}]
+    (r"(\[\{)([A-Za-z_][A-Za-z0-9_]*)(\}\])", SyntaxStyleDark.get_format(SyntaxStyleDark.VarInsert), False),
+    
+    # Matches: {{INSERT_NAME}}, {{SYS_INFO}}
+    (r"\{\{[A-Z0-9_]+\}\}", SyntaxStyleDark.get_format(SyntaxStyleDark.SpecialTag), False),
 ]

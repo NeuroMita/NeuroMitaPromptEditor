@@ -1,22 +1,18 @@
 # character.py
 import logging
-import os # Добавили os
-from logic.dsl_engine import DslInterpreter, DslError
-from logic.path_resolver import LocalPathResolver
+import os
 import datetime
 import sys
 import traceback
-from typing import Dict, Any
+from typing import Dict, Any, List, Tuple
+
+from logic.path_resolver import LocalPathResolver
+from logic.dsl_engine import DslInterpreter
 
 logger = logging.getLogger(__name__)
 
-
-# ANSI Escape Codes для цветов (простой вариант)
 RED_COLOR = "\033[91m"
-YELLOW_COLOR = "\033[93m"
 RESET_COLOR = "\033[0m"
-BLUE_COLOR = "\033[94m" # Для DSL LOG
-
 
 class Character:
     BASE_DEFAULTS: Dict[str, Any] = {
@@ -36,73 +32,39 @@ class Character:
 
     @classmethod
     def base_defaults(cls) -> Dict[str, Any]:
-        """Копия базовых дефолтов (без риска изменить оригинал)."""
         return cls.BASE_DEFAULTS.copy()
 
     def __init__(self, char_id: str, name: str, prompts_root_path: str = "Prompts", initial_vars: dict | None = None):
         self.char_id = char_id
         self.name = name
-        self.prompts_root = os.path.abspath(prompts_root_path) # <<< НОВОЕ: сохраняем актуальный prompts_root
-        self.base_data_path = os.path.join(self.prompts_root, self.char_id) # <<< ИЗМЕНЕНО: используем self.prompts_root
+        self.prompts_root = os.path.abspath(prompts_root_path)
+        self.base_data_path = os.path.join(self.prompts_root, self.char_id)
         self.main_template_path_relative = "main_template.txt"
 
-        # ----------------------------------------------------------
-        # 1.  ИНИЦИАЛИЗИРУЕМ СРАЗУ, ЧТОБЫ set_variable мог работать
-        # ----------------------------------------------------------
         self.variables: Dict[str, Any] = {}
-
-        # 2.  Заполняем дефолтами + оверрайдами + user-vars
         self.variables.update(self._compose_initial_vars(initial_vars))
 
-        logger.info(
-            "Character '%s' initial vars: %s",
-            self.char_id,
-            ", ".join(f"{k}={v}" for k, v in self.variables.items()),
-        )
+        logger.info("Character '%s' initial vars: %s", self.char_id, ", ".join(f"{k}={v}" for k, v in self.variables.items()))
 
-        self.set_variable(
-            "SYSTEM_DATETIME",
-            datetime.datetime.now().isoformat(" ", "minutes")
-        )
-
-    # def initialize_default_variables(self):
-    #     """Устанавливает значения по умолчанию для стандартных переменных."""
-    #     self.set_variable("attitude", 60)
-    #     self.set_variable("boredom", 10)
-    #     self.set_variable("stress", 5)
-    #     self.set_variable("secretExposed", False)
-    #     self.set_variable("current_fsm_state", "Hello") # Начальное состояние FSM
-    #     self.set_variable("available_action_level", 1)
-        
-    #     # Переменные специфичные для CrazyMita (или общие, если другие персонажи их используют)
-    #     self.set_variable("PlayingFirst", False)
-    #     self.set_variable("secretExposedFirst", False)
-    #     self.set_variable("secret_exposed_event_text_shown", False)
-    #     self.set_variable("LongMemoryRememberCount", 0)
-    #     self.set_variable("player_name", "Игрок") # Дефолтное имя игрока
-    #     self.set_variable("player_name_known", False) # Для FSM Hello состояния
+        self.set_variable("SYSTEM_DATETIME", datetime.datetime.now().isoformat(" ", "minutes"))
 
     def _compose_initial_vars(self, initial_vars_from_user):
         merged = Character.BASE_DEFAULTS.copy()
-
         overrides = getattr(self, "DEFAULT_OVERRIDES", {})
         merged.update(overrides)
-
         if initial_vars_from_user:
             merged.update(initial_vars_from_user)
-
-        # никаких set_variable здесь; просто возвращаем словарь
         return merged
 
     def get_variable(self, name, default=None):
         return self.variables.get(name, default)
 
     def set_variable(self, name, value):
-        # простая нормализация строковых значений
         if isinstance(value, str):
-            if value.lower() == "true":
+            low = value.lower()
+            if low == "true":
                 value = True
-            elif value.lower() == "false":
+            elif low == "false":
                 value = False
             else:
                 try:
@@ -111,30 +73,28 @@ class Character:
                     value = value.strip("'\"")
         self.variables[name] = value
 
-
-    def get_full_prompt(self, tags: dict[str, object] | None = None) -> str:
-        """Возвращает финальный prompt, автоматически подставляя теги из `tags`."""
-
+    def run_dsl(self, tags: dict[str, object] | None = None) -> Tuple[List[str], List[str], Dict[str, Any], Dict[str, Any]]:
         self.set_variable("SYSTEM_DATETIME", datetime.datetime.now().strftime("%Y %B %d (%A) %H:%M"))
-
         try:
             path_resolver_instance = LocalPathResolver(
-                global_prompts_root=self.prompts_root, 
+                global_prompts_root=self.prompts_root,
                 character_base_data_path=self.base_data_path
             )
-
             interpreter = DslInterpreter(self, path_resolver_instance)
-
             if tags:
                 for tag_name, value in tags.items():
                     interpreter.set_insert(tag_name, value)
-
-            return interpreter.process_main_template_file(self.main_template_path_relative)
-
+            vars_before = dict(self.variables)
+            content_blocks, system_infos = interpreter.process_main_template(self.main_template_path_relative)
+            vars_after = dict(self.variables)
+            return content_blocks or [], system_infos or [], vars_before, vars_after
         except Exception as e:
-            print(f"{RED_COLOR}Critical error in get_full_prompt for {self.char_id}: {e}{RESET_COLOR}\n{traceback.format_exc()}", file=sys.stderr)
-            return f"[CRITICAL PYTHON ERROR GETTING PROMPT FOR {self.char_id} - CHECK LOGS]"
+            print(f"{RED_COLOR}Critical error in run_dsl for {self.char_id}: {e}{RESET_COLOR}\n{traceback.format_exc()}", file=sys.stderr)
+            return [f"[CRITICAL ERROR GETTING BLOCKS FOR {self.char_id}]"], [], dict(self.variables), dict(self.variables)
 
+    def get_full_prompt(self, tags: dict[str, object] | None = None) -> str:
+        blocks, _sys_infos, _before, _after = self.run_dsl(tags)
+        return "\n".join(blocks)
 
     def __str__(self):
         return f"{self.name} ({self.char_id}) - Vars: {self.variables}"

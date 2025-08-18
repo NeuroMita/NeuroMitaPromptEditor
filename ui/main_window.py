@@ -160,6 +160,8 @@ class PromptEditorWindow(QMainWindow):
 
         self._build_menu()
 
+        self._setup_loggers()
+
     def _build_menu(self):
         mb = self.menuBar()
 
@@ -220,7 +222,7 @@ class PromptEditorWindow(QMainWindow):
             self.vars_dock.setWindowTitle("Параметры DSL")
 
     def _check_syntax(self):
-        from syntax.syntax_checker import PostScriptSyntaxChecker, SyntaxError # Импортируем здесь, чтобы избежать циклических зависимостей
+        from syntax.syntax_checker import PostScriptSyntaxChecker, SyntaxError  # Импортируем здесь, чтобы избежать циклических зависимостей
 
         current_editor = self.tabs.currentWidget()
         if not current_editor:
@@ -246,7 +248,15 @@ class PromptEditorWindow(QMainWindow):
 
         if errors:
             error_messages = "\n".join([str(e) for e in errors])
-            DslResultDialog("Ошибки синтаксиса", error_messages, self).show()
+            dlg = DslResultDialog(
+                "Ошибки синтаксиса",
+                content_blocks=[error_messages],
+                system_infos=[],
+                vars_before={},
+                vars_after={},
+                parent=self
+            )
+            dlg.show()
             editor_logger.warning(f"Синтаксические ошибки в {file_path}:\n{error_messages}")
         else:
             QMessageBox.information(self, "Проверка синтаксиса", f"Синтаксис файла '{os.path.basename(file_path)}' в порядке. Ошибок не найдено.")
@@ -267,10 +277,20 @@ class PromptEditorWindow(QMainWindow):
         vars_dict = self._parse_vars()
         char = CharacterClass(self.selected_char, self.selected_char, self.prompts_root, vars_dict)
         try:
-            sys_info_fake = ["[SYS_INFO]: Пример Системного Сообщения.", "[SYS_INFO]_2 Пример второго системного сообщения."]
-            tags = {"SYS_INFO": sys_info_fake}
-            prompt = char.get_full_prompt(tags)
-            DslResultDialog(f"DSL: {self.selected_char}", prompt, self).show()
+            # Если нужны инсерты — добавьте tags. Иначе None.
+            tags = None
+            # Получаем: блоки, системные сообщения, снимки переменных до/после
+            blocks, sys_infos, vars_before, vars_after = char.run_dsl(tags)
+
+            dlg = DslResultDialog(
+                f"DSL: {self.selected_char}",
+                content_blocks=blocks,
+                system_infos=sys_infos,
+                vars_before=vars_before,
+                vars_after=vars_after,
+                parent=self
+            )
+            dlg.show()
         except Exception as e:
             QMessageBox.critical(self, "DSL-ошибка", str(e))
             editor_logger.error(f"Error running DSL for {self.selected_char}: {e}", exc_info=True)
@@ -385,6 +405,12 @@ class PromptEditorWindow(QMainWindow):
 
     def _setup_loggers(self):
         h = self.log_dock.get_handler()
+
+        # 1) Локальный редакторский логгер
+        from utils.logger import add_editor_log_handler, get_dsl_execution_logger, get_dsl_script_logger
         add_editor_log_handler(h)
+
+        # 2) DSL-логгеры
         for l in (get_dsl_execution_logger(), get_dsl_script_logger()):
-            if l: l.addHandler(h)
+            if l and all(existing is not h for existing in l.handlers):
+                l.addHandler(h)

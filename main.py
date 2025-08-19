@@ -2,6 +2,7 @@ import sys
 import os
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
+import qdarktheme
 
 current_dir = os.path.dirname(os.path.abspath(__file__)) 
 project_root = os.path.dirname(current_dir)             
@@ -25,6 +26,8 @@ def run_application():
       QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     app = QApplication(sys.argv)
+
+    qdarktheme.setup_theme()
 
     main_editor_window = PromptEditorWindow()
     main_editor_window.show()

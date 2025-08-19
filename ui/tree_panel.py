@@ -96,7 +96,7 @@ class FileTreePanel(QTreeView):
         if not idx.isValid():
             return
         path = self._model.filePath(idx)
-        if os.path.isfile(path) and path.lower().endswith((".txt", ".script", ".postscript")):
+        if os.path.isfile(path) and path.lower().endswith((".txt", ".script", ".postscript", ".system", ".json")):
             self.file_open_requested.emit(path)
 
     def _on_select_changed(self, idx, _prev):
@@ -128,6 +128,27 @@ class FileTreePanel(QTreeView):
         act_new_file   = menu.addAction("Создать файл…")
         act_new_folder = menu.addAction("Создать папку…")
 
+        from pathlib import Path
+        char_dir_for_actions = None
+        if self._prompts_root and os.path.isdir(target_dir):
+            try:
+                rp = Path(target_dir).resolve()
+                pr = Path(self._prompts_root).resolve()
+                if rp.parent == pr and not rp.name.startswith("_"):
+                    char_dir_for_actions = str(rp)
+            except Exception:
+                char_dir_for_actions = None
+
+        act_create_main_template = None
+        act_create_cfg = None
+        if char_dir_for_actions:
+            mt_path = os.path.join(char_dir_for_actions, "main_template.txt")
+            cfg_path = os.path.join(char_dir_for_actions, "config.json")
+            if not os.path.exists(mt_path):
+                act_create_main_template = menu.addAction("Создать main_template.txt")
+            if not os.path.exists(cfg_path):
+                act_create_cfg = menu.addAction("Создать config.json")
+
         menu.addSeparator()
         act_rename = menu.addAction("Переименовать…")
         act_delete = menu.addAction("Удалить")
@@ -136,18 +157,43 @@ class FileTreePanel(QTreeView):
         if chosen is None:
             return
 
-        # --- выбранное действие ---
+        if act_create_main_template and chosen == act_create_main_template:
+            self._create_main_template_in_char_dir(char_dir_for_actions)
+            return
+        if act_create_cfg and chosen == act_create_cfg:
+            self._create_config_in_char_dir(char_dir_for_actions)
+            return
         if chosen == act_new_file:
             self._create_file(target_dir)
-
         elif chosen == act_new_folder:
             self._create_dir(target_dir)
-
         elif chosen == act_rename and idx.isValid():
-            self.edit(idx)                               # встроенное переименование
-
+            self.edit(idx)
         elif chosen == act_delete and idx.isValid():
             self._delete_path(self._model.filePath(idx), idx)
+
+    def _create_main_template_in_char_dir(self, char_dir: str):
+        import io
+        path = os.path.join(char_dir, "main_template.txt")
+        if os.path.exists(path):
+            return
+        try:
+            with io.open(path, "w", encoding="utf-8") as f:
+                f.write("")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка создания", str(e))
+
+    def _create_config_in_char_dir(self, char_dir: str):
+        from utils.config_utils import compute_defaults_for_char, get_bounds_defaults, write_config_json
+        try:
+            char_id = os.path.basename(char_dir.rstrip("/\\"))
+            cfg = compute_defaults_for_char(char_id)
+            for k, v in get_bounds_defaults().items():
+                cfg.setdefault(k, v)
+            write_config_json(self._prompts_root, char_id, cfg)
+            QMessageBox.information(self, "config.json", f"Создан:\n{os.path.join(char_dir, 'config.json')}")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка создания", str(e))
 
     # ------------------------------------------------------------------ #
     #                           HELPERS

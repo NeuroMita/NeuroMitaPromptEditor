@@ -143,14 +143,14 @@ class PromptEditorWindow(QMainWindow):
         sb = QStatusBar(); self.setStatusBar(sb)
         self.path_lbl = QLabel("Нет открытых файлов"); sb.addPermanentWidget(self.path_lbl)
 
-        # connections
         self.tree.file_open_requested.connect(self.tabs.open_file)
         self.tree.character_selected.connect(self._on_char_selected)
         self.tabs.modified_set_changed.connect(lambda: self.tree.viewport().update())
-        self.tabs.currentChanged.connect(self._update_title) # Добавляем это подключение
+        self.tabs.currentChanged.connect(self._update_title)
         self.vars_dock.reset_requested.connect(self._reset_vars)
+        self.vars_dock.set_on_save_clicked(self._save_config_json_for_current_vars)
+        self.vars_dock.editor().textChanged.connect(self._on_vars_text_changed)
 
-        # toolbar
         tb = self.addToolBar("DSL")
         self.run_act = tb.addAction("Скомпоновать промпт", self._run_dsl)
         self._update_run_dsl_state()
@@ -159,8 +159,11 @@ class PromptEditorWindow(QMainWindow):
         self.vars_dock.setWindowTitle(title)
 
         self._build_menu()
-
         self._setup_loggers()
+
+        self._baseline_cfg_dict = None
+        self._update_save_button_state()
+
 
     def _build_menu(self):
         mb = self.menuBar()
@@ -201,25 +204,107 @@ class PromptEditorWindow(QMainWindow):
 
     # ---------------------- vars panel -------------------------
     def _sync_vars_panel(self):
+        from utils.config_utils import read_config_json, get_bounds_defaults, compute_defaults_for_char
         ed = self.vars_dock.editor(); ed.blockSignals(True)
         if self.selected_char:
             key = f"{self.selected_char.lower()}_vars"
             saved = self.settings.value(key, "")
-            ed.setPlainText(saved or self._dict2txt(self._defaults_for(self.selected_char)))
+            if saved:
+                ed.setPlainText(saved)
+            else:
+                cfg = read_config_json(self.prompts_root, self.selected_char)
+                if cfg:
+                    ed.setPlainText(self._dict2txt(cfg))
+                else:
+                    base = compute_defaults_for_char(self.selected_char)
+                    for k, v in get_bounds_defaults().items():
+                        base.setdefault(k, v)
+                    ed.setPlainText(self._dict2txt(base))
+            self._baseline_cfg_dict = read_config_json(self.prompts_root, self.selected_char)
         else:
             ed.clear()
+            self._baseline_cfg_dict = None
         ed.blockSignals(False)
+        self._update_save_button_state()
 
     def _reset_vars(self):
+        self._apply_config_or_defaults_to_editor()
+
+    def _apply_config_or_defaults_to_editor(self):
+        from utils.config_utils import read_config_json, get_bounds_defaults, compute_defaults_for_char
         ed = self.vars_dock.editor()
         if self.selected_char:
-            txt = self._dict2txt(self._defaults_for(self.selected_char))
+            cfg = read_config_json(self.prompts_root, self.selected_char)
+            if cfg:
+                txt = self._dict2txt(cfg)
+                self._baseline_cfg_dict = cfg
+            else:
+                base = compute_defaults_for_char(self.selected_char)
+                for k, v in get_bounds_defaults().items():
+                    base.setdefault(k, v)
+                txt = self._dict2txt(base)
+                self._baseline_cfg_dict = None
             ed.setPlainText(txt)
             self.settings.setValue(f"{self.selected_char.lower()}_vars", txt)
-            self.vars_dock.setWindowTitle(f"Параметры DSL — {self.selected_char}")   # ← новая строка
+            self.vars_dock.setWindowTitle(f"Параметры DSL — {self.selected_char}")
         else:
             ed.clear()
             self.vars_dock.setWindowTitle("Параметры DSL")
+            self._baseline_cfg_dict = None
+        self._update_save_button_state()
+
+    def _save_config_json_for_current_vars(self):
+        from utils.config_utils import compute_defaults_for_char, get_bounds_defaults, write_config_json, get_config_path
+        if not self.selected_char:
+            QMessageBox.information(self, "config.json", "Персонаж не выбран.")
+            return
+        if not self.prompts_root:
+            QMessageBox.warning(self, "config.json", "Корневая папка Prompts не установлена.")
+            return
+        cfg_path = get_config_path(self.prompts_root, self.selected_char)
+        current_vars = self._parse_vars()
+        final_cfg = compute_defaults_for_char(self.selected_char)
+        final_cfg.update(current_vars)
+        for k, v in get_bounds_defaults().items():
+            final_cfg.setdefault(k, v)
+        if os.path.exists(cfg_path):
+            r = QMessageBox.question(
+                self, "Перезаписать config.json?",
+                f"Файл уже существует:\n{cfg_path}\n\nПерезаписать его текущими значениями из панели?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if r != QMessageBox.Yes:
+                return
+        try:
+            write_config_json(self.prompts_root, self.selected_char, final_cfg)
+            QMessageBox.information(self, "config.json", f"Сохранено:\n{cfg_path}")
+            txt = self._dict2txt(final_cfg)
+            self.vars_dock.editor().setPlainText(txt)
+            self.settings.setValue(f"{self.selected_char.lower()}_vars", txt)
+            self._baseline_cfg_dict = final_cfg
+            self._update_save_button_state()
+        except Exception as e:
+            QMessageBox.critical(self, "config.json", f"Ошибка сохранения:\n{e}")
+
+    def _on_vars_text_changed(self):
+        self._update_save_button_state()
+
+    def _update_save_button_state(self):
+        from utils.config_utils import get_config_path, read_config_json, are_configs_equal
+        have_char = bool(self.selected_char)
+        if not have_char:
+            self.vars_dock.update_save_button_text(False)
+            self.vars_dock.set_save_enabled(False)
+            return
+        cfg_path = get_config_path(self.prompts_root, self.selected_char)
+        exists = os.path.exists(cfg_path)
+        self.vars_dock.update_save_button_text(exists)
+        if not exists:
+            self.vars_dock.set_save_enabled(True)
+            return
+        baseline = self._baseline_cfg_dict if self._baseline_cfg_dict is not None else read_config_json(self.prompts_root, self.selected_char) or {}
+        current = self._parse_vars()
+        self.vars_dock.set_save_enabled(not are_configs_equal(current, baseline))
 
     def _check_syntax(self):
         from syntax.syntax_checker import PostScriptSyntaxChecker, SyntaxError  # Импортируем здесь, чтобы избежать циклических зависимостей

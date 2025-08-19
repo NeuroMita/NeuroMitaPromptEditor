@@ -117,8 +117,13 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
         is_txt_file = current_doc_path is not None and current_doc_path.lower().endswith(".txt")
         prompts_root_path = self.prompts_root_resolver() if self.prompts_root_resolver else None
         is_postscript_file = current_doc_path is not None and current_doc_path.lower().endswith(".postscript")
+        is_json_file = current_doc_path is not None and current_doc_path.lower().endswith(".json")
 
-        if is_postscript_file:
+        if is_json_file:
+            if not hasattr(self, 'json_rules'):
+                self.highlight_json()
+            rules_to_apply = self.json_rules
+        elif is_postscript_file:
             if not hasattr(self, 'postscript_rules'):
                 self.highlight_postscript()
             rules_to_apply = self.postscript_rules
@@ -188,4 +193,56 @@ class PromptSyntaxHighlighter(QSyntaxHighlighter):
         self.postscript_rules.append(
             (QRegularExpression(r"//[^\n]*"), 
              comment_format, False, "Comments")
+        )
+
+
+    def highlight_json(self):
+        self.json_rules = []
+
+        # Готовим форматы (используем цвета из SyntaxStyleDark для консистентности)
+        key_format      = SyntaxStyleDark.get_format(SyntaxStyleDark.SpecialTag)
+        string_format   = SyntaxStyleDark.get_format(SyntaxStyleDark.String)
+        number_format   = SyntaxStyleDark.get_format(SyntaxStyleDark.Number)
+        keyword_format  = SyntaxStyleDark.get_format(SyntaxStyleDark.Keyword)
+        punct_format    = QTextCharFormat()
+        punct_format.setForeground(QColor("#5C6370"))
+
+        # Порядок правил важен
+
+        # matches "propertyName": (ключ объекта)
+        # Ищет строку, за которой следует двоеточие
+        self.json_rules.append(
+            (QRegularExpression(r'"(?:\\.|[^"\\])*"(?=\s*:)'),
+            key_format, False, "JSON Property Key")
+        )
+
+        # matches "string value", (строковое значение)
+        # Ищет строку, за которой следует запятая или закрывающая скобка } ]
+        self.json_rules.append(
+            (QRegularExpression(r'"(?:\\.|[^"\\])*"(?=\s*[,}\]])'),
+            string_format, False, "JSON String Value")
+        )
+
+        # matches числа: -12, 0, 3.14, 1e10, -0.5E-3
+        self.json_rules.append(
+            (QRegularExpression(r'\b(?:-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?)\b'),
+            number_format, False, "JSON Number")
+        )
+
+        # matches литералы true, false, null
+        self.json_rules.append(
+            (QRegularExpression(r'\b(?:true|false|null)\b'),
+            keyword_format, False, "JSON Literals")
+        )
+
+        # matches скобки объектов и массивов: { } [ ]
+        self.json_rules.append(
+            (QRegularExpression(r'[{}[\]]'),
+            punct_format, False, "JSON Braces/Brackets")
+        )
+
+        # matches разделители: двоеточие и запятая
+        self.json_rules.append(
+            (QRegularExpression(r'[:,]'),
+            punct_format, False, "JSON Punctuation")
         )

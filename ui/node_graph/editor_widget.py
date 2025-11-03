@@ -1,12 +1,13 @@
 # File: ui/node_graph/editor_widget.py
 from __future__ import annotations
-from typing import Optional, List
+from typing import Optional, List, Dict, Any, Tuple
 import os
 import re
 import logging
 import traceback
+import json
 
-from PySide6.QtCore import Qt, Signal, QPointF
+from PySide6.QtCore import Qt, Signal, QPointF, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSplitter,
     QLabel, QPlainTextEdit, QMenu, QMessageBox, QFileDialog
@@ -42,16 +43,26 @@ class NodeGraphEditor(QWidget):
     _SECTION_MARKER_RE = re.compile(r"^[ \t]*\[(?:#|/)\s*[A-Z0-9_]+\s*\][ \t]*\r?\n?", re.IGNORECASE | re.MULTILINE)
     _TAG_SECTION_RE_TMPL = r"\[#\s*{tag}\s*\](.*?)\s*\[/\s*{tag}\s*\]"
 
-    def __init__(self, base_dir: Optional[str] = None, prompts_root: Optional[str] = None, parent=None):
+    def __init__(self, base_dir: Optional[str] = None, prompts_root: Optional[str] = None, 
+                 file_path: Optional[str] = None, parent=None):
         super().__init__(parent)
         self._base_dir = base_dir
         self._prompts_root = prompts_root
+        self._file_path = file_path
+        self._meta_sidecar_path = self._get_sidecar_meta_path()
+        self._sidecar_meta: Dict[str, Any] = {}
         self._ast: Script = Script()
         self._errors: List[ParseError] = []
         self._start_item: Optional[NodeItem] = None
         self._start_pos: QPointF = QPointF(-320, 0)
 
-        # --------- UI ----------
+        # дебаунс автосохранения меты
+        self._meta_save_timer = QTimer(self)
+        self._meta_save_timer.setSingleShot(True)
+        self._meta_save_timer.setInterval(600)
+        self._meta_save_timer.timeout.connect(lambda: self._save_sidecar_meta(silent=True))
+
+        # UI
         self.scene = GraphScene(self)
         self.view = GraphView(self.scene, self)
 
@@ -61,6 +72,7 @@ class NodeGraphEditor(QWidget):
         self.inspector.ast_changed.connect(self._on_ast_changed)
 
         self.controller = NodeGraphController(self.scene)
+        self.controller.set_metadata_changed_callback(self._on_metadata_changed)
 
         self.scene.node_selected.connect(self._on_node_selected)
         self.scene.connection_finished.connect(self._on_connection_finished)
@@ -75,13 +87,19 @@ class NodeGraphEditor(QWidget):
         self.btn_from_text = QPushButton("Пересобрать граф из текста")
         self.btn_to_text = QPushButton("Обновить текст из графа")
         self.btn_toggle_preview = QPushButton("Скрыть превью")
+        self.btn_save_meta = QPushButton("Сохранить мету")
+        self.btn_clear_meta = QPushButton("Очистить мету")
         self.btn_from_text.clicked.connect(self._rebuild_from_preview_text)
         self.btn_to_text.clicked.connect(self._apply_ast_to_preview)
         self.btn_toggle_preview.clicked.connect(self._toggle_preview)
+        self.btn_save_meta.clicked.connect(lambda: self._save_sidecar_meta(silent=False))
+        self.btn_clear_meta.clicked.connect(self._clear_sidecar_meta)
 
         top_row = QHBoxLayout()
         top_row.addWidget(self.btn_from_text)
         top_row.addWidget(self.btn_to_text)
+        top_row.addWidget(self.btn_save_meta)
+        top_row.addWidget(self.btn_clear_meta)
         top_row.addStretch(1)
         top_row.addWidget(self.btn_toggle_preview)
 
@@ -103,28 +121,177 @@ class NodeGraphEditor(QWidget):
         lay.addLayout(top_row)
         lay.addWidget(main_split)
 
-        # Delete shortcut (works for any child focus inside editor)
         self._del_shortcut = QShortcut(QKeySequence(Qt.Key_Delete), self)
         self._del_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
         self._del_shortcut.activated.connect(self._delete_selected_nodes)
 
-        # стартовая нода
+        # Грузим мету (из сайдкара) — сначала в память
+        self._load_sidecar_meta()
+
+        # Стартовая нода и первичное превью — позиции подтянем после rebuild
         self._ensure_start_node()
         self._refresh_preview()
 
+    # -------- META (sidecar рядом с файлом) --------
+    def _get_sidecar_meta_path(self) -> str:
+        if self._file_path:
+            p = os.path.abspath(self._file_path)
+            return p + ".meta.json"
+        # fallback: в папке Metas
+        try:
+            current_file = os.path.abspath(__file__)
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        except Exception:
+            project_root = os.getcwd()
+        meta_dir = os.path.join(project_root, "Metas")
+        os.makedirs(meta_dir, exist_ok=True)
+        return os.path.join(meta_dir, "default.meta.json")
+
+    def _load_sidecar_meta(self):
+        self._sidecar_meta = {}
+        path = self._meta_sidecar_path
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f) or {}
+            # структура:
+            # {
+            #   "start_pos": [x,y],
+            #   "nodes": {
+            #        "KEY#1": {"pos":[x,y], "color":"#hex"},
+            #        ...
+            #   }
+            # }
+            self._sidecar_meta = data
+            if isinstance(data.get("start_pos"), list) and len(data["start_pos"]) == 2:
+                self._start_pos = QPointF(float(data["start_pos"][0]), float(data["start_pos"][1]))
+        except Exception as e:
+            log.error("Meta load error: %s", e)
+
+    def _save_sidecar_meta(self, silent: bool = True):
+        # обойдём AST в детерминированном порядке, построим ключи и соберём позиции/цвета из графа
+        nodes_seq = self._enumerate_nodes(self._ast)
+        counters: Dict[str, int] = {}
+        store_nodes: Dict[str, Dict[str, Any]] = {}
+        for n in nodes_seq:
+            key = self._signature(n)
+            idx = counters.get(key, 0) + 1
+            counters[key] = idx
+            full_key = f"{key}#{idx}"
+            item = self.controller.node2item.get(n.id)
+            if not item:
+                continue
+            pos = item.pos()
+            entry: Dict[str, Any] = {"pos": [float(pos.x()), float(pos.y())]}
+            col = item.get_custom_color()
+            if col:
+                entry["color"] = col.name()
+            store_nodes[full_key] = entry
+
+        data = {
+            "start_pos": [float(self._start_pos.x()), float(self._start_pos.y())],
+            "nodes": store_nodes
+        }
+        try:
+            with open(self._meta_sidecar_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            if not silent:
+                QMessageBox.information(self, "Метаданные", "Сохранено.")
+        except Exception as e:
+            if not silent:
+                QMessageBox.critical(self, "Метаданные", f"Ошибка сохранения: {e}")
+
+    def _clear_sidecar_meta(self):
+        reply = QMessageBox.question(self, "Очистить мету",
+                                     "Удалить .meta.json рядом с файлом?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+        try:
+            if os.path.exists(self._meta_sidecar_path):
+                os.remove(self._meta_sidecar_path)
+        except Exception:
+            pass
+        self._sidecar_meta = {}
+        self.controller.node_positions.clear()
+        self.controller.node_colors.clear()
+        QMessageBox.information(self, "Метаданные", "Мета очищена.")
+
+    def _on_metadata_changed(self):
+        self._meta_save_timer.start()
+
+    # -------- helpers: сигнатуры/порядок --------
+    def _enumerate_nodes(self, script: Script) -> List[AstNode]:
+        out: List[AstNode] = []
+
+        def walk(body: List[AstNode]):
+            for n in body:
+                out.append(n)
+                if isinstance(n, If):
+                    for br in n.branches:
+                        walk(br.body)
+                    if n.else_body:
+                        walk(n.else_body)
+        walk(script.body)
+        return out
+
+    def _signature(self, n: AstNode) -> str:
+        if isinstance(n, Set):
+            return f"SET|{'1' if n.local else '0'}|{n.var}|{n.expr}"
+        if isinstance(n, Log):
+            return f"LOG|{n.expr}"
+        if isinstance(n, AddSystemInfo):
+            return f"ADD_SYSTEM_INFO|{n.expr}"
+        if isinstance(n, Return):
+            return f"RETURN|{n.expr}"
+        if isinstance(n, If):
+            conds = "|".join(br.cond for br in n.branches)
+            has_else = "1" if (n.else_body is not None) else "0"
+            return f"IF|{conds}|{has_else}"
+        return type(n).__name__
+
+    def _apply_sidecar_positions_colors(self):
+        if not self._sidecar_meta:
+            return
+        nodes_map: Dict[str, Dict[str, Any]] = self._sidecar_meta.get("nodes", {}) or {}
+        counters: Dict[str, int] = {}
+        for n in self._enumerate_nodes(self._ast):
+            key = self._signature(n)
+            idx = counters.get(key, 0) + 1
+            counters[key] = idx
+            full_key = f"{key}#{idx}"
+            ent = nodes_map.get(full_key)
+            if not ent:
+                continue
+            item = self.controller.node2item.get(n.id)
+            if not item:
+                continue
+            pos = ent.get("pos")
+            if isinstance(pos, list) and len(pos) == 2:
+                item.setPos(float(pos[0]), float(pos[1]))
+                self.controller.node_positions[n.id] = QPointF(float(pos[0]), float(pos[1]))
+            col = ent.get("color")
+            if isinstance(col, str) and len(col) >= 4:
+                try:
+                    from PySide6.QtGui import QColor
+                    item.set_custom_color(QColor(col))
+                except Exception:
+                    pass
+
+        # восстановим позицию START
+        sp = self._sidecar_meta.get("start_pos")
+        if isinstance(sp, list) and len(sp) == 2 and self._start_item and self._is_item_alive(self._start_item):
+            self._start_item.setPos(float(sp[0]), float(sp[1]))
+
+    # -------- scene fitting --------
     def _fit_scene_rect(self, pad: float = 200.0):
-        """
-        Расширяет sceneRect под фактические границы всех элементов (ноды, рёбра),
-        чтобы скроллом можно было долистать до любой конечной ноды.
-        """
         try:
             items = list(self.scene.items())
             if not items:
-                # запас по умолчанию
                 from PySide6.QtCore import QRectF
                 self.scene.setSceneRect(QRectF(-1000, -1000, 2000, 2000))
                 return
-
             rect = None
             for it in items:
                 try:
@@ -132,26 +299,17 @@ class NodeGraphEditor(QWidget):
                 except Exception:
                     continue
                 rect = r if rect is None else rect.united(r)
-
             if rect is None:
                 from PySide6.QtCore import QRectF
                 rect = QRectF(-1000, -1000, 2000, 2000)
-
             rect = rect.adjusted(-pad, -pad, pad, pad)
-
-            # не даём совсем маленьких размеров (чтобы не "схлопывалась" сцена)
             min_w, min_h = 2000.0, 1200.0
-            if rect.width() < min_w:
-                rect.setWidth(min_w)
-            if rect.height() < min_h:
-                rect.setHeight(min_h)
-
+            if rect.width() < min_w: rect.setWidth(min_w)
+            if rect.height() < min_h: rect.setHeight(min_h)
             self.scene.setSceneRect(rect)
         except Exception:
-            # если что-то пошло не так — не падаем
             pass
 
-    # ---------- helpers ----------
     @staticmethod
     def _is_item_alive(item) -> bool:
         try:
@@ -159,7 +317,7 @@ class NodeGraphEditor(QWidget):
         except RuntimeError:
             return False
 
-    # ---------- public ----------
+    # -------- public --------
     def load_text(self, text: str):
         self.preview.setPlainText(text)
         self._rebuild_from_preview_text()
@@ -167,7 +325,7 @@ class NodeGraphEditor(QWidget):
     def export_text(self) -> str:
         return self.preview.toPlainText()
 
-    # ---------- parse/build ----------
+    # -------- parse/build --------
     def _rebuild_from_preview_text(self):
         try:
             txt = self.preview.toPlainText()
@@ -178,22 +336,25 @@ class NodeGraphEditor(QWidget):
                 msg = "\n".join(str(e) for e in errs)
                 QMessageBox.warning(self, "Парсер DSL", msg)
             self.controller.set_ast(self._ast)
-            # умная авторасстановка при парсинге из текста
+
+            # rebuild и только потом применяем мету (позиции/цвета)
             self.controller.rebuild(keep_positions=False)
             self._ensure_start_node()
+            self._apply_sidecar_positions_colors()
             self._draw_start_edge()
         except Exception as e:
             QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка rebuild:\n{e}\n{traceback.format_exc()}")
         self._fit_scene_rect()
 
-    # ---------- inspector / preview ----------
+    # -------- inspector / preview --------
     def _on_node_selected(self, ast_node: AstNode):
         self.inspector.set_ast(ast_node)
 
     def _on_ast_changed(self):
         try:
-            self.controller.rebuild(keep_positions=False)
+            self.controller.rebuild(keep_positions=True)
             self._ensure_start_node()
+            self._apply_sidecar_positions_colors()
             self._draw_start_edge()
             self._fit_scene_rect()
             self._refresh_preview()
@@ -208,23 +369,22 @@ class NodeGraphEditor(QWidget):
     def _apply_ast_to_preview(self):
         self._refresh_preview()
         self.text_updated.emit(self.preview.toPlainText())
+        # при ручном апдейте — сохраним мету
+        self._save_sidecar_meta(silent=True)
 
     def _toggle_preview(self):
         visible = self.preview.isVisible()
         self.preview.setVisible(not visible)
         self.btn_toggle_preview.setText("Показать превью" if visible else "Скрыть превью")
 
-    # ---------- START node ----------
+    # -------- START node --------
     def _ensure_start_node(self):
-        # НЕ ЗВОНИТЬ .scene() БЕЗ ПРОВЕРКИ
         if self._start_item and self._is_item_alive(self._start_item):
-            # уже добавлена — ничего не делаем
             return
-        # Старая ссылка могла указывать на удалённый C++ объект — обнулим
         self._start_item = None
-        # создаём новую
-        start = NodeItem("START", "Entry point", payload="_START_")
-        start.add_out_port("exec", "exec out")
+        start = NodeItem("START", "Точка входа", payload="_START_")
+        start.set_description("Начальная точка выполнения скрипта")
+        start.add_out_port("exec", "Начать выполнение")
         self.scene.add_node_item(start, self._start_pos)
         start.set_move_callback(lambda it: self._remember_start_pos_safe())
         self._start_item = start
@@ -232,9 +392,9 @@ class NodeGraphEditor(QWidget):
     def _remember_start_pos_safe(self):
         if self._start_item and self._is_item_alive(self._start_item):
             self._start_pos = self._start_item.pos()
+            self._on_metadata_changed()
 
     def _draw_start_edge(self):
-        # перерисуем рёбра и добавим ребро START -> первый узел (если он есть)
         self.controller.refresh_edges()
         if not (self._start_item and self._is_item_alive(self._start_item)):
             self._ensure_start_node()
@@ -244,10 +404,9 @@ class NodeGraphEditor(QWidget):
             if it_first and self._start_item and self._is_item_alive(self._start_item):
                 self.scene.add_edge_between_ports(self._start_item.out_port("exec"), it_first.in_port("exec"))
 
-    # ---------- connections ----------
+    # -------- connections --------
     def _on_connection_finished(self, src: PortItem, dst: PortItem):
         try:
-            # соединение из START — переместить dst в начало сценария
             if self._start_item and self._is_item_alive(self._start_item) and src.owner is self._start_item:
                 dst_node = self.controller.item2node.get(dst.owner)
                 if dst_node:
@@ -262,14 +421,13 @@ class NodeGraphEditor(QWidget):
             self._draw_start_edge()
             self._fit_scene_rect()
             self._refresh_preview()
+            # автосохранение меты
+            self._save_sidecar_meta(silent=True)
         except Exception as e:
             QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка соединения:\n{e}\n{traceback.format_exc()}")
 
-        
-
-    # ---------- creation menu ----------
+    # -------- creation menu --------
     def _on_request_create_menu(self, source_port: Optional[PortItem], scene_pos):
-        # Защита: если порт/владелец уже удалён — не использовать как источник
         try:
             if not (source_port and source_port.owner and source_port.owner.scene() is self.scene):
                 source_port = None
@@ -298,11 +456,9 @@ class NodeGraphEditor(QWidget):
         else:
             node = If(branches=[IfBranch(cond="True")])
 
-        # добавляем в AST, создаём ноду ровно в месте клика
         self.controller.insert_after(None, node)
         self.controller.create_item_for_node(node, scene_pos)
 
-        # если нода создаётся из перетягиваемой связи — подключим к источнику
         if source_port:
             try:
                 src_item_alive = source_port.owner if (source_port.owner and source_port.owner.scene() is self.scene) else None
@@ -320,12 +476,12 @@ class NodeGraphEditor(QWidget):
                         if src_port_new and dst_port_new:
                             self.controller.connect_ports(src_port_new, dst_port_new)
 
-        # обновим только рёбра и рисуем START-ребро
         self._draw_start_edge()
         self._fit_scene_rect()
         self._refresh_preview()
+        self._save_sidecar_meta(silent=True)
 
-    # ---------- file picker for attachments ----------
+    # -------- file picker --------
     def _pick_file_for_attach(self) -> Optional[str]:
         start_dir = self._base_dir or self._prompts_root or os.getcwd()
         path, _ = QFileDialog.getOpenFileName(self, "Выбрать файл", start_dir,
@@ -335,29 +491,23 @@ class NodeGraphEditor(QWidget):
         try:
             abspath = os.path.abspath(path)
             if self._base_dir and os.path.commonpath([abspath, os.path.abspath(self._base_dir)]) == os.path.abspath(self._base_dir):
-                rel = os.path.relpath(abspath, self._base_dir)
-                return rel.replace("\\", "/")
+                rel = os.path.relpath(abspath, self._base_dir); return rel.replace("\\", "/")
             if self._prompts_root and os.path.commonpath([abspath, os.path.abspath(self._prompts_root)]) == os.path.abspath(self._prompts_root):
-                rel = os.path.relpath(abspath, self._prompts_root)
-                return rel.replace("\\", "/")
+                rel = os.path.relpath(abspath, self._prompts_root); return rel.replace("\\", "/")
         except Exception:
             pass
         return path
 
-    # ---------- file preview helpers ----------
+    # -------- preview helpers --------
     def _resolve_path(self, rel_path: str) -> Optional[str]:
-        if not rel_path:
-            return None
-        if os.path.isabs(rel_path) and os.path.exists(rel_path):
-            return rel_path
+        if not rel_path: return None
+        if os.path.isabs(rel_path) and os.path.exists(rel_path): return rel_path
         if self._base_dir:
             p = os.path.normpath(os.path.join(self._base_dir, rel_path))
-            if os.path.exists(p):
-                return p
+            if os.path.exists(p): return p
         if self._prompts_root:
             p = os.path.normpath(os.path.join(self._prompts_root, rel_path))
-            if os.path.exists(p):
-                return p
+            if os.path.exists(p): return p
         return None
 
     def _read_file(self, path: str) -> str:
@@ -380,56 +530,42 @@ class NodeGraphEditor(QWidget):
 
     def _remove_tag_markers(self, text: str) -> str:
         return self._SECTION_MARKER_RE.sub("", text)
-    
+
     def _delete_selected_nodes(self):
-        """
-        Удаление выделенных нод (кроме START) по Delete.
-        """
         selected = [it for it in self.scene.selectedItems() if hasattr(it, "payload")]
         removed_any = False
         for it in selected:
             ast = getattr(it, "payload", None)
-            # START имеет payload "_START_" (строка) — не удаляем
             if isinstance(ast, AstNode):
                 self.controller.delete_node(ast)
                 removed_any = True
-
         if removed_any:
-            # мягкая перестройка (сохраняем позиции, не дёргаем, т.к. удаление — локальная операция)
             self.controller.rebuild(keep_positions=True)
             self._ensure_start_node()
+            self._apply_sidecar_positions_colors()
             self._draw_start_edge()
             self._fit_scene_rect()
             self._refresh_preview()
-        
+            self._save_sidecar_meta(silent=True)
 
     def _preview_for_expr(self, expr: str) -> str:
-        if not expr:
-            return ""
+        if not expr: return ""
         chunks: List[str] = []
-
         for m in self._INLINE_LOAD_RE.finditer(expr):
-            tag = m.group(1)
-            rel = m.group(3)
+            tag = m.group(1); rel = m.group(3)
             path = self._resolve_path(rel) or rel
             if not os.path.isabs(path) or not os.path.exists(path):
-                chunks.append(f"LOAD {tag+' ' if tag else ''}FROM \"{rel}\"\n⇒ [файл не найден]")
-                continue
+                chunks.append(f"[файл не найден: {rel}]"); continue
             raw = self._read_file(path)
-            if tag:
-                content = self._extract_tag_section(raw, tag)
-            else:
-                content = self._remove_tag_markers(raw)
-            chunks.append(f"LOAD {tag+' ' if tag else ''}FROM \"{rel}\"\n⇒\n{content}")
-
+            if tag: content = self._extract_tag_section(raw, tag)
+            else:   content = self._remove_tag_markers(raw)
+            chunks.append(content)
         for m in self._LOAD_REL_RE.finditer(expr):
             rel = m.group(2)
             path = self._resolve_path(rel) or rel
             if not os.path.isabs(path) or not os.path.exists(path):
-                chunks.append(f"LOAD_REL \"{rel}\"\n⇒ [файл не найден]")
-                continue
+                chunks.append(f"[файл не найден: {rel}]"); continue
             raw = self._read_file(path)
             content = self._remove_tag_markers(raw)
-            chunks.append(f"LOAD_REL \"{rel}\"\n⇒\n{content}")
-
+            chunks.append(content)
         return "\n\n---\n\n".join(chunks) if chunks else ""

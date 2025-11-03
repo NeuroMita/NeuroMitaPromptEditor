@@ -6,3 +6,5 @@ build
 *.spec
 /.idea
 Install.py
+metas
+ui/metas

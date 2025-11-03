@@ -1,4 +1,3 @@
-# File: ui/node_graph/tag_text_edit.py
 from __future__ import annotations
 import re
 from typing import List
@@ -16,11 +15,16 @@ class TagTextEdit(QTextEdit):
     CHIP_RE = re.compile(r"\[\[([^\]]+)\]\]")
     VAR_RE  = re.compile(r"\{[A-Za-z_][A-Za-z0-9_]*\}")
 
-    # Строгая палитра ComfyUI
+    # Палитра
     CHIP_BG   = QColor("#444444")
     CHIP_FG   = QColor("#FFFFFF")
     CHIP_BR   = QColor("#666666")
-    VAR_FG    = QColor("#FFA500")
+
+    VAR_CHIP_BG = QColor("#2E7D32")    # зеленая плашка для переменных
+    VAR_CHIP_BR = QColor("#1B5E20")
+    VAR_CHIP_FG = QColor("#FFFFFF")
+
+    VAR_FG    = QColor("#FFA500")      # запасной (подчёркивание)
 
     CHIP_PADX = 5
     CHIP_PADY = 2
@@ -30,7 +34,7 @@ class TagTextEdit(QTextEdit):
         super().__init__(parent)
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
-        # Стиль редактора
+        self._show_var_chips = False  # переменные как чипы
         self.setStyleSheet("""
             QTextEdit {
                 background: #1A1A1A;
@@ -40,6 +44,10 @@ class TagTextEdit(QTextEdit):
                 padding: 4px;
             }
         """)
+
+    def set_show_var_chips(self, on: bool):
+        self._show_var_chips = on
+        self.viewport().update()
 
     def paintEvent(self, e):
         super().paintEvent(e)
@@ -56,51 +64,52 @@ class TagTextEdit(QTextEdit):
             start = m.start()
             length = m.end() - m.start()
             label = m.group(1).strip()
-            
+
             for r in self._range_line_rects(start, length):
-                # Компактная плашка
                 bg = QRectF(
-                    r.left() - self.CHIP_PADX, 
-                    r.top() + 1, 
-                    r.width() + 2 * self.CHIP_PADX, 
+                    r.left() - self.CHIP_PADX,
+                    r.top() + 1,
+                    r.width() + 2 * self.CHIP_PADX,
                     r.height() - 2
                 )
-                
+
                 painter.setPen(QPen(self.CHIP_BR, 1.0))
                 painter.setBrush(QBrush(self.CHIP_BG))
                 painter.drawRoundedRect(bg, self.CHIP_RADIUS, self.CHIP_RADIUS)
 
-                # Текст на плашке
                 painter.setPen(QPen(self.CHIP_FG))
                 font = QFont()
                 font.setPointSize(8)
                 painter.setFont(font)
-                
-                text_to_draw = label
-                if len(text_to_draw) > 40:
-                    text_to_draw = text_to_draw[:37] + "..."
-                    
-                painter.drawText(
-                    bg.adjusted(4, 0, -4, 0), 
-                    Qt.AlignVCenter | Qt.AlignLeft, 
-                    text_to_draw
-                )
+                text_to_draw = label if len(label) <= 40 else (label[:37] + "...")
+                painter.drawText(bg.adjusted(4, 0, -4, 0), Qt.AlignVCenter | Qt.AlignLeft, text_to_draw)
 
-        # Подчеркивание переменных {var}
-        painter.setPen(QPen(self.VAR_FG, 1.0))
-        for m in self.VAR_RE.finditer(text):
-            start = m.start()
-            length = m.end() - m.start()
-            for r in self._range_line_rects(start, length):
-                painter.drawLine(
-                    r.bottomLeft() + QPointF(0, -1), 
-                    r.bottomRight() + QPointF(0, -1)
-                )
+        # Переменные {var}
+        if self._show_var_chips:
+            for m in self.VAR_RE.finditer(text):
+                start = m.start()
+                length = m.end() - m.start()
+                for r in self._range_line_rects(start, length):
+                    bg = QRectF(
+                        r.left() - self.CHIP_PADX + 1,
+                        r.top() + 2,
+                        r.width() + 2 * self.CHIP_PADX - 2,
+                        r.height() - 4
+                    )
+                    painter.setPen(QPen(self.VAR_CHIP_BR, 1.0))
+                    painter.setBrush(QBrush(self.VAR_CHIP_BG))
+                    painter.drawRoundedRect(bg, self.CHIP_RADIUS, self.CHIP_RADIUS)
+                    # Текст уже нарисован текстовым движком; он виден поверх фона
+        else:
+            painter.setPen(QPen(self.VAR_FG, 1.0))
+            for m in self.VAR_RE.finditer(text):
+                start = m.start()
+                length = m.end() - m.start()
+                for r in self._range_line_rects(start, length):
+                    painter.drawLine(r.bottomLeft() + QPointF(0, -1), r.bottomRight() + QPointF(0, -1))
 
+    # ---------- helpers ----------
     def _range_line_rects(self, start: int, length: int) -> List[QRectF]:
-        """
-        Возвращает список прямоугольников в координатах viewport() для диапазона текста.
-        """
         rects: List[QRectF] = []
         if length <= 0:
             return rects

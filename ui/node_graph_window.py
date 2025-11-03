@@ -12,11 +12,6 @@ from ui.node_graph.editor_widget import NodeGraphEditor
 class NodeGraphWindow(QMainWindow):
     """
     Полноценное окно (не диалог) для нодового редактора.
-    Позволяет:
-      - загружать текст;
-      - редактировать граф;
-      - применить изменения в вызывающий редактор (callback);
-      - сохранить в файл (по желанию).
     """
     def __init__(self, initial_text: str, file_path: Optional[str], prompts_root: Optional[str],
                  apply_callback: Optional[Callable[[str], None]] = None, parent=None):
@@ -32,7 +27,8 @@ class NodeGraphWindow(QMainWindow):
             import os
             base_dir = os.path.dirname(file_path)
 
-        self.editor = NodeGraphEditor(base_dir=base_dir, prompts_root=prompts_root, parent=self)
+        self.editor = NodeGraphEditor(base_dir=base_dir, prompts_root=prompts_root, 
+                                      file_path=file_path, parent=self)
         self.setCentralWidget(self.editor)
         self.editor.load_text(initial_text or "")
 

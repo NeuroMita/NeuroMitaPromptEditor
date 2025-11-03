@@ -1,9 +1,11 @@
-# ui/node_graph/controller.py
+# File: ui/node_graph/controller.py
 from __future__ import annotations
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set as PySet
 import logging
 
 from PySide6.QtCore import QPointF
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QMessageBox
 
 from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If
 from ui.node_graph.graph_primitives import NodeItem, PortItem
@@ -17,8 +19,6 @@ log.propagate = True
 class NodeGraphController:
     """
     Управляет отображением AST на графе и синхронизацией.
-    rebuild() — автолэйаут только при генерации из текста.
-    При ручных изменениях: create_item_for_node() + refresh_edges().
     """
     def __init__(self, scene: GraphScene):
         self.scene = scene
@@ -27,19 +27,47 @@ class NodeGraphController:
         self.node2item: Dict[str, NodeItem] = {}
         self.item2node: Dict[NodeItem, AstNode] = {}
         self.node_positions: Dict[str, QPointF] = {}
-        log.debug("Controller.__init__")
+        self.node_colors: Dict[str, QColor] = {}
+        self._on_metadata_changed: Optional[callable] = None
+
+    def set_metadata_changed_callback(self, cb: callable):
+        self._on_metadata_changed = cb
 
     def set_ast(self, script: Script):
         self.script = script
-        log.debug("Controller.set_ast: nodes=%d", len(self.script.body))
+
+    def load_metadata(self, positions: Dict[str, tuple], colors: Dict[str, str]):
+        self.node_positions.clear()
+        self.node_colors.clear()
+        for nid, (x, y) in positions.items():
+            self.node_positions[nid] = QPointF(x, y)
+        for nid, color_str in colors.items():
+            try:
+                self.node_colors[nid] = QColor(color_str)
+            except Exception:
+                pass
+
+    def export_metadata(self) -> tuple[Dict[str, tuple], Dict[str, str]]:
+        positions = {}
+        colors = {}
+        for nid, item in self.node2item.items():
+            try:
+                pos = item.pos()
+                positions[nid] = (pos.x(), pos.y())
+                custom_color = item.get_custom_color()
+                if custom_color:
+                    colors[nid] = custom_color.name()
+            except Exception:
+                pass
+        return positions, colors
 
     def rebuild(self, keep_positions: bool = True):
-        """
-        Smart autolayout v3
-        """
         for nid, item in list(self.node2item.items()):
             try:
                 self.node_positions[nid] = item.pos()
+                custom_color = item.get_custom_color()
+                if custom_color:
+                    self.node_colors[nid] = custom_color
             except Exception:
                 pass
 
@@ -116,6 +144,10 @@ class NodeGraphController:
                 self.item2node[item] = n
                 p = self.node_positions.get(n.id) if keep_positions and (n.id in self.node_positions) else pos_map.get(n.id, QPointF(0, 0))
                 self.scene.add_node_item(item, p)
+                if n.id in self.node_colors:
+                    item.set_custom_color(self.node_colors[n.id])
+                item.set_move_callback(self._on_node_moved)
+                item.set_color_changed_callback(self._on_node_color_changed)
                 if isinstance(n, IfNode):
                     for br in n.branches:
                         create_nodes(br.body)
@@ -124,20 +156,42 @@ class NodeGraphController:
 
         create_nodes(self.script.body)
         self.refresh_edges()
-        
+
+    def _on_node_moved(self, item: NodeItem):
+        for nid, it in self.node2item.items():
+            if it is item:
+                self.node_positions[nid] = item.pos()
+                if self._on_metadata_changed:
+                    self._on_metadata_changed()
+                break
+
+    def _on_node_color_changed(self, item: NodeItem):
+        for nid, it in self.node2item.items():
+            if it is item:
+                custom_color = item.get_custom_color()
+                if custom_color:
+                    self.node_colors[nid] = custom_color
+                elif nid in self.node_colors:
+                    del self.node_colors[nid]
+                if self._on_metadata_changed:
+                    self._on_metadata_changed()
+                break
+
     def create_item_for_node(self, node: AstNode, pos: QPointF) -> NodeItem:
         if node.id in self.node2item:
             it = self.node2item[node.id]
             it.setPos(pos)
             self.node_positions[node.id] = QPointF(pos)
-            log.debug("Controller.create_item_for_node: reuse node=%s pos=%s", node.id, pos)
             return it
         item = self._node_item_for(node)
         self.node2item[node.id] = item
         self.item2node[item] = node
         self.scene.add_node_item(item, pos)
         self.node_positions[node.id] = QPointF(pos)
-        log.debug("Controller.create_item_for_node: new node=%s pos=%s", node.id, pos)
+        item.set_move_callback(self._on_node_moved)
+        item.set_color_changed_callback(self._on_node_color_changed)
+        if node.id in self.node_colors:
+            item.set_custom_color(self.node_colors[node.id])
         return item
 
     def refresh_edges(self):
@@ -173,96 +227,141 @@ class NodeGraphController:
                         body_edges(n.else_body)
 
         body_edges(self.script.body)
-        log.debug("Controller.refresh_edges: edges refreshed")
 
     def _node_item_for(self, node: AstNode) -> NodeItem:
         from logic.dsl_ast import If
-        
         if isinstance(node, Set):
             title = "Установить переменную"
             subtitle = f"{'LOCAL ' if node.local else ''}{node.var} = {node.expr}"
-            item = NodeItem(title, subtitle, node)
-            item.setRect(0, 0, 320, 80)
-            
+            desc = "Создаёт или изменяет переменную. LOCAL — видна только внутри текущего блока."
+            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 320, 80); item.set_description(desc)
         elif isinstance(node, Log):
             title = "Записать в лог"
             subtitle = node.expr[:40] + "..." if len(node.expr) > 40 else node.expr
-            item = NodeItem(title, subtitle, node)
-            item.setRect(0, 0, 320, 80)
-            
+            desc = "Выводит значение выражения в лог для отладки."
+            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 320, 80); item.set_description(desc)
         elif isinstance(node, AddSystemInfo):
-            title = "Добавить системную информацию"
+            title = "Системная информация"
             subtitle = node.expr[:30] + "..." if len(node.expr) > 30 else node.expr
-            item = NodeItem(title, subtitle, node)
-            item.setRect(0, 0, 340, 80)
-            
+            desc = "Добавляет системные инструкции, обычно загружает файл в начало промпта."
+            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 340, 80); item.set_description(desc)
         elif isinstance(node, Return):
             title = "Вернуть результат"
             subtitle = node.expr[:35] + "..." if len(node.expr) > 35 else node.expr
-            item = NodeItem(title, subtitle, node)
-            item.setRect(0, 0, 340, 80)
-            
+            desc = "Возвращает итоговый текст промпта. Завершает выполнение скрипта."
+            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 340, 80); item.set_description(desc)
         elif isinstance(node, If):
-            title = "Условие"
-            subtitle = ""
+            title = "Условие"; subtitle = ""
+            desc = "Условная развилка: выполняет разные ветки кода в зависимости от условий."
             item = NodeItem(title, subtitle, node)
             branches_count = len(node.branches) + (1 if node.else_body is not None else 0)
-            base_h = 64
-            per_row = 28
-            h = base_h + max(1, branches_count) * per_row + 10
-            w = 360
-            item.setRect(0, 0, w, h)
+            base_h = 64; per_row = 28
+            h = base_h + max(1, branches_count) * per_row + 10; w = 360
+            item.setRect(0, 0, w, h); item.set_description(desc)
         else:
-            title = type(node).__name__
-            subtitle = ""
-            item = NodeItem(title, subtitle, node)
-            item.setRect(0, 0, 320, 80)
-
+            item = NodeItem(type(node).__name__, "", node); item.setRect(0, 0, 320, 80); item.set_description("")
         item.add_in_port("exec", "Выполнение")
-
         from logic.dsl_ast import If as IfNode
-        if not isinstance(node, Return):
-            item.add_out_port("exec", "Далее")
-
+        if not isinstance(node, Return): item.add_out_port("exec", "Далее")
         if isinstance(node, IfNode):
             for i, br in enumerate(node.branches):
-                label = f"{br.cond}" if i == 0 else f"{br.cond}"
-                port_name = f"branch_{i}"
-                item.add_out_port(port_name, label)
+                item.add_out_port(f"branch_{i}", f"{br.cond}")
             if node.else_body is not None:
                 item.add_out_port("else", "Иначе")
-
         return item
 
-    def insert_after(self, target: Optional[AstNode], new_node: AstNode):
-        if target is None:
-            self.script.body.append(new_node)
-            self.parent_map[new_node.id] = self.script.body
-            log.debug("Controller.insert_after: root append node=%s", new_node.id)
-        else:
-            parent = self.parent_map.get(target.id, self.script.body)
+    # ---- защита от циклов ----
+    def _is_ancestor(self, potential_ancestor: AstNode, node: AstNode) -> bool:
+        visited: PySet[str] = set()
+        def check_parent(n: AstNode) -> bool:
+            if n.id in visited: return False
+            visited.add(n.id)
+            if n.id == potential_ancestor.id: return True
+            parent_body = self.parent_map.get(n.id)
+            if not parent_body: return False
+            from logic.dsl_ast import If as IfNode
+            for item, ast in list(self.item2node.items()):
+                if isinstance(ast, IfNode):
+                    for br in ast.branches:
+                        if br.body is parent_body: return check_parent(ast)
+                    if ast.else_body is parent_body: return check_parent(ast)
             try:
-                idx = parent.index(target)
-            except ValueError:
-                idx = len(parent) - 1
-            parent.insert(idx + 1, new_node)
-            self.parent_map[new_node.id] = parent
-            log.debug("Controller.insert_after: after=%s inserted=%s", target.id, new_node.id)
+                idx = parent_body.index(n)
+                if idx > 0:
+                    return check_parent(parent_body[idx - 1])
+            except Exception:
+                pass
+            return False
+        return check_parent(node)
 
-    def delete_node(self, node: AstNode):
-        parent = self.parent_map.get(node.id)
-        if parent and node in parent:
-            parent.remove(node)
-            log.debug("Controller.delete_node: node=%s removed", node.id)
+    def _detach_node(self, node: AstNode):
+        # полностью убрать узел из любого тела
+        for body in self._all_bodies():
+            if node in body:
+                body.remove(node)
+                break
+        if node.id in self.parent_map:
+            del self.parent_map[node.id]
 
     def connect_ports(self, src: PortItem, dst: PortItem):
+        """
+        Правила:
+        - Только одна связь из exec-порта. При переподключении мы НЕ трогаем ветки IF.
+        - Если старый сосед после src — это IF, мы его не выбрасываем из AST (оставляем после нового dst).
+          Это сохраняет все branch-связи IF и устраняет "обрушение" веток.
+        - Для других типов узлов старый сосед отсоединяется полностью (по раннему требованию).
+        """
         src_node = self.item2node.get(src.owner)
         dst_node = self.item2node.get(dst.owner)
         if not src_node or not dst_node:
-            log.debug("Controller.connect_ports: src/dst node missing")
             return
 
+        if src_node is dst_node or self._is_ancestor(dst_node, src_node):
+            QMessageBox.warning(None, "Недопустимое соединение",
+                                "Рекурсивные или циклические связи запрещены.")
+            return
+
+        # Главный выход exec — только одна связь
+        if src.key == "exec":
+            # удаляем только рёбра exec-порта источника
+            for e in list(src.edges):
+                try:
+                    e.destroy()
+                except Exception:
+                    pass
+
+            src_parent = self.parent_map.get(src_node.id, self.script.body)
+            try:
+                sidx = src_parent.index(src_node)
+            except ValueError:
+                sidx = -1
+
+            old_next = None
+            if sidx >= 0 and sidx + 1 < len(src_parent):
+                old_next = src_parent[sidx + 1]
+
+            # вставляем новый dst сразу после src
+            self._remove_from_parent(dst_node)
+            if sidx >= 0:
+                src_parent.insert(sidx + 1, dst_node)
+                self.parent_map[dst_node.id] = src_parent
+
+            # если старый сосед существовал и это НЕ IF — отсоединяем его полностью;
+            # если это IF — оставляем его на месте (он сам сместится на позицию sidx+2),
+            # все его ветви остаются нетронутыми.
+            if old_next and old_next is not dst_node:
+                if not isinstance(old_next, If):
+                    self._detach_node(old_next)
+            return
+
+        # Ветви IF: по одному ребру на каждую ветку; удаляем только рёбра этой ветки
         if isinstance(src_node, If) and (src.key.startswith("branch_") or src.key == "else"):
+            for e in list(src.edges):
+                try:
+                    e.destroy()
+                except Exception:
+                    pass
+
             if src.key == "else":
                 if src_node.else_body is None:
                     src_node.else_body = []
@@ -270,11 +369,17 @@ class NodeGraphController:
             else:
                 idx = int(src.key.split("_")[1])
                 body = src_node.branches[idx].body
-            self._move_node_to_body_start(dst_node, body)
+
+            # старый первый узел этой конкретной ветки — отсоединяем
+            if body:
+                self._detach_node(body[0])
+
+            self._remove_from_parent(dst_node)
+            body.insert(0, dst_node)
             self.parent_map[dst_node.id] = body
-            log.debug("Controller.connect_ports: IF-branch %s -> dst=%s", src.key, dst_node.id)
             return
 
+        # обычная последовательность
         src_parent = self.parent_map.get(src_node.id, self.script.body)
         self._remove_from_parent(dst_node)
         try:
@@ -283,31 +388,21 @@ class NodeGraphController:
             sidx = len(src_parent) - 1
         src_parent.insert(sidx + 1, dst_node)
         self.parent_map[dst_node.id] = src_parent
-        log.debug("Controller.connect_ports: seq %s -> %s", getattr(src_node, "id", None), getattr(dst_node, "id", None))
 
     def _remove_from_parent(self, node: AstNode):
         for body in self._all_bodies():
             if node in body:
                 body.remove(node)
-                log.debug("Controller._remove_from_parent: node=%s removed from body", node.id)
                 return
 
     def _all_bodies(self) -> List[List[AstNode]]:
         res: List[List[AstNode]] = [self.script.body]
-
         def walk(body: List[AstNode]):
             for n in body:
                 if isinstance(n, If):
                     for br in n.branches:
-                        res.append(br.body)
-                        walk(br.body)
+                        res.append(br.body); walk(br.body)
                     if n.else_body is not None:
-                        res.append(n.else_body)
-                        walk(n.else_body)
+                        res.append(n.else_body); walk(n.else_body)
         walk(self.script.body)
         return res
-
-    def _move_node_to_body_start(self, node: AstNode, body: List[AstNode]):
-        self._remove_from_parent(node)
-        body.insert(0, node)
-        log.debug("Controller._move_node_to_body_start: node=%s -> beginning of body", node.id)

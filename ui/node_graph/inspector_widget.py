@@ -7,7 +7,7 @@ from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QFormLayout, QLineEdit,
     QCheckBox, QListWidget, QListWidgetItem, QPushButton,
-    QHBoxLayout, QFrame, QFileDialog, QAbstractItemView
+    QHBoxLayout, QFrame, QAbstractItemView
 )
 
 from logic.dsl_ast import AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch
@@ -16,16 +16,9 @@ from ui.node_graph.tag_text_edit import TagTextEdit
 
 class Inspector(QWidget):
     """
-    Упрощённый инспектор:
-    - RETURN: большая textarea (TagTextEdit) + минимальная палитра вставок (перетягиваемые/кликабельные "чипы").
-              Никаких выражений/плюсов в инспекторе — итоговый DSL виден снизу в общем превью.
-    - IF: простой список условий (перетаскиваемый). Две кнопки — 'Добавить условие', 'Добавить Иначе'.
-          Условия редактируются двойным кликом прямо в списке. Удаление — клавиша Delete.
-    - SET/LOG/ADD_SYSTEM_INFO: только поля (и минимальные вставки при желании).
+    Инспектор свойств узлов (строгий стиль ComfyUI)
     """
     ast_changed = Signal()
-
-    CHIP_STYLE = "padding:4px 8px; border-radius:6px; background:#304FFE; color:#E8EAED;"
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -33,21 +26,60 @@ class Inspector(QWidget):
         self._preview_provider: Optional[Callable[[str], str]] = None
         self._file_picker: Optional[Callable[[], Optional[str]]] = None
 
-        self.setMinimumWidth(420)
+        self.setMinimumWidth(400)
+        self.setStyleSheet("""
+            QWidget {
+                background: #1A1A1A;
+                color: #E0E0E0;
+            }
+            QLabel {
+                color: #E0E0E0;
+                font-size: 9pt;
+            }
+            QLineEdit {
+                background: #2A2A2A;
+                color: #FFFFFF;
+                border: 1px solid #444444;
+                border-radius: 2px;
+                padding: 4px;
+            }
+            QPushButton {
+                background: #2A2A2A;
+                color: #FFFFFF;
+                border: 1px solid #444444;
+                border-radius: 2px;
+                padding: 6px 12px;
+            }
+            QPushButton:hover {
+                background: #353535;
+                border: 1px solid #666666;
+            }
+            QPushButton:pressed {
+                background: #1A1A1A;
+            }
+            QCheckBox {
+                color: #E0E0E0;
+            }
+            QListWidget {
+                background: #2A2A2A;
+                color: #FFFFFF;
+                border: 1px solid #444444;
+                border-radius: 2px;
+            }
+        """)
+        
         root = QVBoxLayout(self)
-        root.setContentsMargins(8, 8, 8, 8)
-        root.setSpacing(6)
+        root.setContentsMargins(6, 6, 6, 6)
+        root.setSpacing(4)
 
-        # Заголовок
         self.title_lbl = QLabel("Свойства узла")
-        self.title_lbl.setStyleSheet("font-weight: bold;")
+        self.title_lbl.setStyleSheet("font-weight: bold; font-size: 10pt; color: #FFFFFF;")
         root.addWidget(self.title_lbl)
 
-        # Форма
         self.form = QFormLayout()
+        self.form.setSpacing(4)
         root.addLayout(self.form)
 
-        # ЯВНЫЕ ярлыки, чтобы их можно было скрывать (исправляет "пустые строки" у START)
         self.var_lbl = QLabel("Переменная:")
         self.var_edit = QLineEdit()
 
@@ -60,60 +92,81 @@ class Inspector(QWidget):
         self.form.addRow(self.expr_lbl, self.expr_edit)
         self.form.addRow(QLabel(""), self.local_chk)
 
-        # Сепараторы (можем скрывать)
         self.sep_before_return = self._hline()
         self.sep_before_if = self._hline()
         self.sep_before_apply = self._hline()
 
-        # RETURN
         self.return_label = QLabel("Текст результата:")
         self.return_edit = TagTextEdit()
-        self.return_edit.setPlaceholderText("Пиши здесь текст. Вставки как [[LOAD \"Main/core.txt\"]], переменные как {var}.")
-        self.return_edit.setMinimumHeight(160)
+        self.return_edit.setPlaceholderText("Текст результата. Используйте [[LOAD \"file.txt\"]] для вставок и {var} для переменных.")
+        self.return_edit.setMinimumHeight(140)
 
-        # Палитра чипов для RETURN
         self.pal_row = QHBoxLayout()
-        self.btn_chip_load = QPushButton("LOAD");     self.btn_chip_load.setStyleSheet(self.CHIP_STYLE)
-        self.btn_chip_tag  = QPushButton("LOAD TAG"); self.btn_chip_tag.setStyleSheet(self.CHIP_STYLE)
-        self.btn_chip_rel  = QPushButton("LOAD_REL"); self.btn_chip_rel.setStyleSheet(self.CHIP_STYLE)
-        self.btn_pick_file = QPushButton("Из файла…")
+        self.pal_row.setSpacing(4)
+        
+        chip_style = """
+            QPushButton {
+                background: #444444;
+                color: #FFFFFF;
+                border: 1px solid #666666;
+                border-radius: 3px;
+                padding: 4px 10px;
+                font-size: 8pt;
+            }
+            QPushButton:hover {
+                background: #555555;
+            }
+        """
+        
+        self.btn_chip_load = QPushButton("LOAD")
+        self.btn_chip_load.setStyleSheet(chip_style)
+        
+        self.btn_chip_tag = QPushButton("LOAD TAG")
+        self.btn_chip_tag.setStyleSheet(chip_style)
+        
+        self.btn_chip_rel = QPushButton("LOAD_REL")
+        self.btn_chip_rel.setStyleSheet(chip_style)
+        
+        self.btn_pick_file = QPushButton("Выбрать файл…")
+        
         self.btn_chip_load.clicked.connect(lambda: self._insert_chip_return('[[LOAD "path/to.txt"]]', True))
         self.btn_chip_tag.clicked.connect(lambda: self._insert_chip_return('[[LOAD SECTION FROM "path/to.txt"]]', True))
         self.btn_chip_rel.clicked.connect(lambda: self._insert_chip_return('[[LOAD_REL "path/to.txt"]]', True))
         self.btn_pick_file.clicked.connect(self._pick_file_for_return)
+        
         for b in (self.btn_chip_load, self.btn_chip_tag, self.btn_chip_rel, self.btn_pick_file):
             self.pal_row.addWidget(b)
         self.pal_row.addStretch(1)
 
-        # IF — упрощённый
         self.if_label = QLabel("Условия:")
         self.if_list = QListWidget()
         self.if_list.setSelectionMode(QAbstractItemView.SingleSelection)
         self.if_list.setDragDropMode(QAbstractItemView.InternalMove)
         self.if_list.setDefaultDropAction(Qt.MoveAction)
-        self.if_list.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed | QAbstractItemView.SelectedClicked)
+        self.if_list.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
         self.if_list.model().rowsMoved.connect(self._on_if_reordered)
         self.if_list.itemChanged.connect(self._on_if_item_changed)
-        # Кнопки IF (минимальные)
+        
         self.if_btn_row = QHBoxLayout()
-        self.btn_add_cond = QPushButton("Добавить условие")
-        self.btn_add_else = QPushButton("Добавить Иначе")
-        # Кнопка удаления (как просили): активна для elif и else, неактивна для первой IF-ветки
-        self.btn_del_selected = QPushButton("Удалить выбранное")
+        self.if_btn_row.setSpacing(4)
+        
+        self.btn_add_cond = QPushButton("+ Условие")
+        self.btn_add_else = QPushButton("+ Иначе")
+        self.btn_del_selected = QPushButton("Удалить")
         self.btn_del_selected.setEnabled(False)
+        
         self.btn_add_cond.clicked.connect(self._on_add_cond)
         self.btn_add_else.clicked.connect(self._on_toggle_else)
         self.btn_del_selected.clicked.connect(self._on_delete_selected)
-        self.if_list.currentRowChanged.connect(self._on_branch_selected)  # обновлять состояние кнопки удаления
+        self.if_list.currentRowChanged.connect(self._on_branch_selected)
+        
         for b in (self.btn_add_cond, self.btn_add_else, self.btn_del_selected):
             self.if_btn_row.addWidget(b)
         self.if_btn_row.addStretch(1)
 
-        # APPLY
         self.apply_btn = QPushButton("Применить изменения")
         self.apply_btn.clicked.connect(self._apply)
 
-        # Сборка
         root.addWidget(self.sep_before_return)
         root.addWidget(self.return_label)
         root.addWidget(self.return_edit)
@@ -127,29 +180,25 @@ class Inspector(QWidget):
         root.addWidget(self.sep_before_apply)
         root.addWidget(self.apply_btn)
 
-        # ВАЖНО: стретч в самом конце — вы просили "добавь стретч после всех строк"
-        # Это прибирает "паддинг" у START — контент прижимается к верху.
         root.addStretch(1)
 
         self._hide_all()
         self._show_empty(True)
-        
-    # ---------- API ----------
+
     def set_preview_provider(self, func: Callable[[str], str]):
         self._preview_provider = func
 
     def set_file_picker(self, func: Callable[[], Optional[str]]):
         self._file_picker = func
 
-    # ---------- Helpers ----------
     def _hline(self):
         l = QFrame()
         l.setFrameShape(QFrame.HLine)
-        l.setFrameShadow(QFrame.Sunken)
+        l.setStyleSheet("background: #333333;")
+        l.setMaximumHeight(1)
         return l
 
     def _hide_all(self):
-        # Скрываем вообще все элементы, включая лейблы, чтобы не оставалось "пустых" подписей
         for w in (
             self.var_lbl, self.var_edit, self.expr_lbl, self.expr_edit, self.local_chk,
             self.sep_before_return, self.return_label, self.return_edit,
@@ -174,54 +223,48 @@ class Inspector(QWidget):
             self._show_empty(True)
             return
 
-        # START (payload может быть не-AstNode в редакторе)
         if not isinstance(self._ast, AstNode):
             self.title_lbl.setText("START")
-            # Ничего лишнего не показываем — паддинга не останется благодаря stretch()
             return
 
-        # SET
         if isinstance(self._ast, Set):
-            self.title_lbl.setText("SET")
+            self.title_lbl.setText("Установить переменную")
             self.var_edit.setText(self._ast.var)
             self.expr_edit.setText(self._ast.expr)
             self.local_chk.setChecked(self._ast.local)
-            self.var_lbl.show();  self.var_edit.show()
+            self.var_lbl.show(); self.var_edit.show()
             self.expr_lbl.show(); self.expr_edit.show()
             self.local_chk.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
-        # LOG
         if isinstance(self._ast, Log):
-            self.title_lbl.setText("LOG")
+            self.title_lbl.setText("Записать в лог")
             self.expr_edit.setText(self._ast.expr)
             self.expr_lbl.show(); self.expr_edit.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
-        # ADD_SYSTEM_INFO
         if isinstance(self._ast, AddSystemInfo):
-            self.title_lbl.setText("ADD_SYSTEM_INFO")
+            self.title_lbl.setText("Добавить системную информацию")
             self.expr_edit.setText(self._ast.expr)
             self.expr_lbl.show(); self.expr_edit.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
-        # RETURN — чистая textarea + палитра
         if isinstance(self._ast, Return):
-            self.title_lbl.setText("RETURN")
+            self.title_lbl.setText("Вернуть результат")
             txt, ok = self._expr_to_text(self._ast.expr)
             self.return_edit.setPlainText(txt if ok else "")
             self.sep_before_return.show()
             self.return_label.show(); self.return_edit.show()
-            self.btn_chip_load.show(); self.btn_chip_tag.show(); self.btn_chip_rel.show(); self.btn_pick_file.show()
+            self.btn_chip_load.show(); self.btn_chip_tag.show()
+            self.btn_chip_rel.show(); self.btn_pick_file.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
-        # IF — список условий + две кнопки + кнопка удаления
         if isinstance(self._ast, If):
-            self.title_lbl.setText("IF")
+            self.title_lbl.setText("Условие")
             self.if_list.clear()
             for br in self._ast.branches:
                 it = QListWidgetItem(br.cond)
@@ -236,21 +279,13 @@ class Inspector(QWidget):
             self.sep_before_if.show()
             self.if_label.show(); self.if_list.show()
             self.btn_add_cond.show(); self.btn_add_else.show(); self.btn_del_selected.show()
-            # Выставим начальное состояние кнопки удаления
             self._on_branch_selected(self.if_list.currentRow())
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
-        # default
         self.title_lbl.setText(type(self._ast).__name__)
 
     def _on_branch_selected(self, idx: int):
-        """
-        Обновляет доступность кнопки 'Удалить выбранное':
-        - Первая ветка IF (idx == 0) — кнопка неактивна (нельзя удалять оригинальный IF).
-        - Любая другая ветка (ELSEIF) — активна.
-        - ELSE — активна.
-        """
         if not isinstance(self._ast, If):
             self.btn_del_selected.setEnabled(False)
             return
@@ -262,13 +297,11 @@ class Inspector(QWidget):
             self.btn_del_selected.setEnabled(False)
             return
         is_else = (it.data(Qt.UserRole) == "ELSE")
-        # Первая условная ветка — нельзя
         if not is_else and idx == 0:
             self.btn_del_selected.setEnabled(False)
         else:
             self.btn_del_selected.setEnabled(True)
 
-    # ---------- RETURN chips ----------
     def _insert_chip_return(self, snippet: str, at_cursor: bool):
         if not self.return_edit.isVisible():
             return
@@ -285,10 +318,8 @@ class Inspector(QWidget):
         path = self._file_picker()
         if not path:
             return
-        # простая вставка LOAD из файла
         self._insert_chip_return(f'[[LOAD "{path}"]]', True)
 
-    # ---------- IF UX ----------
     def _on_add_cond(self):
         if not isinstance(self._ast, If):
             return
@@ -302,17 +333,14 @@ class Inspector(QWidget):
     def _on_toggle_else(self):
         if not isinstance(self._ast, If):
             return
-        # проверяем, есть ли ELSE
         has_else = any(self.if_list.item(i).data(Qt.UserRole) == "ELSE" for i in range(self.if_list.count()))
         if has_else:
-            # убрать ELSE
             for i in range(self.if_list.count()):
                 it = self.if_list.item(i)
                 if it.data(Qt.UserRole) == "ELSE":
                     self.if_list.takeItem(i)
                     break
         else:
-            # добавить ELSE
             it = QListWidgetItem("ELSE")
             it.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
             it.setData(Qt.UserRole, "ELSE")
@@ -332,7 +360,6 @@ class Inspector(QWidget):
             self.ast_changed.emit()
 
     def keyPressEvent(self, e):
-        # Delete удаляет и ELSE, и любые ELSEIF, но не первую IF-ветку
         if e.key() == Qt.Key_Delete and isinstance(self._ast, If) and self.if_list.isVisible():
             idx = self.if_list.currentRow()
             if idx >= 0:
@@ -353,7 +380,6 @@ class Inspector(QWidget):
         it = self.if_list.item(idx)
         if not it:
             return
-        # Нельзя удалить первую условную ветку (оригинальный IF)
         if it.data(Qt.UserRole) != "ELSE" and idx == 0:
             return
         self.if_list.takeItem(idx)
@@ -372,17 +398,14 @@ class Inspector(QWidget):
             else:
                 conds.append(it.text().strip())
 
-        # сохранить старые body по индексам, чтобы не терять содержимое веток
         old_bodies = [br.body for br in self._ast.branches]
         self._ast.branches = []
         for idx, cond in enumerate(conds):
             body = old_bodies[idx] if idx < len(old_bodies) else []
             self._ast.branches.append(IfBranch(cond=cond, body=body))
 
-        # ELSE — сразу материализуем/удаляем тело (это добавит/уберёт выход 'else' после rebuild)
         self._ast.else_body = ([] if has_else else None)
 
-    # ---------- APPLY ----------
     def _apply(self):
         if self._ast is None:
             return
@@ -393,12 +416,10 @@ class Inspector(QWidget):
         elif isinstance(self._ast, (Log, AddSystemInfo)):
             self._ast.expr = self.expr_edit.text().strip()
         elif isinstance(self._ast, Return):
-            # конвертируем textarea -> выражение
             self._ast.expr = self._text_to_expr(self.return_edit.toPlainText())
 
         self.ast_changed.emit()
 
-    # ---------- text<->expr for RETURN ----------
     CHIP_TOKEN_RE = re.compile(r"\[\[(.+?)\]\]")
 
     def _text_to_expr(self, text: str) -> str:

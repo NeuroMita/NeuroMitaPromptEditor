@@ -23,27 +23,20 @@ class NodeGraphController:
     def __init__(self, scene: GraphScene):
         self.scene = scene
         self.script: Script = Script()
-        self.parent_map: Dict[str, List[AstNode]] = {}      # node.id -> parent body list
+        self.parent_map: Dict[str, List[AstNode]] = {}
         self.node2item: Dict[str, NodeItem] = {}
         self.item2node: Dict[NodeItem, AstNode] = {}
         self.node_positions: Dict[str, QPointF] = {}
         log.debug("Controller.__init__")
 
-    # ---------- build ----------
     def set_ast(self, script: Script):
         self.script = script
         log.debug("Controller.set_ast: nodes=%d", len(self.script.body))
 
-
     def rebuild(self, keep_positions: bool = True):
         """
-        Smart autolayout v3:
-        - Последовательность: узлы идут слева-направо по одной "магистральной" строке.
-        - IF: сам IF остаётся на магистральной строке; ветви раскладываются СПУСКОМ ниже (branch-start-row = center+offset),
-        чтобы линии магистрали не перекрывались нодами ветвей.
-        - Высота/ширина в ячейках учитывают вложенность ветвей, чтобы следующий узел последовательности не попадал "внутрь" веток.
+        Smart autolayout v3
         """
-        # сохранить текущие позиции
         for nid, item in list(self.node2item.items()):
             try:
                 self.node_positions[nid] = item.pos()
@@ -77,7 +70,6 @@ class NodeGraphController:
 
         def measure_node(n: AstNode) -> tuple[int, int]:
             if isinstance(n, IfNode):
-                # суммарная высота ветвей (в строках)
                 total_h = 0
                 max_w = 1
                 for br in n.branches:
@@ -88,26 +80,22 @@ class NodeGraphController:
                     eh, ew = measure_block(n.else_body)
                     total_h += max(1, eh)
                     max_w = max(max_w, ew)
-                # ширина узла IF + ширина самой широкой ветки
                 return (max(1, total_h), 1 + max(1, max_w))
             return (1, 1)
 
         pos_map: Dict[str, QPointF] = {}
 
         def place_block(body: List[AstNode], col: int, row: int):
-            # магистральная высота блока
             blk_h, _blk_w = measure_block(body)
             c = col
             for n in body:
                 nh, nw = measure_node(n)
-                # центр узла по магистрали
                 row_center = row + max(0, (blk_h - nh) // 2)
                 pos_map[n.id] = QPointF(c * H_STEP, row_center * V_STEP)
                 self.parent_map[n.id] = body
 
                 if isinstance(n, IfNode):
-                    # разместить ветви СПУСКОМ ниже центра IF
-                    branch_row = row_center + 1  # смещаем ветки относительно exec-магистрали
+                    branch_row = row_center + 1
                     for br in n.branches:
                         bh, _bw = measure_block(br.body)
                         place_block(br.body, c + 1, branch_row)
@@ -121,13 +109,11 @@ class NodeGraphController:
 
         place_block(self.script.body, col=0, row=0)
 
-        # создание нод
         def create_nodes(body: List[AstNode]):
             for n in body:
                 item = self._node_item_for(n)
                 self.node2item[n.id] = item
                 self.item2node[item] = n
-                # позиция
                 p = self.node_positions.get(n.id) if keep_positions and (n.id in self.node_positions) else pos_map.get(n.id, QPointF(0, 0))
                 self.scene.add_node_item(item, p)
                 if isinstance(n, IfNode):
@@ -189,53 +175,65 @@ class NodeGraphController:
         body_edges(self.script.body)
         log.debug("Controller.refresh_edges: edges refreshed")
 
-    # ---------- internal ----------
     def _node_item_for(self, node: AstNode) -> NodeItem:
         from logic.dsl_ast import If
+        
         if isinstance(node, Set):
-            item = NodeItem("SET", f"{'LOCAL ' if node.local else ''}{node.var} = {node.expr}", node)
-            item.setRect(0, 0, 320, 96)
+            title = "Установить переменную"
+            subtitle = f"{'LOCAL ' if node.local else ''}{node.var} = {node.expr}"
+            item = NodeItem(title, subtitle, node)
+            item.setRect(0, 0, 320, 80)
+            
         elif isinstance(node, Log):
-            item = NodeItem("LOG", node.expr, node)
-            item.setRect(0, 0, 320, 96)
+            title = "Записать в лог"
+            subtitle = node.expr[:40] + "..." if len(node.expr) > 40 else node.expr
+            item = NodeItem(title, subtitle, node)
+            item.setRect(0, 0, 320, 80)
+            
         elif isinstance(node, AddSystemInfo):
-            item = NodeItem("ADD_SYSTEM_INFO", node.expr, node)
-            item.setRect(0, 0, 340, 96)
+            title = "Добавить системную информацию"
+            subtitle = node.expr[:30] + "..." if len(node.expr) > 30 else node.expr
+            item = NodeItem(title, subtitle, node)
+            item.setRect(0, 0, 340, 80)
+            
         elif isinstance(node, Return):
-            item = NodeItem("RETURN", node.expr, node)
-            item.setRect(0, 0, 340, 96)
+            title = "Вернуть результат"
+            subtitle = node.expr[:35] + "..." if len(node.expr) > 35 else node.expr
+            item = NodeItem(title, subtitle, node)
+            item.setRect(0, 0, 340, 80)
+            
         elif isinstance(node, If):
-            item = NodeItem("IF", "", node)
-            # Высота IF динамична: шапка + строки условий
+            title = "Условие"
+            subtitle = ""
+            item = NodeItem(title, subtitle, node)
             branches_count = len(node.branches) + (1 if node.else_body is not None else 0)
-            base_h = 64   # шапка + место для exec-out
-            per_row = 26  # строка под одну ветку
-            h = base_h + max(1, branches_count) * per_row + 12
+            base_h = 64
+            per_row = 28
+            h = base_h + max(1, branches_count) * per_row + 10
             w = 360
             item.setRect(0, 0, w, h)
         else:
-            item = NodeItem(type(node).__name__, "", node)
-            item.setRect(0, 0, 320, 96)
+            title = type(node).__name__
+            subtitle = ""
+            item = NodeItem(title, subtitle, node)
+            item.setRect(0, 0, 320, 80)
 
-        # вход exec — всегда
-        item.add_in_port("exec", "exec in")
+        item.add_in_port("exec", "Выполнение")
 
-        # RETURN — терминальный, без exec out
         from logic.dsl_ast import If as IfNode
         if not isinstance(node, Return):
-            item.add_out_port("exec", "exec out")
+            item.add_out_port("exec", "Далее")
 
-        # IF — подписываем ветви условиями, else — отдельным портом
         if isinstance(node, IfNode):
             for i, br in enumerate(node.branches):
-                label = f"IF {br.cond}" if i == 0 else f"ELSEIF {br.cond}"
-                item.add_out_port(f"branch_{i}", label)
+                label = f"{br.cond}" if i == 0 else f"{br.cond}"
+                port_name = f"branch_{i}"
+                item.add_out_port(port_name, label)
             if node.else_body is not None:
-                item.add_out_port("else", "ELSE")
+                item.add_out_port("else", "Иначе")
 
         return item
 
-    # ---------- editing ----------
     def insert_after(self, target: Optional[AstNode], new_node: AstNode):
         if target is None:
             self.script.body.append(new_node)

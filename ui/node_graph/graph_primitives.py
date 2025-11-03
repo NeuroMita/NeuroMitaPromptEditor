@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import List, Optional, Callable, Dict
 
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import QPointF, Qt, QRectF
 from PySide6.QtGui import QBrush, QColor, QFont, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QGraphicsEllipseItem,
@@ -12,21 +12,21 @@ from PySide6.QtWidgets import (
     QGraphicsSimpleTextItem,
 )
 
-NODE_BG = QColor("#2F3542")
-NODE_BORDER = QColor("#57606f")
-NODE_SELECTED = QColor("#70a1ff")
-TEXT_FG = QColor("#ecf0f1")
-EXEC_EDGE = QColor("#a4b0be")
-BRANCH_EDGE = QColor("#ff7f50")
+# Строгая цветовая схема в стиле ComfyUI
+NODE_BG = QColor("#202020")
+NODE_BORDER = QColor("#999999")
+NODE_SELECTED = QColor("#FFA500")
+TEXT_FG = QColor("#FFFFFF")
+TEXT_SECONDARY = QColor("#999999")
+EXEC_EDGE = QColor("#FFFFFF")
+BRANCH_EDGE = QColor("#FFA500")
 
-PORT_IN_COLOR = QColor("#4cd137")
-PORT_OUT_COLOR = QColor("#487eb0")
-PORT_HOVER = QColor("#e1b12c")
-PORT_LABEL = QColor("#dfe6e9")
+PORT_EXEC_COLOR = QColor("#F0F0F0")
+PORT_HOVER = QColor("#FFA500")
 
 
 class PortItem(QGraphicsEllipseItem):
-    R = 6
+    R = 5
 
     def __init__(self, owner: "NodeItem", key: str, is_input: bool):
         super().__init__(-PortItem.R, -PortItem.R, 2 * PortItem.R, 2 * PortItem.R, owner)
@@ -34,8 +34,10 @@ class PortItem(QGraphicsEllipseItem):
         self.key = key
         self.is_input = is_input
         self.edges: List["EdgeItem"] = []
-        self.setBrush(QBrush(PORT_IN_COLOR if is_input else PORT_OUT_COLOR))
-        self.setPen(QPen(Qt.black, 1.0))
+        self.is_highlighted = False
+        
+        self.setBrush(QBrush(PORT_EXEC_COLOR))
+        self.setPen(QPen(Qt.NoPen))
         self.setZValue(10)
         self.setAcceptHoverEvents(True)
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
@@ -50,13 +52,24 @@ class PortItem(QGraphicsEllipseItem):
 
     def center_in_scene(self) -> QPointF:
         return self.mapToScene(self.rect().center())
+    
+    def set_highlighted(self, on: bool):
+        self.is_highlighted = on
+        if on:
+            self.setBrush(QBrush(PORT_HOVER))
+            self.setPen(QPen(PORT_HOVER, 1.5))
+        else:
+            self.setBrush(QBrush(PORT_EXEC_COLOR))
+            self.setPen(QPen(Qt.NoPen))
 
     def hoverEnterEvent(self, event):
-        self.setBrush(QBrush(PORT_HOVER))
+        if not self.is_highlighted:
+            self.setBrush(QBrush(PORT_HOVER))
         return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        self.setBrush(QBrush(PORT_IN_COLOR if self.is_input else PORT_OUT_COLOR))
+        if not self.is_highlighted:
+            self.setBrush(QBrush(PORT_EXEC_COLOR))
         return super().hoverLeaveEvent(event)
 
     def itemChange(self, change, value):
@@ -73,13 +86,23 @@ class EdgeItem(QGraphicsPathItem):
         self.target = target
         self.temp_end: Optional[QPointF] = None
         self.is_branch = is_branch
-        pen = QPen(BRANCH_EDGE if is_branch else EXEC_EDGE, 2.0)
-        self.setPen(pen)
+        self.is_highlighted = False
+        
+        self._update_pen()
         self.setZValue(-1)
         source.add_edge(self)
         if target:
             target.add_edge(self)
         self.update_path()
+    
+    def _update_pen(self):
+        color = BRANCH_EDGE if self.is_branch else EXEC_EDGE
+        width = 2.5 if self.is_highlighted else 2.0
+        self.setPen(QPen(color, width))
+    
+    def set_highlighted(self, on: bool):
+        self.is_highlighted = on
+        self._update_pen()
 
     def set_target(self, t: Optional[PortItem]):
         if self.target is t:
@@ -103,7 +126,6 @@ class EdgeItem(QGraphicsPathItem):
         return None
 
     def update_path(self):
-        # защита от удаленного source/target
         if self.source is None or self.source.scene() is None:
             return
         p1 = self.source.center_in_scene()
@@ -129,41 +151,44 @@ class NodeItem(QGraphicsRectItem):
         super().__init__(0, 0, NodeItem.WIDTH, NodeItem.HEIGHT)
         self.title = title
         self.subtitle = subtitle
-        self.payload = payload  # AST node
+        self.payload = payload
         self._in_ports: List[PortItem] = []
         self._out_ports: List[PortItem] = []
-        self._in_labels: Dict[str, QGraphicsSimpleTextItem] = {}
-        self._out_labels: Dict[str, QGraphicsSimpleTextItem] = {}
+        self._port_labels_internal: Dict[str, QGraphicsSimpleTextItem] = {}  # внутренние лейблы для выходов
         self._on_moved: Optional[Callable[["NodeItem"], None]] = None
 
         self.setBrush(QBrush(bg))
-        self.setPen(QPen(NODE_BORDER, 1.5))
+        self.setPen(QPen(NODE_BORDER, 1.0))
         self.setFlags(
             QGraphicsItem.ItemIsSelectable
             | QGraphicsItem.ItemIsMovable
             | QGraphicsItem.ItemSendsGeometryChanges
         )
 
-    # ---------- ports ----------
     def add_in_port(self, key: str, label: str) -> PortItem:
         p = PortItem(self, key, True)
-        p.setToolTip(f"in: {label}")
+        p.setToolTip(label)
         self._in_ports.append(p)
-        lab = QGraphicsSimpleTextItem(label, self)
-        lab.setBrush(QBrush(PORT_LABEL))
-        f = lab.font(); f.setPointSize(max(f.pointSize() - 1, 8)); lab.setFont(f)
-        self._in_labels[key] = lab
         self._layout_ports()
         return p
 
     def add_out_port(self, key: str, label: str) -> PortItem:
         p = PortItem(self, key, False)
-        p.setToolTip(f"out: {label}")
+        p.setToolTip(label)
         self._out_ports.append(p)
-        lab = QGraphicsSimpleTextItem(label, self)
-        lab.setBrush(QBrush(PORT_LABEL))
-        f = lab.font(); f.setPointSize(max(f.pointSize() - 1, 8)); lab.setFont(f)
-        self._out_labels[key] = lab
+        
+        # Создаем внутренний лейбл для выхода (слева от порта, внутри ноды)
+        if key != "exec":  # exec-out не помечаем
+            lab = QGraphicsSimpleTextItem(label, self)
+            lab.setBrush(QBrush(TEXT_SECONDARY))
+            f = lab.font()
+            f.setPointSize(8)
+            lab.setFont(f)
+            self._port_labels_internal[key] = lab
+            # делаем лейбл кликабельным для подсветки
+            lab.setAcceptHoverEvents(True)
+            lab.setData(0, key)  # сохраняем ключ порта
+        
         self._layout_ports()
         return p
 
@@ -191,17 +216,27 @@ class NodeItem(QGraphicsRectItem):
 
     def set_move_callback(self, cb: Optional[Callable[["NodeItem"], None]]):
         self._on_moved = cb
+    
+    def highlight_branch(self, port_key: str, on: bool):
+        """Подсветка ветки: порт + связь"""
+        port = self.out_port(port_key)
+        if port:
+            port.set_highlighted(on)
+            for edge in port.edges:
+                edge.set_highlighted(on)
 
-    # ---------- painting ----------
     def paint(self, painter, option, widget=None):
-        pen = QPen(NODE_SELECTED if self.isSelected() else NODE_BORDER, 2.0)
+        # Строгий стиль ComfyUI
+        pen = QPen(NODE_SELECTED if self.isSelected() else NODE_BORDER, 1.5 if self.isSelected() else 1.0)
         painter.setPen(pen)
         painter.setBrush(self.brush())
-        painter.drawRoundedRect(self.rect(), 6, 6)
+        painter.drawRoundedRect(self.rect(), 2, 2)
 
+        # Заголовок
         painter.setPen(QPen(TEXT_FG))
         f = QFont()
         f.setBold(True)
+        f.setPointSize(9)
         painter.setFont(f)
         painter.drawText(
             self.rect().adjusted(self.PADDING, self.PADDING, -self.PADDING, -self.PADDING),
@@ -209,40 +244,34 @@ class NodeItem(QGraphicsRectItem):
             self.title,
         )
 
-        f2 = QFont()
-        f2.setPointSize(max(f.pointSize() - 1, 8))
-        painter.setFont(f2)
-        painter.drawText(
-            self.rect().adjusted(self.PADDING, 28, -self.PADDING, -self.PADDING),
-            Qt.AlignTop | Qt.AlignLeft,
-            self.subtitle,
-        )
+        # Подзаголовок
+        if self.subtitle:
+            f2 = QFont()
+            f2.setPointSize(8)
+            painter.setFont(f2)
+            painter.setPen(QPen(TEXT_SECONDARY))
+            painter.drawText(
+                self.rect().adjusted(self.PADDING, 26, -self.PADDING, -self.PADDING),
+                Qt.AlignTop | Qt.AlignLeft,
+                self.subtitle,
+            )
 
     def _layout_ports(self):
         r = self.rect()
 
-        # -------- inputs (exec in) --------
+        # Вход exec - слева по центру
         if self._in_ports:
-            # единственный exec-in — слева по центру
             if len(self._in_ports) == 1 or all(p.key == "exec" for p in self._in_ports):
                 p = self._in_ports[0]
                 y = r.center().y()
                 p.setPos(r.left(), y)
-                lab = self._in_labels.get(p.key)
-                if lab:
-                    br = lab.boundingRect()
-                    lab.setPos(r.left() - br.width() - 8, y - br.height() / 2)
             else:
                 step = r.height() / (len(self._in_ports) + 1)
                 for i, p in enumerate(self._in_ports, start=1):
                     y = r.top() + i * step
                     p.setPos(r.left(), y)
-                    lab = self._in_labels.get(p.key)
-                    if lab:
-                        br = lab.boundingRect()
-                        lab.setPos(r.left() - br.width() - 8, y - br.height() / 2)
 
-        # -------- outputs --------
+        # Выходы
         exec_port = None
         branch_ports: List[PortItem] = []
         for p in self._out_ports:
@@ -251,44 +280,57 @@ class NodeItem(QGraphicsRectItem):
             elif p.key.startswith("branch_") or p.key == "else":
                 branch_ports.append(p)
 
-        # exec-out — СВЕРХУ справа с небольшим отступом
+        # exec-out - справа сверху
         if exec_port is not None:
-            y = r.top() + 16
+            y = r.top() + 20
             exec_port.setPos(r.right(), y)
-            lab = self._out_labels.get(exec_port.key)
-            if lab:
-                br = lab.boundingRect()
-                lab.setPos(r.right() + 8, y - br.height() / 2)
 
-        # ветви IF — ниже exec-out, каждая на своей строке
+        # Ветви IF - справа, каждая на своей строке
         if branch_ports:
-            top_zone = (r.top() + 40)   # чтобы не прилипало к exec-out/заголовку
-            bottom = r.bottom() - 12
+            top_zone = r.top() + 45
+            bottom = r.bottom() - 10
             n = len(branch_ports)
             if n == 1:
                 y = (top_zone + bottom) * 0.5
                 branch_ports[0].setPos(r.right(), y)
-                lab = self._out_labels.get(branch_ports[0].key)
+                # Внутренний лейбл слева от порта
+                lab = self._port_labels_internal.get(branch_ports[0].key)
                 if lab:
                     br = lab.boundingRect()
-                    lab.setPos(r.right() + 8, y - br.height() / 2)
+                    lab.setPos(r.right() - br.width() - 16, y - br.height() / 2)
             else:
                 total_h = max(1.0, bottom - top_zone)
                 step = total_h / (n + 1)
                 for i, p in enumerate(branch_ports, 1):
                     y = top_zone + i * step
-                    branch_ports[i - 1].setPos(r.right(), y)
-                    lab = self._out_labels.get(p.key)
+                    p.setPos(r.right(), y)
+                    # Внутренний лейбл слева от порта
+                    lab = self._port_labels_internal.get(p.key)
                     if lab:
                         br = lab.boundingRect()
-                        lab.setPos(r.right() + 8, y - br.height() / 2)
+                        lab.setPos(r.right() - br.width() - 16, y - br.height() / 2)
 
-        # обновить рёбра
+        # Обновить рёбра
         for p in self._in_ports + self._out_ports:
             for e in list(p.edges):
                 e.update_path()
 
-    # ---------- edges follow the node ----------
+    def mousePressEvent(self, event):
+        # Проверяем клик по внутреннему лейблу ветки
+        for key, lab in self._port_labels_internal.items():
+            if lab.contains(lab.mapFromScene(event.scenePos())):
+                # Подсветка ветки
+                self.highlight_branch(key, True)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        # Снимаем подсветку со всех веток
+        for key in self._port_labels_internal.keys():
+            self.highlight_branch(key, False)
+        super().mouseReleaseEvent(event)
+
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemPositionHasChanged:
             for p in self._in_ports + self._out_ports:

@@ -181,6 +181,7 @@ class PromptEditorWindow(QMainWindow):
         # -------- Инструменты --------
         tm = mb.addMenu("&Инструменты")
         tm.addAction("Проверить синтаксис", self._check_syntax).setShortcut("Ctrl+Shift+C")
+        tm.addAction("Визуальный редактор .script (ноды)", self._open_node_editor).setShortcut("Ctrl+Shift+N")
 
         # -------- Вид --------
         vm = mb.addMenu("&Вид")
@@ -226,6 +227,34 @@ class PromptEditorWindow(QMainWindow):
             self._baseline_cfg_dict = None
         ed.blockSignals(False)
         self._update_save_button_state()
+
+    def _open_node_editor(self):
+        current_editor = self.tabs.currentWidget()
+        if not current_editor or not hasattr(current_editor, "get_tab_file_path"):
+            QMessageBox.information(self, "Нодовый редактор", "Нет активного редактора.")
+            return
+
+        file_path = current_editor.get_tab_file_path()
+        if not file_path or not file_path.lower().endswith(".script"):
+            QMessageBox.warning(self, "Нодовый редактор", "Откройте .script файл для визуального редактора.")
+            return
+
+        initial_text = current_editor.toPlainText() if hasattr(current_editor, "toPlainText") else ""
+
+        def apply_back(new_text: str):
+            if hasattr(current_editor, "setPlainText"):
+                current_editor.setPlainText(new_text)
+
+        try:
+            from ui.node_graph_window import NodeGraphWindow
+            # держим ссылку, чтобы окно не ушло в GC
+            if not hasattr(self, "_node_windows"):
+                self._node_windows = []
+            win = NodeGraphWindow(initial_text, file_path=file_path, prompts_root=self.prompts_root, apply_callback=apply_back, parent=self)
+            self._node_windows.append(win)
+            win.show()
+        except Exception as e:
+            QMessageBox.critical(self, "Нодовый редактор", f"Ошибка запуска: {e}")
 
     def _reset_vars(self):
         self._apply_config_or_defaults_to_editor()

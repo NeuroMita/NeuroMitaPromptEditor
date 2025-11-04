@@ -1,6 +1,6 @@
-# File: ui/node_graph/controller.py
+
 from __future__ import annotations
-from typing import Dict, List, Optional, Set as PySet
+from typing import Dict, List, Optional, Set as PySet, Callable
 import logging
 
 from PySide6.QtCore import QPointF
@@ -29,9 +29,13 @@ class NodeGraphController:
         self.node_positions: Dict[str, QPointF] = {}
         self.node_colors: Dict[str, QColor] = {}
         self._on_metadata_changed: Optional[callable] = None
+        self._on_item_double_click: Optional[Callable[[AstNode], None]] = None
 
     def set_metadata_changed_callback(self, cb: callable):
         self._on_metadata_changed = cb
+
+    def set_item_double_click_callback(self, cb: Callable[[AstNode], None]):
+        self._on_item_double_click = cb
 
     def set_ast(self, script: Script):
         self.script = script
@@ -268,9 +272,55 @@ class NodeGraphController:
                 item.add_out_port(f"branch_{i}", f"{br.cond}")
             if node.else_body is not None:
                 item.add_out_port("else", "Иначе")
+        # dblclick -> отдаём наверх
+        if self._on_item_double_click:
+            item.set_double_click_callback(lambda it, _n=node: self._on_item_double_click(_n))
         return item
 
-    # ---- защита от циклов ----
+    # ---- подсветки ----
+    def clear_all_previews(self):
+        for it in list(self.node2item.values()):
+            it.clear_preview()
+
+    def set_node_preview(self, ast_node: AstNode, text: Optional[str], error: bool = False):
+        it = self.node2item.get(ast_node.id)
+        if it:
+            it.set_preview_text(text, error=error)
+
+    def highlight_if_choice(self, ast_node: If, branch_key: Optional[str]):
+        it = self.node2item.get(ast_node.id)
+        if not it:
+            return
+        for p in it.out_ports():
+            if p.key.startswith("branch_") or p.key == "else":
+                it.highlight_branch(p.key, False)
+        if branch_key:
+            it.highlight_branch(branch_key, True)
+
+    def clear_path_highlight(self):
+        # снимем подсветку со всех рёбер
+        for it in list(self.node2item.values()):
+            for p in it.out_ports() + it.in_ports():
+                for e in list(p.edges):
+                    e.set_highlighted(False)
+
+    def highlight_exec_sequence(self, node_ids: List[str]):
+        # утолщим рёбра между последовательно выполненными нодами
+        for i in range(len(node_ids) - 1):
+            a_id, b_id = node_ids[i], node_ids[i + 1]
+            ia, ib = self.node2item.get(a_id), self.node2item.get(b_id)
+            if not ia or not ib:
+                continue
+            a_out = ia.out_port("exec")
+            b_in = ib.in_port("exec")
+            if not a_out or not b_in:
+                continue
+            # найдём ребро, соединяющее эти порты
+            for e in list(a_out.edges):
+                if e.target is b_in:
+                    e.set_highlighted(True)
+
+    # ---- защита от циклов / манипуляции ----
     def _is_ancestor(self, potential_ancestor: AstNode, node: AstNode) -> bool:
         visited: PySet[str] = set()
         def check_parent(n: AstNode) -> bool:
@@ -295,7 +345,6 @@ class NodeGraphController:
         return check_parent(node)
 
     def _detach_node(self, node: AstNode):
-        # полностью убрать узел из любого тела
         for body in self._all_bodies():
             if node in body:
                 body.remove(node)
@@ -304,13 +353,6 @@ class NodeGraphController:
             del self.parent_map[node.id]
 
     def connect_ports(self, src: PortItem, dst: PortItem):
-        """
-        Правила:
-        - Только одна связь из exec-порта. При переподключении мы НЕ трогаем ветки IF.
-        - Если старый сосед после src — это IF, мы его не выбрасываем из AST (оставляем после нового dst).
-          Это сохраняет все branch-связи IF и устраняет "обрушение" веток.
-        - Для других типов узлов старый сосед отсоединяется полностью (по раннему требованию).
-        """
         src_node = self.item2node.get(src.owner)
         dst_node = self.item2node.get(dst.owner)
         if not src_node or not dst_node:
@@ -321,9 +363,7 @@ class NodeGraphController:
                                 "Рекурсивные или циклические связи запрещены.")
             return
 
-        # Главный выход exec — только одна связь
         if src.key == "exec":
-            # удаляем только рёбра exec-порта источника
             for e in list(src.edges):
                 try:
                     e.destroy()
@@ -340,21 +380,16 @@ class NodeGraphController:
             if sidx >= 0 and sidx + 1 < len(src_parent):
                 old_next = src_parent[sidx + 1]
 
-            # вставляем новый dst сразу после src
             self._remove_from_parent(dst_node)
             if sidx >= 0:
                 src_parent.insert(sidx + 1, dst_node)
                 self.parent_map[dst_node.id] = src_parent
 
-            # если старый сосед существовал и это НЕ IF — отсоединяем его полностью;
-            # если это IF — оставляем его на месте (он сам сместится на позицию sidx+2),
-            # все его ветви остаются нетронутыми.
             if old_next and old_next is not dst_node:
                 if not isinstance(old_next, If):
                     self._detach_node(old_next)
             return
 
-        # Ветви IF: по одному ребру на каждую ветку; удаляем только рёбра этой ветки
         if isinstance(src_node, If) and (src.key.startswith("branch_") or src.key == "else"):
             for e in list(src.edges):
                 try:
@@ -370,7 +405,6 @@ class NodeGraphController:
                 idx = int(src.key.split("_")[1])
                 body = src_node.branches[idx].body
 
-            # старый первый узел этой конкретной ветки — отсоединяем
             if body:
                 self._detach_node(body[0])
 
@@ -379,7 +413,6 @@ class NodeGraphController:
             self.parent_map[dst_node.id] = body
             return
 
-        # обычная последовательность
         src_parent = self.parent_map.get(src_node.id, self.script.body)
         self._remove_from_parent(dst_node)
         try:

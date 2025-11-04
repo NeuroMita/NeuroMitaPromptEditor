@@ -1,4 +1,4 @@
-# logic/dsl_parser.py
+# File: logic/dsl_parser.py
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Tuple
@@ -73,7 +73,7 @@ def parse_script(text: str) -> Tuple[Script, List[ParseError]]:
         if command == "IF":
             cond_raw = args.strip()
             cond = cond_raw[:-len(" THEN")].strip() if cond_raw.upper().endswith(" THEN") else cond_raw
-            if_node = If(branches=[IfBranch(cond=cond)])
+            if_node = If(branches=[IfBranch(cond=cond)], line=num)
             add_node(if_node)
             if_stack.append(if_node)
             current_body_stack.append(if_node.branches[0].body)
@@ -125,21 +125,21 @@ def parse_script(text: str) -> Tuple[Script, List[ParseError]]:
             var, expr = [s.strip() for s in rest.split("=", 1)]
             if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", var):
                 errors.append(ParseError(f"Invalid variable name '{var}'", num, raw))
-            add_node(Set(var=var, expr=expr, local=local))
+            add_node(Set(var=var, expr=expr, local=local, line=num))
             continue
 
         if command == "LOG":
-            add_node(Log(expr=args.strip())); continue
+            add_node(Log(expr=args.strip(), line=num)); continue
 
         if command == "ADD_SYSTEM_INFO":
             if not args.strip():
                 errors.append(ParseError("ADD_SYSTEM_INFO requires argument", num, raw))
-            add_node(AddSystemInfo(expr=args.strip())); continue
+            add_node(AddSystemInfo(expr=args.strip(), line=num)); continue
 
         if command == "RETURN":
             if not args.strip():
                 errors.append(ParseError("RETURN requires argument", num, raw))
-            add_node(Return(expr=args.strip())); continue
+            add_node(Return(expr=args.strip(), line=num)); continue
 
         errors.append(ParseError(f"Unknown DSL command '{command}'", num, raw))
 

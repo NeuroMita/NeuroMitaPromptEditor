@@ -10,11 +10,12 @@ from PySide6.QtWidgets import (
     QGraphicsPathItem,
     QGraphicsRectItem,
     QGraphicsSimpleTextItem,
+    QGraphicsTextItem,
     QMenu,
     QColorDialog,
 )
 
-# Строгая цветовая схема
+# Цвета (строго)
 NODE_BG = QColor("#202020")
 NODE_BORDER = QColor("#999999")
 NODE_SELECTED = QColor("#FFA500")
@@ -25,6 +26,11 @@ BRANCH_EDGE = QColor("#FFA500")
 
 PORT_EXEC_COLOR = QColor("#F0F0F0")
 PORT_HOVER = QColor("#FFA500")
+
+# Превью-панель
+PREV_BG = QColor(32, 32, 32, 220)
+PREV_BR = QColor("#3a3a3a")
+PREV_TEXT = QColor("#E0E0E0")
 
 
 class PortItem(QGraphicsEllipseItem):
@@ -81,10 +87,6 @@ class PortItem(QGraphicsEllipseItem):
 
 
 class EdgeItem(QGraphicsPathItem):
-    """
-    ВАЖНО: добавлены методы detach_from_ports/destroy,
-    чтобы удаление ребра было безопасным (без removeItem для item со сцены=None).
-    """
     def __init__(self, source: PortItem, target: Optional[PortItem], is_branch: bool = False):
         super().__init__()
         self.source: Optional[PortItem] = source
@@ -92,7 +94,6 @@ class EdgeItem(QGraphicsPathItem):
         self.temp_end: Optional[QPointF] = None
         self.is_branch = is_branch
         self.is_highlighted = False
-
         self._update_pen()
         self.setZValue(-1)
         if self.source:
@@ -103,7 +104,7 @@ class EdgeItem(QGraphicsPathItem):
 
     def _update_pen(self):
         color = BRANCH_EDGE if self.is_branch else EXEC_EDGE
-        width = 2.5 if self.is_highlighted else 2.0
+        width = 3.0 if self.is_highlighted else 2.0
         self.setPen(QPen(color, width))
 
     def set_highlighted(self, on: bool):
@@ -138,11 +139,6 @@ class EdgeItem(QGraphicsPathItem):
             self.target.remove_edge(self)
 
     def destroy(self):
-        """
-        Безопасно удалить ребро:
-        - убрать из списков портов;
-        - убрать из сцены, если оно ещё там.
-        """
         try:
             self.detach_from_ports()
         except Exception:
@@ -155,7 +151,6 @@ class EdgeItem(QGraphicsPathItem):
                 pass
 
     def update_path(self):
-        # если source уже отцепили — ничего не делаем
         if self.source is None or self.source.scene() is None:
             return
         p1 = self.source.center_in_scene()
@@ -190,6 +185,11 @@ class NodeItem(QGraphicsRectItem):
         self._port_labels_internal: Dict[str, QGraphicsSimpleTextItem] = {}
         self._on_moved: Optional[Callable[["NodeItem"], None]] = None
         self._on_color_changed: Optional[Callable[["NodeItem"], None]] = None
+        self._on_double_click: Optional[Callable[["NodeItem"], None]] = None
+
+        # превью (кармашек)
+        self._prev_bg_item: Optional[QGraphicsRectItem] = None
+        self._prev_text_item: Optional[QGraphicsTextItem] = None
 
         self.setBrush(QBrush(bg))
         self.setPen(QPen(NODE_BORDER, 1.0))
@@ -200,6 +200,56 @@ class NodeItem(QGraphicsRectItem):
         )
         self.setAcceptHoverEvents(True)
 
+    # ---- preview pocket ----
+    def set_preview_text(self, text: Optional[str], error: bool = False):
+        if not text:
+            self.clear_preview()
+            return
+
+        if self._prev_text_item is None:
+            self._prev_text_item = QGraphicsTextItem(self)
+            f = self._prev_text_item.font()
+            f.setPointSize(8)
+            self._prev_text_item.setFont(f)
+            self._prev_text_item.setDefaultTextColor(PREV_TEXT)
+            self._prev_text_item.setZValue(5)
+
+        if self._prev_bg_item is None:
+            self._prev_bg_item = QGraphicsRectItem(self)
+            self._prev_bg_item.setZValue(-0.2)
+
+        # текст
+        max_w = self.rect().width() - 16
+        self._prev_text_item.setTextWidth(max_w)
+        self._prev_text_item.setPlainText(text)
+
+        # позиционирование
+        top_y = self.rect().bottom() + 6
+        self._prev_text_item.setPos(self.rect().left() + 8, top_y + 6)
+
+        # фон по размеру текста
+        br = self._prev_text_item.boundingRect()
+        rect = QRectF(self.rect().left() + 2, top_y, self.rect().width() - 4, br.height() + 12)
+        pen = QPen(QColor("#AA3333") if error else PREV_BR, 1.0)
+        self._prev_bg_item.setPen(pen)
+        self._prev_bg_item.setBrush(QBrush(QColor(48, 48, 48, 230) if error else PREV_BG))
+        self._prev_bg_item.setRect(rect)
+
+    def clear_preview(self):
+        if self._prev_text_item:
+            try:
+                self.scene().removeItem(self._prev_text_item) if self.scene() else None
+            except Exception:
+                pass
+            self._prev_text_item = None
+        if self._prev_bg_item:
+            try:
+                self.scene().removeItem(self._prev_bg_item) if self.scene() else None
+            except Exception:
+                pass
+            self._prev_bg_item = None
+
+    # ---- meta ----
     def set_description(self, desc: str):
         self.description = desc
         tooltip_parts = [self.title]
@@ -227,6 +277,19 @@ class NodeItem(QGraphicsRectItem):
 
     def set_color_changed_callback(self, cb: Optional[Callable[["NodeItem"], None]]):
         self._on_color_changed = cb
+
+    def set_double_click_callback(self, cb: Optional[Callable[["NodeItem"], None]]):
+        self._on_double_click = cb
+
+    def mouseDoubleClickEvent(self, event):
+        if self._on_double_click:
+            try:
+                self._on_double_click(self)
+                event.accept()
+                return
+            except Exception:
+                pass
+        super().mouseDoubleClickEvent(event)
 
     def contextMenuEvent(self, event):
         menu = QMenu()
@@ -265,8 +328,7 @@ class NodeItem(QGraphicsRectItem):
         return pixmap
 
     def _pick_custom_color(self):
-        current = self.custom_color if self.custom_color else self._default_bg
-        color = QColorDialog.getColor(current, None, "Выбрать цвет ноды")
+        color = QColorDialog.getColor(self.custom_color if self.custom_color else self._default_bg, None, "Выбрать цвет ноды")
         if color.isValid():
             self.set_custom_color(color)
 
@@ -285,9 +347,7 @@ class NodeItem(QGraphicsRectItem):
         if key != "exec":
             lab = QGraphicsSimpleTextItem(label, self)
             lab.setBrush(QBrush(TEXT_SECONDARY))
-            f = lab.font()
-            f.setPointSize(8)
-            lab.setFont(f)
+            f = lab.font(); f.setPointSize(8); lab.setFont(f)
             self._port_labels_internal[key] = lab
             lab.setAcceptHoverEvents(True)
             lab.setData(0, key)
@@ -334,9 +394,7 @@ class NodeItem(QGraphicsRectItem):
         painter.drawRoundedRect(self.rect(), 2, 2)
 
         painter.setPen(QPen(TEXT_FG))
-        f = QFont()
-        f.setBold(True)
-        f.setPointSize(9)
+        f = QFont(); f.setBold(True); f.setPointSize(9)
         painter.setFont(f)
         painter.drawText(
             self.rect().adjusted(self.PADDING, self.PADDING, -self.PADDING, -self.PADDING),
@@ -345,8 +403,7 @@ class NodeItem(QGraphicsRectItem):
         )
 
         if self.subtitle:
-            f2 = QFont()
-            f2.setPointSize(8)
+            f2 = QFont(); f2.setPointSize(8)
             painter.setFont(f2)
             painter.setPen(QPen(TEXT_SECONDARY))
             painter.drawText(

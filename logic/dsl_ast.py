@@ -1,4 +1,4 @@
-# logic/dsl_ast.py
+# File: logic/dsl_ast.py
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -10,6 +10,7 @@ def gen_id() -> str:
 @dataclass
 class AstNode:
     id: str = field(default_factory=gen_id)
+    line: int = 0  # номер строки в тексте .script (если парсилось из текста)
 
 @dataclass
 class Script(AstNode):

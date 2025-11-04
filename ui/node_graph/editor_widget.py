@@ -1,6 +1,7 @@
 # File: ui/node_graph/editor_widget.py
+# File: ui/node_graph/editor_widget.py
 from __future__ import annotations
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Callable
 import os
 import re
 import logging
@@ -10,18 +11,20 @@ import json
 from PySide6.QtCore import Qt, Signal, QPointF, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSplitter,
-    QLabel, QPlainTextEdit, QMenu, QMessageBox, QFileDialog
+    QLabel, QPlainTextEdit, QMenu, QMessageBox, QFileDialog, QDialog, QDialogButtonBox
 )
-from PySide6.QtGui import QShortcut, QKeySequence
+from PySide6.QtGui import QShortcut, QKeySequence, QFont
 
 from logic.dsl_ast import Script, Set, Log, AddSystemInfo, Return, If, IfBranch, AstNode
 from logic.dsl_parser import parse_script, ParseError
 from logic.dsl_codegen import generate_script
+from logic.dsl_runner import DslAstRunner, RunnerReport, NodeRunInfo
 from ui.node_graph.graph_scene import GraphScene, GraphView
 from ui.node_graph.graph_primitives import NodeItem, PortItem
 from ui.node_graph.inspector_widget import Inspector
 from ui.node_graph.controller import NodeGraphController
 from ui.node_graph.preview_highlighter import SimplePromptHighlighter
+from ui.node_graph.runner_result_dialog import RunnerResultDialog
 
 log = logging.getLogger("node_graph.editor")
 log.setLevel(logging.DEBUG)
@@ -55,6 +58,8 @@ class NodeGraphEditor(QWidget):
         self._errors: List[ParseError] = []
         self._start_item: Optional[NodeItem] = None
         self._start_pos: QPointF = QPointF(-320, 0)
+        self._vars_provider: Optional[Callable[[], Dict[str, Any]]] = None
+        self._last_runner_report: Optional[RunnerReport] = None
 
         # дебаунс автосохранения меты
         self._meta_save_timer = QTimer(self)
@@ -73,6 +78,8 @@ class NodeGraphEditor(QWidget):
 
         self.controller = NodeGraphController(self.scene)
         self.controller.set_metadata_changed_callback(self._on_metadata_changed)
+        # двойной клик по ноде -> открыть полный превью или детали
+        self.controller.set_item_double_click_callback(self._on_item_double_clicked)
 
         self.scene.node_selected.connect(self._on_node_selected)
         self.scene.connection_finished.connect(self._on_connection_finished)
@@ -84,16 +91,24 @@ class NodeGraphEditor(QWidget):
         self.preview.setPlaceholderText("Сгенерированный .script / редактируемый текст")
         SimplePromptHighlighter(self.preview.document())
 
+        # --------- Buttons row ---------
         self.btn_from_text = QPushButton("Пересобрать граф из текста")
         self.btn_to_text = QPushButton("Обновить текст из графа")
         self.btn_toggle_preview = QPushButton("Скрыть превью")
         self.btn_save_meta = QPushButton("Сохранить мету")
         self.btn_clear_meta = QPushButton("Очистить мету")
+
+        self.btn_run = QPushButton("▶ Запустить воркфлоу")
+        self.btn_run.setToolTip("Выполнить от START до RETURN. Показать превью под узлами и итог.")
+        self.btn_clear_previews = QPushButton("Очистить превью узлов")
+
         self.btn_from_text.clicked.connect(self._rebuild_from_preview_text)
         self.btn_to_text.clicked.connect(self._apply_ast_to_preview)
         self.btn_toggle_preview.clicked.connect(self._toggle_preview)
         self.btn_save_meta.clicked.connect(lambda: self._save_sidecar_meta(silent=False))
         self.btn_clear_meta.clicked.connect(self._clear_sidecar_meta)
+        self.btn_run.clicked.connect(self._run_workflow)
+        self.btn_clear_previews.clicked.connect(lambda: self.controller.clear_all_previews())
 
         top_row = QHBoxLayout()
         top_row.addWidget(self.btn_from_text)
@@ -101,6 +116,8 @@ class NodeGraphEditor(QWidget):
         top_row.addWidget(self.btn_save_meta)
         top_row.addWidget(self.btn_clear_meta)
         top_row.addStretch(1)
+        top_row.addWidget(self.btn_clear_previews)
+        top_row.addWidget(self.btn_run)
         top_row.addWidget(self.btn_toggle_preview)
 
         top_split = QSplitter(Qt.Horizontal)
@@ -132,6 +149,14 @@ class NodeGraphEditor(QWidget):
         self._ensure_start_node()
         self._refresh_preview()
 
+    # -------- PUBLIC: интеграция с DSL Dock --------
+    def set_vars_provider(self, provider: Callable[[], Dict[str, Any]]):
+        """
+        Позволяет внешнему контейнеру (например, окну с DslVariablesDock) передать
+        провайдер начальных переменных. Используется при запуске воркфлоу.
+        """
+        self._vars_provider = provider
+
     # -------- META (sidecar рядом с файлом) --------
     def _get_sidecar_meta_path(self) -> str:
         if self._file_path:
@@ -155,14 +180,6 @@ class NodeGraphEditor(QWidget):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f) or {}
-            # структура:
-            # {
-            #   "start_pos": [x,y],
-            #   "nodes": {
-            #        "KEY#1": {"pos":[x,y], "color":"#hex"},
-            #        ...
-            #   }
-            # }
             self._sidecar_meta = data
             if isinstance(data.get("start_pos"), list) and len(data["start_pos"]) == 2:
                 self._start_pos = QPointF(float(data["start_pos"][0]), float(data["start_pos"][1]))
@@ -170,7 +187,6 @@ class NodeGraphEditor(QWidget):
             log.error("Meta load error: %s", e)
 
     def _save_sidecar_meta(self, silent: bool = True):
-        # обойдём AST в детерминированном порядке, построим ключи и соберём позиции/цвета из графа
         nodes_seq = self._enumerate_nodes(self._ast)
         counters: Dict[str, int] = {}
         store_nodes: Dict[str, Dict[str, Any]] = {}
@@ -200,7 +216,7 @@ class NodeGraphEditor(QWidget):
                 QMessageBox.information(self, "Метаданные", "Сохранено.")
         except Exception as e:
             if not silent:
-                QMessageBox.critical(self, "Метаданные", f"Ошибка сохранения: {e}")
+                QMessageBox.critical(self, "Метаданные", f"Ошибка сохранения:\n{e}")
 
     def _clear_sidecar_meta(self):
         reply = QMessageBox.question(self, "Очистить мету",
@@ -209,8 +225,8 @@ class NodeGraphEditor(QWidget):
         if reply != QMessageBox.Yes:
             return
         try:
-            if os.path.exists(self._meta_sidecar_path):
-                os.remove(self._meta_sidecar_path)
+            if os.path.exists(self._meta_sidecar_meta_path):
+                os.remove(self._meta_sidecar_meta_path)
         except Exception:
             pass
         self._sidecar_meta = {}
@@ -279,7 +295,6 @@ class NodeGraphEditor(QWidget):
                 except Exception:
                     pass
 
-        # восстановим позицию START
         sp = self._sidecar_meta.get("start_pos")
         if isinstance(sp, list) and len(sp) == 2 and self._start_item and self._is_item_alive(self._start_item):
             self._start_item.setPos(float(sp[0]), float(sp[1]))
@@ -336,8 +351,6 @@ class NodeGraphEditor(QWidget):
                 msg = "\n".join(str(e) for e in errs)
                 QMessageBox.warning(self, "Парсер DSL", msg)
             self.controller.set_ast(self._ast)
-
-            # rebuild и только потом применяем мету (позиции/цвета)
             self.controller.rebuild(keep_positions=False)
             self._ensure_start_node()
             self._apply_sidecar_positions_colors()
@@ -369,7 +382,6 @@ class NodeGraphEditor(QWidget):
     def _apply_ast_to_preview(self):
         self._refresh_preview()
         self.text_updated.emit(self.preview.toPlainText())
-        # при ручном апдейте — сохраним мету
         self._save_sidecar_meta(silent=True)
 
     def _toggle_preview(self):
@@ -421,7 +433,6 @@ class NodeGraphEditor(QWidget):
             self._draw_start_edge()
             self._fit_scene_rect()
             self._refresh_preview()
-            # автосохранение меты
             self._save_sidecar_meta(silent=True)
         except Exception as e:
             QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка соединения:\n{e}\n{traceback.format_exc()}")
@@ -569,3 +580,218 @@ class NodeGraphEditor(QWidget):
             content = self._remove_tag_markers(raw)
             chunks.append(content)
         return "\n\n---\n\n".join(chunks) if chunks else ""
+
+    # -------------------- RUNNER --------------------
+    def _run_workflow(self):
+        try:
+            self._rebuild_from_preview_text()
+            self.controller.clear_all_previews()
+
+            base = os.path.dirname(self._file_path) if self._file_path else self._base_dir
+            runner = DslAstRunner(base_dir=base, prompts_root=self._prompts_root)
+
+            initial_vars = self._fetch_initial_vars()
+            report = runner.run(self._ast, initial_vars=initial_vars)
+            self._last_runner_report = report
+
+            # Кармашки превью и подсветка веток IF
+            for n in self._enumerate_nodes(self._ast):
+                info = report.node_results.get(n.id)
+                if not info:
+                    continue
+                # Для RETURN показываем сам текст (сокращённо) + подсказка про двойной клик
+                if isinstance(n, Return) and info.error is None:
+                    full = report.final_text or ""
+                    short = (full[:240] + "…") if len(full) > 240 else full
+                    suffix = "  ⟶ двойной клик для полного текста"
+                    self.controller.set_node_preview(n, f"{short}\n{suffix}", error=False)
+                else:
+                    self.controller.set_node_preview(n, info.preview or "", error=bool(info.error))
+                if isinstance(n, If):
+                    self.controller.highlight_if_choice(n, info.chosen_branch_key)
+
+            # Подсветить маршрут исполнения (утолщённые связи)
+            self.controller.clear_path_highlight()
+            self.controller.highlight_exec_sequence(report.exec_trace)
+
+            # Сформировать подробные шаги для диалога
+            steps = self._build_steps_for_dialog(report)
+
+            # Диалог результата (более информативный)
+            dlg = RunnerResultDialog(
+                "Результат выполнения",
+                final_text=report.final_text,
+                sys_infos=report.sys_infos,
+                logs=report.logs,
+                vars_before=report.vars_before,
+                vars_after=report.vars_after,
+                steps=steps,
+                parent=self
+            )
+            dlg.show()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Запуск воркфлоу", f"Ошибка выполнения:\n{e}\n{traceback.format_exc()}")
+
+    # -------- vars provider / DSL Dock integration --------
+    def _fetch_initial_vars(self) -> Dict[str, Any]:
+        # 1) внешний провайдер (предпочтительно)
+        if callable(self._vars_provider):
+            try:
+                data = self._vars_provider()
+                if isinstance(data, dict):
+                    return data
+            except Exception:
+                pass
+
+        # 2) поиск DslVariablesDock у предков
+        try:
+            ancestor = self.parent()
+            while ancestor is not None:
+                if hasattr(ancestor, "vars_dock") and hasattr(ancestor.vars_dock, "editor"):
+                    ed = ancestor.vars_dock.editor()
+                    txt = ed.toPlainText()
+                    return self._parse_vars_text(txt)
+                ancestor = ancestor.parent()
+        except Exception:
+            pass
+
+        # 3) fallback — из config.json/дефолтов (по имени персонажа = первая папка после prompts_root)
+        try:
+            char_id = None
+            if self._prompts_root and self._file_path:
+                from pathlib import Path
+                rel = Path(self._file_path).resolve()
+                root = Path(self._prompts_root).resolve()
+                rel_path = rel.relative_to(root)
+                char_id = str(rel_path.parts[0]) if rel_path.parts else None
+
+            from utils.config_utils import read_config_json, compute_defaults_for_char, get_bounds_defaults
+            result = {}
+            if char_id:
+                cfg = read_config_json(self._prompts_root, char_id) or {}
+                base = compute_defaults_for_char(char_id) or {}
+                base.update(cfg)
+                for k, v in get_bounds_defaults().items():
+                    base.setdefault(k, v)
+                result = base
+            return result if isinstance(result, dict) else {}
+        except Exception:
+            return {}
+
+    def _parse_vars_text(self, txt: str) -> Dict[str, Any]:
+        out: Dict[str, Any] = {}
+        if not txt:
+            return out
+        for line in txt.splitlines():
+            if "=" not in line:
+                continue
+            k, v = map(str.strip, line.split("=", 1))
+            if not k:
+                continue
+            low = v.lower()
+            if low in ("true", "false"):
+                out[k] = (low == "true")
+                continue
+            try:
+                out[k] = int(v)
+                continue
+            except Exception:
+                pass
+            try:
+                out[k] = float(v)
+                continue
+            except Exception:
+                pass
+            out[k] = v.strip("'\"")
+        return out
+
+    # -------- build steps for dialog --------
+    def _build_steps_for_dialog(self, report: RunnerReport) -> List[Dict[str, Any]]:
+        steps: List[Dict[str, Any]] = []
+        for nid in report.exec_trace:
+            info: Optional[NodeRunInfo] = report.node_results.get(nid)
+            if not info:
+                continue
+            item = self.controller.node2item.get(nid)
+            node = self.controller.item2node.get(item) if item else None
+            title = getattr(item, "title", "") if item else (info.node_type or "")
+            subtitle = getattr(item, "subtitle", "") if item else ""
+            # подробности: preview, error, expr, line, branch, var deltas, sysinfo part
+            step = {
+                "id": nid,
+                "title": title,
+                "subtitle": subtitle,
+                "type": info.node_type,
+                "line": info.line_num,
+                "expr": info.expr,
+                "preview": info.preview,
+                "error": info.error,
+                "branch": info.chosen_branch_key,
+                "vars_delta": info.vars_delta or {},
+                "sys_info_added": info.sys_info_added or "",
+                "is_return": isinstance(node, Return),
+            }
+            # для RETURN — полный текст
+            if step["is_return"]:
+                step["return_text"] = report.final_text or ""
+            steps.append(step)
+        return steps
+
+    # --------- double click on node => open full details --------
+    def _on_item_double_clicked(self, node: AstNode):
+        rep = self._last_runner_report
+        if not rep:
+            QMessageBox.information(self, "Превью узла", "Нет данных выполнения. Нажмите «Запустить воркфлоу».")
+            return
+        info = rep.node_results.get(node.id) if hasattr(node, "id") else None
+
+        title = "Детали узла"
+        body_lines: List[str] = []
+        if isinstance(node, Return):
+            title = "RETURN — полный результат"
+            body_lines.append(rep.final_text or "")
+        else:
+            body_lines.append(f"Тип: {type(node).__name__}")
+            if info and info.line_num:
+                body_lines.append(f"Строка: {info.line_num}")
+            if getattr(info, "expr", None):
+                body_lines.append(f"\nВыражение:\n{info.expr}")
+            if info and info.error:
+                body_lines.append(f"\nОШИБКА:\n{info.error}")
+            if info and info.preview:
+                body_lines.append(f"\nПревью:\n{info.preview}")
+            if info and info.vars_delta:
+                body_lines.append("\nИзменения переменных:")
+                for k, (old, new) in info.vars_delta.items():
+                    body_lines.append(f"  {k}: {repr(old)} -> {repr(new)}")
+            if info and info.sys_info_added:
+                body_lines.append("\nADD_SYSTEM_INFO (полный фрагмент):")
+                body_lines.append(info.sys_info_added)
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(title)
+        dlg.setMinimumSize(720, 520)
+        v = QVBoxLayout(dlg)
+        txt = QPlainTextEdit()
+        txt.setReadOnly(True)
+        txt.setFont(QFont("Consolas", 10))
+        txt.setPlainText("\n".join(body_lines))
+        v.addWidget(txt)
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Save | QDialogButtonBox.Copy)
+        def _copy():
+            from PySide6.QtWidgets import QApplication
+            QApplication.clipboard().setText(txt.toPlainText() or "")
+        def _save():
+            path, _ = QFileDialog.getSaveFileName(self, "Сохранить текст", os.getcwd(), "Текст (*.txt)")
+            if path:
+                try:
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(txt.toPlainText())
+                except Exception as e:
+                    QMessageBox.critical(self, "Сохранение", f"Ошибка: {e}")
+        btns.button(QDialogButtonBox.Copy).clicked.connect(_copy)
+        btns.button(QDialogButtonBox.Save).clicked.connect(_save)
+        btns.accepted.connect(dlg.accept)
+        v.addWidget(btns)
+        dlg.exec()

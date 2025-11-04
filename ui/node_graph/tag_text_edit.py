@@ -1,40 +1,42 @@
+# File: ui/node_graph/tag_text_edit.py
 from __future__ import annotations
 import re
 from typing import List
 
 from PySide6.QtCore import QRectF, Qt, QPointF
-from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QTextCursor, QFontMetrics, QFont
+from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QTextCursor, QFontMetrics, QFont, QPainter
 from PySide6.QtWidgets import QTextEdit
 
 
 class TagTextEdit(QTextEdit):
     """
-    QTextEdit с визуальными чипами для вставок [[...]] и подсветкой переменных {var}.
-    Строгий стиль ComfyUI.
+    QTextEdit с визуальными чипами:
+    - [[...]] — серые плашки (LOAD и пр.);
+    - {var} — аккуратные чипы переменных (рамка + лёгкая подложка), текст читаемый.
+      Включается set_show_var_chips(True).
     """
     CHIP_RE = re.compile(r"\[\[([^\]]+)\]\]")
-    VAR_RE  = re.compile(r"\{[A-Za-z_][A-Za-z0-9_]*\}")
+    VAR_RE  = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
-    # Палитра
+    # плашки [[...]]
     CHIP_BG   = QColor("#444444")
     CHIP_FG   = QColor("#FFFFFF")
     CHIP_BR   = QColor("#666666")
 
-    VAR_CHIP_BG = QColor("#2E7D32")    # зеленая плашка для переменных
-    VAR_CHIP_BR = QColor("#1B5E20")
-    VAR_CHIP_FG = QColor("#FFFFFF")
+    # чипы переменных
+    VAR_CHIP_BG = QColor(46, 125, 50, 60)   # #2E7D32, но полупрозрачный
+    VAR_CHIP_BR = QColor("#00C853")         # яркая зелёная рамка
+    VAR_CHIP_FG = QColor("#E6F4EA")         # светлая надпись если понадобилось бы рисовать поверх
 
-    VAR_FG    = QColor("#FFA500")      # запасной (подчёркивание)
-
-    CHIP_PADX = 5
+    CHIP_PADX = 6
     CHIP_PADY = 2
-    CHIP_RADIUS = 3
+    CHIP_RADIUS = 5
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
-        self._show_var_chips = False  # переменные как чипы
+        self._show_var_chips = False
         self.setStyleSheet("""
             QTextEdit {
                 background: #1A1A1A;
@@ -50,6 +52,7 @@ class TagTextEdit(QTextEdit):
         self.viewport().update()
 
     def paintEvent(self, e):
+        # 1) сперва об��чный текст
         super().paintEvent(e)
 
         painter = QPainter(self.viewport())
@@ -59,7 +62,7 @@ class TagTextEdit(QTextEdit):
         if not text:
             return
 
-        # Чипы [[...]]
+        # 2) [[...]] — серые плашки поверх (как раньше)
         for m in self.CHIP_RE.finditer(text):
             start = m.start()
             length = m.end() - m.start()
@@ -72,7 +75,6 @@ class TagTextEdit(QTextEdit):
                     r.width() + 2 * self.CHIP_PADX,
                     r.height() - 2
                 )
-
                 painter.setPen(QPen(self.CHIP_BR, 1.0))
                 painter.setBrush(QBrush(self.CHIP_BG))
                 painter.drawRoundedRect(bg, self.CHIP_RADIUS, self.CHIP_RADIUS)
@@ -84,29 +86,31 @@ class TagTextEdit(QTextEdit):
                 text_to_draw = label if len(label) <= 40 else (label[:37] + "...")
                 painter.drawText(bg.adjusted(4, 0, -4, 0), Qt.AlignVCenter | Qt.AlignLeft, text_to_draw)
 
-        # Переменные {var}
+        # 3) {var} — аккуратные чипы: полупрозрачная подложка рисуется ПОД текстом,
+        #    затем тонкая рамка — поверх. Так текст не закрывается и читаем.
         if self._show_var_chips:
             for m in self.VAR_RE.finditer(text):
                 start = m.start()
                 length = m.end() - m.start()
                 for r in self._range_line_rects(start, length):
+                    # подложку рисуем позади текста
+                    painter.save()
+                    painter.setCompositionMode(QPainter.CompositionMode_DestinationOver)
                     bg = QRectF(
                         r.left() - self.CHIP_PADX + 1,
                         r.top() + 2,
                         r.width() + 2 * self.CHIP_PADX - 2,
                         r.height() - 4
                     )
-                    painter.setPen(QPen(self.VAR_CHIP_BR, 1.0))
+                    painter.setPen(Qt.NoPen)
                     painter.setBrush(QBrush(self.VAR_CHIP_BG))
                     painter.drawRoundedRect(bg, self.CHIP_RADIUS, self.CHIP_RADIUS)
-                    # Текст уже нарисован текстовым движком; он виден поверх фона
-        else:
-            painter.setPen(QPen(self.VAR_FG, 1.0))
-            for m in self.VAR_RE.finditer(text):
-                start = m.start()
-                length = m.end() - m.start()
-                for r in self._range_line_rects(start, length):
-                    painter.drawLine(r.bottomLeft() + QPointF(0, -1), r.bottomRight() + QPointF(0, -1))
+                    painter.restore()
+
+                    # рамка поверх
+                    painter.setPen(QPen(self.VAR_CHIP_BR, 1.2))
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawRoundedRect(bg, self.CHIP_RADIUS, self.CHIP_RADIUS)
 
     # ---------- helpers ----------
     def _range_line_rects(self, start: int, length: int) -> List[QRectF]:
@@ -126,7 +130,6 @@ class TagTextEdit(QTextEdit):
 
         start = clamp(start)
         end_exclusive = clamp(start + length)
-
         if end_exclusive <= start:
             return rects
 
@@ -139,7 +142,7 @@ class TagTextEdit(QTextEdit):
                 break
 
             block_pos = block.position()
-            block_len = block.length()
+            block_len = block.length()  # включает терминатор строки
 
             blk_start = max(start, block_pos)
             blk_end_excl = min(end_exclusive, block_pos + block_len)

@@ -1,7 +1,7 @@
 # File: ui/node_graph/editor_widget.py
 # File: ui/node_graph/editor_widget.py
 from __future__ import annotations
-from typing import Optional, List, Dict, Any, Tuple, Callable
+from typing import Optional, List, Dict, Any, Tuple, Callable, Set
 import os
 import re
 import logging
@@ -225,8 +225,8 @@ class NodeGraphEditor(QWidget):
         if reply != QMessageBox.Yes:
             return
         try:
-            if os.path.exists(self._meta_sidecar_meta_path):
-                os.remove(self._meta_sidecar_meta_path)
+            if os.path.exists(self._meta_sidecar_path):
+                os.remove(self._meta_sidecar_path)
         except Exception:
             pass
         self._sidecar_meta = {}
@@ -594,30 +594,45 @@ class NodeGraphEditor(QWidget):
             report = runner.run(self._ast, initial_vars=initial_vars)
             self._last_runner_report = report
 
-            # Кармашки превью и подсветка веток IF
+            # Подготовим снимки переменных перед каждым узлом из exec_trace
+            snapshots_before: Dict[str, Dict[str, Any]] = self._build_snapshots_before(report)
+
+            # Сначала очистим подсветки пути
+            self.controller.clear_path_highlight()
+
+            # Проставим кармашки превью
             for n in self._enumerate_nodes(self._ast):
                 info = report.node_results.get(n.id)
                 if not info:
                     continue
-                # Для RETURN показываем сам текст (сокращённо) + подсказка про двойной клик
-                if isinstance(n, Return) and info.error is None:
+
+                # IF: показываем значения переменных, участвующих в условиях
+                if isinstance(n, If):
+                    snap = snapshots_before.get(n.id, report.vars_before)
+                    text = self._build_if_vars_preview(n, snap, info)
+                    self.controller.set_node_preview(n, text, error=bool(info.error))
+                # RETURN — показываем текст (сокращённо) + подсказка про двойной клик
+                elif isinstance(n, Return) and info.error is None:
                     full = report.final_text or ""
                     short = (full[:240] + "…") if len(full) > 240 else full
                     suffix = "  ⟶ двойной клик для полного текста"
                     self.controller.set_node_preview(n, f"{short}\n{suffix}", error=False)
                 else:
                     self.controller.set_node_preview(n, info.preview or "", error=bool(info.error))
-                if isinstance(n, If):
-                    self.controller.highlight_if_choice(n, info.chosen_branch_key)
 
-            # Подсветить маршрут исполнения (утолщённые связи)
-            self.controller.clear_path_highlight()
+            # Подсветить маршрут исполнения (зелёным) — exec-цепочки
             self.controller.highlight_exec_sequence(report.exec_trace)
 
-            # Сформировать подробные шаги для диалога
+            # Подсветить выбранные ветки IF (зелёным)
+            for n in self._enumerate_nodes(self._ast):
+                if isinstance(n, If):
+                    info = report.node_results.get(n.id)
+                    if info and info.chosen_branch_key:
+                        self.controller.highlight_if_choice(n, info.chosen_branch_key)
+
+            # Диалог: шаги
             steps = self._build_steps_for_dialog(report)
 
-            # Диалог результата (более информативный)
             dlg = RunnerResultDialog(
                 "Результат выполнения",
                 final_text=report.final_text,
@@ -717,7 +732,6 @@ class NodeGraphEditor(QWidget):
             node = self.controller.item2node.get(item) if item else None
             title = getattr(item, "title", "") if item else (info.node_type or "")
             subtitle = getattr(item, "subtitle", "") if item else ""
-            # подробности: preview, error, expr, line, branch, var deltas, sysinfo part
             step = {
                 "id": nid,
                 "title": title,
@@ -732,7 +746,6 @@ class NodeGraphEditor(QWidget):
                 "sys_info_added": info.sys_info_added or "",
                 "is_return": isinstance(node, Return),
             }
-            # для RETURN — полный текст
             if step["is_return"]:
                 step["return_text"] = report.final_text or ""
             steps.append(step)
@@ -795,3 +808,90 @@ class NodeGraphEditor(QWidget):
         btns.accepted.connect(dlg.accept)
         v.addWidget(btns)
         dlg.exec()
+
+    # --------- IF variables preview helpers ----------
+    def _build_snapshots_before(self, report: RunnerReport) -> Dict[str, Dict[str, Any]]:
+        """
+        Снимок значений переменных ПЕРЕД выполнением каждой ноды из exec_trace.
+        """
+        snapshots: Dict[str, Dict[str, Any]] = {}
+        snap: Dict[str, Any] = dict(report.vars_before or {})
+        for nid in report.exec_trace:
+            # сохранить снимок перед выполнением текущей ноды
+            snapshots[nid] = dict(snap)
+            info = report.node_results.get(nid)
+            if not info:
+                continue
+            # применить дельты после выполнения (для следующей ноды)
+            for k, pair in (info.vars_delta or {}).items():
+                try:
+                    _old, new = pair
+                except Exception:
+                    new = pair
+                snap[k] = new
+        return snapshots
+
+    def _collect_if_condition_vars(self, if_node: If) -> List[str]:
+        """
+        Собрать список переменных, которые встречаются в условиях IF/ELSEIF.
+        Игнорируем числа, ключевые слова и встроенные функции.
+        """
+        tokens: List[str] = []
+        used: Set[str] = set()
+        IDENT = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\b")
+        SKIP = {"AND", "OR", "NOT", "TRUE", "FALSE", "NONE"}
+        BUILTINS = {"STR", "INT", "FLOAT", "LEN", "ROUND", "ABS", "MAX", "MIN"}
+        conds = [br.cond or "" for br in (if_node.branches or [])]
+        for c in conds:
+            for m in IDENT.finditer(c):
+                name = m.group(1)
+                up = name.upper()
+                # отфильтруем вызовы функций и ключевые слова
+                # если сразу после идентификатора идёт "(" — это функция
+                idx = m.end()
+                is_func = (idx < len(c) and c[idx] == "(")
+                if up in SKIP or up in BUILTINS or is_func:
+                    continue
+                if name not in used:
+                    used.add(name)
+                    tokens.append(name)
+        return tokens
+
+    def _fmt_value(self, v: Any) -> str:
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        if isinstance(v, str):
+            return f"\"{v}\""
+        return "None" if v is None else repr(v)
+
+    def _chosen_branch_label(self, if_node: If, chosen_key: Optional[str]) -> Optional[str]:
+        if not chosen_key:
+            return None
+        it = self.controller.node2item.get(if_node.id)
+        if not it:
+            return None
+        if chosen_key == "else":
+            return "Иначе"
+        lab = getattr(it, "_port_labels_internal", {}).get(chosen_key)
+        if lab:
+            try:
+                txt = lab.text()
+                return txt if len(txt) <= 96 else (txt[:93] + "…")
+            except Exception:
+                pass
+        return chosen_key
+
+    def _build_if_vars_preview(self, if_node: If, snapshot: Dict[str, Any], info: NodeRunInfo) -> str:
+        names = self._collect_if_condition_vars(if_node)
+        lines: List[str] = []
+        if names:
+            for n in names:
+                val = snapshot.get(n, None)
+                lines.append(f"{n}: {self._fmt_value(val)}")
+        else:
+            lines.append("(условия не используют переменные)")
+        # добавим в конце какую ветку выбрали — компактно
+        label = self._chosen_branch_label(if_node, getattr(info, "chosen_branch_key", None))
+        if label:
+            lines.append(f"→ ветка: {label}")
+        return "\n".join(lines)

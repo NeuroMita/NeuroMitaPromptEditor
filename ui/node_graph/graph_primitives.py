@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QColorDialog,
 )
 
-# Цвета (строго)
+# Базовые цвета
 NODE_BG = QColor("#202020")
 NODE_BORDER = QColor("#999999")
 NODE_SELECTED = QColor("#FFA500")
@@ -24,10 +24,16 @@ TEXT_SECONDARY = QColor("#999999")
 EXEC_EDGE = QColor("#FFFFFF")
 BRANCH_EDGE = QColor("#FFA500")
 
+# Подсветка (hover/selection IF-веток)
 PORT_EXEC_COLOR = QColor("#F0F0F0")
 PORT_HOVER = QColor("#FFA500")
 
-# Превью-панель
+# Цвета для подчёркивания фактического пути исполнения
+PATH_EDGE = QColor("#00C853")        # зелёный для рёбер
+PATH_NODE_BORDER = QColor("#00C853") # зелёная рамка у нод
+PATH_PORT = QColor("#00C853")        # зелёный для портов
+
+# Превью-панель (кармашек)
 PREV_BG = QColor(32, 32, 32, 220)
 PREV_BR = QColor("#3a3a3a")
 PREV_TEXT = QColor("#E0E0E0")
@@ -42,7 +48,8 @@ class PortItem(QGraphicsEllipseItem):
         self.key = key
         self.is_input = is_input
         self.edges: List["EdgeItem"] = []
-        self.is_highlighted = False
+        self.is_highlighted = False    # подсветка (оранжевая) для выбора ветки IF / hover UI
+        self.path_highlighted = False  # зелёная подсветка фактического маршрута
         self.setBrush(QBrush(PORT_EXEC_COLOR))
         self.setPen(QPen(Qt.NoPen))
         self.setZValue(10)
@@ -60,22 +67,33 @@ class PortItem(QGraphicsEllipseItem):
     def center_in_scene(self) -> QPointF:
         return self.mapToScene(self.rect().center())
 
-    def set_highlighted(self, on: bool):
-        self.is_highlighted = on
-        if on:
+    def _apply_visual(self):
+        # Приоритет: путь (зелёный) > обычная подсветка (оранжевая) > дефолт
+        if self.path_highlighted:
+            self.setBrush(QBrush(PATH_PORT))
+            self.setPen(QPen(PATH_PORT, 1.6))
+        elif self.is_highlighted:
             self.setBrush(QBrush(PORT_HOVER))
             self.setPen(QPen(PORT_HOVER, 1.5))
         else:
             self.setBrush(QBrush(PORT_EXEC_COLOR))
             self.setPen(QPen(Qt.NoPen))
 
+    def set_highlighted(self, on: bool):
+        self.is_highlighted = on
+        self._apply_visual()
+
+    def set_path_highlight(self, on: bool):
+        self.path_highlighted = on
+        self._apply_visual()
+
     def hoverEnterEvent(self, event):
-        if not self.is_highlighted:
+        if not (self.is_highlighted or self.path_highlighted):
             self.setBrush(QBrush(PORT_HOVER))
         return super().hoverEnterEvent(event)
 
     def hoverLeaveEvent(self, event):
-        if not self.is_highlighted:
+        if not (self.is_highlighted or self.path_highlighted):
             self.setBrush(QBrush(PORT_EXEC_COLOR))
         return super().hoverLeaveEvent(event)
 
@@ -93,7 +111,7 @@ class EdgeItem(QGraphicsPathItem):
         self.target: Optional[PortItem] = target
         self.temp_end: Optional[QPointF] = None
         self.is_branch = is_branch
-        self.is_highlighted = False
+        self.is_highlighted = False  # для фактического пути исполнения (зелёный)
         self._update_pen()
         self.setZValue(-1)
         if self.source:
@@ -103,13 +121,28 @@ class EdgeItem(QGraphicsPathItem):
         self.update_path()
 
     def _update_pen(self):
-        color = BRANCH_EDGE if self.is_branch else EXEC_EDGE
-        width = 3.0 if self.is_highlighted else 2.0
-        self.setPen(QPen(color, width))
+        # если выделен путь — рисуем зелёным и толще
+        if self.is_highlighted:
+            self.setPen(QPen(PATH_EDGE, 4.0))
+        else:
+            color = BRANCH_EDGE if self.is_branch else EXEC_EDGE
+            self.setPen(QPen(color, 2.0))
 
     def set_highlighted(self, on: bool):
         self.is_highlighted = on
         self._update_pen()
+        # Подсветим также концы (порты) и рамку нод, к которым примыкает путь
+        try:
+            if self.source:
+                self.source.set_path_highlight(on)
+                if isinstance(self.source.owner, NodeItem):
+                    self.source.owner.set_exec_path_emphasis(on)
+            if self.target:
+                self.target.set_path_highlight(on)
+                if isinstance(self.target.owner, NodeItem):
+                    self.target.owner.set_exec_path_emphasis(on)
+        except Exception:
+            pass
 
     def set_target(self, t: Optional[PortItem]):
         if self.target is t:
@@ -167,6 +200,41 @@ class EdgeItem(QGraphicsPathItem):
         self.setPath(path)
 
 
+# --- помогающие элементы для двойного клика на превью ---
+class _PreviewRectItem(QGraphicsRectItem):
+    def __init__(self, owner_node: "NodeItem"):
+        super().__init__(owner_node)
+        self._owner_node = owner_node
+
+    def mouseDoubleClickEvent(self, event):
+        cb = getattr(self._owner_node, "_on_double_click", None)
+        if callable(cb):
+            try:
+                cb(self._owner_node)
+                event.accept()
+                return
+            except Exception:
+                pass
+        super().mouseDoubleClickEvent(event)
+
+
+class _PreviewTextItem(QGraphicsTextItem):
+    def __init__(self, owner_node: "NodeItem"):
+        super().__init__(owner_node)
+        self._owner_node = owner_node
+
+    def mouseDoubleClickEvent(self, event):
+        cb = getattr(self._owner_node, "_on_double_click", None)
+        if callable(cb):
+            try:
+                cb(self._owner_node)
+                event.accept()
+                return
+            except Exception:
+                pass
+        super().mouseDoubleClickEvent(event)
+
+
 class NodeItem(QGraphicsRectItem):
     WIDTH = 280
     HEIGHT = 96
@@ -187,9 +255,12 @@ class NodeItem(QGraphicsRectItem):
         self._on_color_changed: Optional[Callable[["NodeItem"], None]] = None
         self._on_double_click: Optional[Callable[["NodeItem"], None]] = None
 
-        # превью (кармашек)
-        self._prev_bg_item: Optional[QGraphicsRectItem] = None
-        self._prev_text_item: Optional[QGraphicsTextItem] = None
+        # Превью (кармашек)
+        self._prev_bg_item: Optional[_PreviewRectItem] = None
+        self._prev_text_item: Optional[_PreviewTextItem] = None
+
+        # Подчёркивание ноды как части пути
+        self._exec_path_emph: bool = False
 
         self.setBrush(QBrush(bg))
         self.setPen(QPen(NODE_BORDER, 1.0))
@@ -201,13 +272,47 @@ class NodeItem(QGraphicsRectItem):
         self.setAcceptHoverEvents(True)
 
     # ---- preview pocket ----
+    def _truncate(self, s: str, limit: int = 120) -> str:
+        if s is None:
+            return ""
+        return s if len(s) <= limit else s[:limit] + "…"
+
+    def _enrich_if_preview(self, text: str) -> str:
+        """
+        Заменяет 'IF -> branch_0' на 'IF → <условие> (branch_0)' и 'IF -> else' на 'IF → Иначе'
+        используя подписи веток у портов.
+        """
+        if not text or "IF" not in text:
+            return text
+        t = text.strip()
+        lower = t.lower()
+        if "if -> branch_" in lower:
+            # вытащим ключ branch_X
+            import re
+            m = re.search(r"if\s*->\s*(branch_\d+)", lower)
+            if m:
+                key = m.group(1)
+                lab = self._port_labels_internal.get(key)
+                cond = lab.text() if isinstance(lab, QGraphicsSimpleTextItem) else ""
+                cond = self._truncate(cond, 96)
+                if cond:
+                    return f"IF → {cond} ({key})"
+                else:
+                    return f"IF → ({key})"
+        if "if -> else" in lower:
+            return "IF → Иначе"
+        return text
+
     def set_preview_text(self, text: Optional[str], error: bool = False):
         if not text:
             self.clear_preview()
             return
 
+        # Расширим превью IF для понятности
+        text = self._enrich_if_preview(text)
+
         if self._prev_text_item is None:
-            self._prev_text_item = QGraphicsTextItem(self)
+            self._prev_text_item = _PreviewTextItem(self)
             f = self._prev_text_item.font()
             f.setPointSize(8)
             self._prev_text_item.setFont(f)
@@ -215,7 +320,7 @@ class NodeItem(QGraphicsRectItem):
             self._prev_text_item.setZValue(5)
 
         if self._prev_bg_item is None:
-            self._prev_bg_item = QGraphicsRectItem(self)
+            self._prev_bg_item = _PreviewRectItem(self)
             self._prev_bg_item.setZValue(-0.2)
 
         # текст
@@ -248,6 +353,11 @@ class NodeItem(QGraphicsRectItem):
             except Exception:
                 pass
             self._prev_bg_item = None
+
+    # ---- exec path emphasis ----
+    def set_exec_path_emphasis(self, on: bool):
+        self._exec_path_emph = on
+        self.update()
 
     # ---- meta ----
     def set_description(self, desc: str):
@@ -388,7 +498,11 @@ class NodeItem(QGraphicsRectItem):
 
     # ---------- painting ----------
     def paint(self, painter, option, widget=None):
-        pen = QPen(NODE_SELECTED if self.isSelected() else NODE_BORDER, 1.5 if self.isSelected() else 1.0)
+        # Рамка: подсветка выбранного -> зелёная рамка пути -> обычная
+        if self._exec_path_emph:
+            pen = QPen(PATH_NODE_BORDER, 2.6)
+        else:
+            pen = QPen(NODE_SELECTED if self.isSelected() else NODE_BORDER, 1.5 if self.isSelected() else 1.0)
         painter.setPen(pen)
         painter.setBrush(self.brush())
         painter.drawRoundedRect(self.rect(), 2, 2)

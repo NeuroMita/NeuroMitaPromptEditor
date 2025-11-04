@@ -1,4 +1,4 @@
-
+# File: ui/node_graph/controller.py
 from __future__ import annotations
 from typing import Dict, List, Optional, Set as PySet, Callable
 import logging
@@ -304,21 +304,61 @@ class NodeGraphController:
                 for e in list(p.edges):
                     e.set_highlighted(False)
 
+    def _highlight_edge_any_out_to_exec_in(self, src_item: Optional[NodeItem], dst_item: Optional[NodeItem]) -> bool:
+        """
+        Найти ребро от любого выходного порта src к исп. входу dst и подсветить его.
+        Возвращает True, если подсветили.
+        """
+        if not src_item or not dst_item:
+            return False
+        dst_in = dst_item.in_port("exec")
+        if not dst_in:
+            return False
+        for src_port in src_item.out_ports():
+            for e in list(src_port.edges):
+                if e.target is dst_in:
+                    e.set_highlighted(True)
+                    return True
+        return False
+
     def highlight_exec_sequence(self, node_ids: List[str]):
-        # утолщим рёбра между последовательно выполненными нодами
+        """
+        Подсветить зелёным фактический маршрут выполнения:
+        - между последовательными узлами из exec_trace (любые исходящие порты -> exec-вход)
+        - дополнительно: для IF — связь exec -> следующий узел после IF, если он реально был выполнен.
+        """
+        if not node_ids:
+            return
+
+        id_to_item = self.node2item
+        # Подсветка между последовательными шагами
         for i in range(len(node_ids) - 1):
             a_id, b_id = node_ids[i], node_ids[i + 1]
-            ia, ib = self.node2item.get(a_id), self.node2item.get(b_id)
-            if not ia or not ib:
+            ia, ib = id_to_item.get(a_id), id_to_item.get(b_id)
+            self._highlight_edge_any_out_to_exec_in(ia, ib)
+
+        # Карта позиций для проверки "после IF реально выполнялся"
+        pos_map = {nid: idx for idx, nid in enumerate(node_ids)}
+
+        # Дополнительная подсветка: IF.exec -> «узел после IF», если он действительно попал в маршрут
+        for if_id in node_ids:
+            it_if = id_to_item.get(if_id)
+            if not it_if:
                 continue
-            a_out = ia.out_port("exec")
-            b_in = ib.in_port("exec")
-            if not a_out or not b_in:
+            ast = self.item2node.get(it_if)
+            if not isinstance(ast, If):
                 continue
-            # найдём ребро, соединяющее эти порты
-            for e in list(a_out.edges):
-                if e.target is b_in:
-                    e.set_highlighted(True)
+            parent = self.parent_map.get(ast.id, self.script.body)
+            try:
+                idx = parent.index(ast)
+            except ValueError:
+                continue
+            if idx + 1 >= len(parent):
+                continue
+            after_node = parent[idx + 1]
+            if after_node.id in pos_map and pos_map[after_node.id] > pos_map.get(ast.id, -1):
+                it_after = id_to_item.get(after_node.id)
+                self._highlight_edge_any_out_to_exec_in(it_if, it_after)
 
     # ---- защита от циклов / манипуляции ----
     def _is_ancestor(self, potential_ancestor: AstNode, node: AstNode) -> bool:

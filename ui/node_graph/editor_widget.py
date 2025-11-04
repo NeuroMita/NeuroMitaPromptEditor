@@ -7,6 +7,7 @@ import re
 import logging
 import traceback
 import json
+from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal, QPointF, QTimer
 from PySide6.QtWidgets import (
@@ -25,6 +26,14 @@ from ui.node_graph.inspector_widget import Inspector
 from ui.node_graph.controller import NodeGraphController
 from ui.node_graph.preview_highlighter import SimplePromptHighlighter
 from ui.node_graph.runner_result_dialog import RunnerResultDialog
+
+# Резолвер путей
+try:
+    from logic.path_resolver import LocalPathResolver, PathResolverError
+except Exception:
+    LocalPathResolver = None  # type: ignore
+    class PathResolverError(Exception):  # fallback
+        pass
 
 log = logging.getLogger("node_graph.editor")
 log.setLevel(logging.DEBUG)
@@ -151,10 +160,6 @@ class NodeGraphEditor(QWidget):
 
     # -------- PUBLIC: интеграция с DSL Dock --------
     def set_vars_provider(self, provider: Callable[[], Dict[str, Any]]):
-        """
-        Позволяет внешнему контейнеру (например, окну с DslVariablesDock) передать
-        провайдер начальных переменных. Используется при запуске воркфлоу.
-        """
         self._vars_provider = provider
 
     # -------- META (sidecar рядом с файлом) --------
@@ -587,12 +592,34 @@ class NodeGraphEditor(QWidget):
             self._rebuild_from_preview_text()
             self.controller.clear_all_previews()
 
-            base = os.path.dirname(self._file_path) if self._file_path else self._base_dir
-            runner = DslAstRunner(base_dir=base, prompts_root=self._prompts_root)
+            # Инициализируем резолвер путей (из Prompts root и базы персонажа)
+            resolver = self._build_path_resolver_for_current_file()
 
-            initial_vars = self._fetch_initial_vars()
-            report = runner.run(self._ast, initial_vars=initial_vars)
-            self._last_runner_report = report
+            # Для относительных путей вида "./" — контекстом считаем папку текущего .script
+            pushed = False
+            if resolver and self._file_path:
+                try:
+                    resolver.push_base_context(os.path.dirname(os.path.abspath(self._file_path)))
+                    pushed = True
+                except Exception:
+                    pushed = False
+
+            try:
+                runner = DslAstRunner(
+                    base_dir=os.path.dirname(self._file_path) if self._file_path else self._base_dir,
+                    prompts_root=self._prompts_root,
+                    resolver=resolver
+                )
+
+                initial_vars = self._fetch_initial_vars()
+                report = runner.run(self._ast, initial_vars=initial_vars)
+                self._last_runner_report = report
+            finally:
+                if resolver and pushed:
+                    try:
+                        resolver.pop_base_context()
+                    except Exception:
+                        pass
 
             # Подготовим снимки переменных перед каждым узлом из exec_trace
             snapshots_before: Dict[str, Dict[str, Any]] = self._build_snapshots_before(report)
@@ -880,6 +907,32 @@ class NodeGraphEditor(QWidget):
             except Exception:
                 pass
         return chosen_key
+    
+    def _build_path_resolver_for_current_file(self):
+        """
+        Строит LocalPathResolver на основе prompts_root и базовой папки персонажа.
+        Персонаж — это первый сегмент пути файла внутри prompts_root.
+        """
+        if LocalPathResolver is None:
+            return None
+        try:
+            prompts_root_abs = os.path.abspath(self._prompts_root) if self._prompts_root else None
+            file_abs = os.path.abspath(self._file_path) if self._file_path else None
+            if not prompts_root_abs or not file_abs or not file_abs.startswith(prompts_root_abs):
+                # не удаётся определить — используем prompts_root как базу
+                base = prompts_root_abs or (self._base_dir and os.path.abspath(self._base_dir)) or os.getcwd()
+                return LocalPathResolver(base, base)
+
+            rel_parts = Path(file_abs).resolve().relative_to(Path(prompts_root_abs).resolve()).parts
+            char_id = rel_parts[0] if rel_parts else ""
+            char_base = os.path.join(prompts_root_abs, char_id) if char_id else prompts_root_abs
+            try:
+                return LocalPathResolver(prompts_root_abs, os.path.abspath(char_base))
+            except PathResolverError:
+                # fallback: оба — prompts_root
+                return LocalPathResolver(prompts_root_abs, prompts_root_abs)
+        except Exception:
+            return None
 
     def _build_if_vars_preview(self, if_node: If, snapshot: Dict[str, Any], info: NodeRunInfo) -> str:
         names = self._collect_if_condition_vars(if_node)

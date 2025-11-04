@@ -8,6 +8,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If
 
+# Используем штатный резолвер путей
+try:
+    from logic.path_resolver import AbstractPathResolver, PathResolverError
+except Exception:
+    AbstractPathResolver = None  # type: ignore
+    class PathResolverError(Exception):  # fallback, если модуль не найден
+        pass
+
 _INLINE_LOAD_RE = re.compile(
     r"""\bLOAD
          (?:\s+([A-Z0-9_]+))?
@@ -16,9 +24,13 @@ _INLINE_LOAD_RE = re.compile(
     """,
     re.IGNORECASE | re.VERBOSE,
 )
+# LOAD_REL "path" | LOADREL "path"
 _LOAD_REL_RE = re.compile(r"""\bLOAD(?:_REL|REL)\s+(['"])(.+?)\1""", re.IGNORECASE)
+# Простой вариант: LOAD "path" (без FROM и без тега)
+_LOAD_SIMPLE_RE = re.compile(r"""\bLOAD\s+(['"])(.+?)\1""", re.IGNORECASE)
+
 _SECTION_MARKER_RE = re.compile(
-    r"^[ \t]*\[(?:#|/)\s*[A-Z0-9_]+\s*\][ \t]*\r?\n?",
+    r"^[ \t]*\[(?:#|/)\s*[A-Z0-9_]+\s*\]\s*\r?\n?",
     re.IGNORECASE | re.MULTILINE
 )
 _TAG_SECTION_RE_TMPL = r"\[#\s*{tag}\s*\](.*?)\s*\[/\s*{tag}\s*\]"
@@ -55,13 +67,17 @@ class DslAstRunner:
     Мини-раннер для AST (.script) из node-редактора.
     - Обрабатывает: SET/LOG/ADD_SYSTEM_INFO/IF/RETURN.
     - eval выражений с безопасным builtins.
-    - inline LOAD/LOAD_REL, LOAD TAG FROM "path" -> подстановка как строкового литерала перед eval.
+    - inline LOAD/LOAD_REL, LOAD TAG FROM "path" и простой LOAD "path".
     - Переменные: globals (variables) и locals (declared_local_vars + _locals).
-    - Собирает NodeRunInfo по каждой ноде + exec_trace для подсветки пути.
+    - Путь к файлам: через AbstractPathResolver (если передан), с учётом контекста.
     """
-    def __init__(self, base_dir: Optional[str] = None, prompts_root: Optional[str] = None):
+    def __init__(self,
+                 base_dir: Optional[str] = None,
+                 prompts_root: Optional[str] = None,
+                 resolver: Optional["AbstractPathResolver"] = None):
         self.base_dir = base_dir
         self.prompts_root = prompts_root
+        self.resolver: Optional["AbstractPathResolver"] = resolver
 
         # состояние
         self.variables: Dict[str, Any] = {}
@@ -205,7 +221,6 @@ class DslAstRunner:
                             info.error = f"Ошибка в условии '{cond}': " + self._humanize_exception(e, cond)
                             info.preview = info.error
                             self.node_results[n.id] = info
-                            # продолжаем поиск других веток? Лучше остановить, чтобы не путать
                             return None
                     if not taken:
                         if n.else_body is not None:
@@ -286,21 +301,31 @@ class DslAstRunner:
                 return eval(expr_to_eval, self.safe_globals, fixed)
 
     def _expand_inline_loads(self, expr: str) -> str:
-        def handle_load(m: re.Match) -> str:
+        # 1) LOAD TAG FROM "path"
+        def handle_load_tag(m: re.Match) -> str:
             tag = m.group(1)
             rel = m.group(3)
             content = self._load_and_process(rel, tag)
             return repr(content)
 
-        expr2 = _INLINE_LOAD_RE.sub(handle_load, expr)
+        out = _INLINE_LOAD_RE.sub(handle_load_tag, expr)
 
+        # 2) LOAD_REL "path" / LOADREL "path"
         def handle_rel(m: re.Match) -> str:
             rel = m.group(2)
             content = self._load_and_process(rel, None)
             return repr(content)
 
-        expr2 = _LOAD_REL_RE.sub(handle_rel, expr2)
-        return expr2
+        out = _LOAD_REL_RE.sub(handle_rel, out)
+
+        # 3) Простой LOAD "path"
+        def handle_simple(m: re.Match) -> str:
+            rel = m.group(2)
+            content = self._load_and_process(rel, None)
+            return repr(content)
+
+        out = _LOAD_SIMPLE_RE.sub(handle_simple, out)
+        return out
 
     # -------------------- sysinfo/return loaders --------------------
     def _evaluate_sysinfo_expr(self, raw_arg: str) -> str:
@@ -326,7 +351,38 @@ class DslAstRunner:
         return self._evaluate_sysinfo_expr(raw_arg)
 
     # -------------------- file helpers --------------------
-    def _resolve_path(self, rel_path: str) -> Optional[str]:
+    def _load_and_process(self, rel: str, tag: Optional[str]) -> str:
+        """
+        Загружает текст по относительному пути rel, используя PathResolver (если задан).
+        Если резолвер не передан — пытается через базовые пути (совместимость).
+        """
+        # Через PathResolver (рекомендуемый путь)
+        if self.resolver is not None:
+            try:
+                resolved_id = self.resolver.resolve_path(rel)
+                raw = self.resolver.load_text(resolved_id, f"runner LOAD {rel}")
+                return self._extract_tag_section(raw, tag)
+            except PathResolverError as someerror:
+                print(someerror)
+                return f"[файл не найден: {rel}]"
+            except Exception as e:
+                return f"[ошибка загрузки: {rel}: {e}]"
+
+        
+        print("РЕЗОЛВЕРа НЕТ")
+        # Fallback: старый, прямой доступ (на случай отсутствия резолвера)
+        path = self._resolve_path_fallback(rel) or rel
+        if not (os.path.isabs(path) and os.path.exists(path)):
+            return f"[файл не найден: {rel}]"
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw = f.read()
+        except Exception as e:
+            return f"[ошибка чтения: {rel}: {e}]"
+        return self._extract_tag_section(raw, tag)
+
+    def _resolve_path_fallback(self, rel_path: str) -> Optional[str]:
+        """Старый способ: попытаться найти файл по базовым директориям."""
         if not rel_path:
             return None
         if os.path.isabs(rel_path) and os.path.exists(rel_path):
@@ -340,10 +396,6 @@ class DslAstRunner:
             if os.path.exists(p):
                 return p
         return None
-
-    def _read_file(self, path: str) -> str:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
 
     def _remove_tag_markers(self, text: str) -> str:
         return _SECTION_MARKER_RE.sub("", text or "")
@@ -360,13 +412,6 @@ class DslAstRunner:
         if content.startswith("\n"):
             content = content[1:]
         return content
-
-    def _load_and_process(self, rel: str, tag: Optional[str]) -> str:
-        path = self._resolve_path(rel) or rel
-        if not (os.path.isabs(path) and os.path.exists(path)):
-            return f"[файл не найден: {rel}]"
-        raw = self._read_file(path)
-        return self._extract_tag_section(raw, tag)
 
     # -------------------- utils --------------------
     def _compute_delta(self, before: Dict[str, Any], after: Dict[str, Any], keys_hint: Optional[List[str]] = None) -> Dict[str, Tuple[Any, Any]]:
@@ -395,15 +440,12 @@ class DslAstRunner:
         m = re.search(r"name '([^']+)' is not defined", msg)
         if m:
             var = m.group(1)
-            return f"Переменная '{var}' не определена. Раннер пытался инициализировать её как None, но выражение всё ещё не вычисляется. Задайте начальное значение (SET {var} = ...) или скорректируйте выражение."
+            return f"Переменная '{var}' не определена. Раннер попытался инициализировать её как None, но выражение всё ещё не вычисляется. Задайте начальное значение (SET {var} = ...) или скорректируйте выражение."
         # NoneType сравнения
-        if "not supported between instances of 'nonetype'" in low or "noneType" in msg:
-            # попытаемся подсказать, какие переменные равны None
+        if "not supported between instances of 'nonetype'" in low or "nonetype" in low:
             vars_in_expr = set(re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\b", expr or ""))
             none_vars = [v for v in vars_in_expr if self._merged_vars().get(v, "___MISS___") is None]
-            hint = ""
-            if none_vars:
-                hint = f" (возможно, не инициализированы: {', '.join(none_vars)})"
+            hint = f" (возможно, не инициализированы: {', '.join(none_vars)})" if none_vars else ""
             return f"Операция невозможна: в выражении есть None (не инициализированные значения){hint}. Установите начальные значения или используйте, например, ({'x'} or 0)."
         # конкатенация строк и чисел
         if "can only concatenate str" in low or ("unsupported operand type(s) for +" in low and "str" in low):

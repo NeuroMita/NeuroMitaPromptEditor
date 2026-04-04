@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If
+from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, SeedMemory
 
 _INLINE_LOAD_RE = re.compile(
     r"""\bLOAD
@@ -224,6 +224,17 @@ class DslAstRunner:
                     info.error = self._humanize_exception(e, "")
                     info.preview = info.error
                     self.node_results[n.id] = info
+
+            # SEED_MEMORY (в контексте визуального раннера — только трекаем, не сохраняем реально)
+            elif isinstance(n, SeedMemory):
+                info = NodeRunInfo(node_id=n.id, node_type="SEED_MEMORY", expr=f"{n.priority} | {n.content}", line_num=(n.line or None))
+                try:
+                    self.exec_trace.append(n.id)
+                    info.preview = f"SEED_MEMORY [{n.priority}]: {n.content[:40]}..."
+                except Exception as e:
+                    info.error = self._humanize_exception(e, "")
+                    info.preview = info.error
+                self.node_results[n.id] = info
 
             # RETURN
             elif isinstance(n, Return):

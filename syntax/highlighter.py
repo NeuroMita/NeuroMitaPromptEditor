@@ -16,9 +16,9 @@ from utils.logger import editor_logger
 class PromptSyntaxHighlighter(QSyntaxHighlighter):
     LinkPathPropertyId = QTextFormat.UserProperty + 1
 
-    # Matches: IF, THEN, ELSEIF, ELSE, ENDIF, SET, RETURN, LOAD, LOG, ADD_SYSTEM_INFO, AND, OR, TRUE, FALSE, NONE, LOCAL
+    # Matches: IF, THEN, ELSEIF, ELSE, ENDIF, SET, RETURN, LOAD, LOG, ADD_SYSTEM_INFO, SEED_MEMORY, AND, OR, TRUE, FALSE, NONE, LOCAL
     _DSL_KEYWORDS_RE = re.compile(
-        r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|ADD_SYSTEM_INFO|AND|OR|TRUE|FALSE|NONE|LOCAL)\b",
+        r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|ADD_SYSTEM_INFO|SEED_MEMORY|AND|OR|TRUE|FALSE|NONE|LOCAL)\b",
         re.IGNORECASE,
     )
 

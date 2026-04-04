@@ -7,11 +7,11 @@ from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QFormLayout, QLineEdit,
     QCheckBox, QListWidget, QListWidgetItem, QPushButton,
-    QHBoxLayout, QFrame, QAbstractItemView, QTabWidget, QSizePolicy
+    QHBoxLayout, QFrame, QAbstractItemView, QTabWidget, QSizePolicy, QComboBox
 )
 from PySide6.QtGui import QTextOption
 
-from logic.dsl_ast import AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch
+from logic.dsl_ast import AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory
 from ui.node_graph.tag_text_edit import TagTextEdit
 
 
@@ -208,6 +208,23 @@ class Inspector(QWidget):
             self.if_btn_row.addWidget(b)
         self.if_btn_row.addStretch(1)
 
+        # ----------------- SEED_MEMORY -----------------
+        self.sep_before_seed = self._hline()
+        self.seed_priority_lbl = QLabel("Приоритет:")
+        self.seed_priority_combo = QComboBox()
+        self.seed_priority_combo.setEditable(True)
+        self.seed_priority_combo.addItems(["high", "medium", "low"])
+        self.seed_priority_combo.setStyleSheet(
+            "QComboBox { background: #2A2A2A; color: #FFF; border: 1px solid #444; border-radius:2px; padding:4px; }"
+            "QComboBox::drop-down { border: none; }"
+            "QComboBox QAbstractItemView { background: #2A2A2A; color: #FFF; }"
+        )
+        self.seed_content_lbl = QLabel("Контент:")
+        self.seed_content_edit = AutoResizingTextEdit(min_lines=3, max_lines=15)
+
+        self.form.addRow(self.seed_priority_lbl, self.seed_priority_combo)
+        self.form.addRow(self.seed_content_lbl, self.seed_content_edit)
+
         # APPLY
         self.sep_before_apply = self._hline()
         self.apply_btn = QPushButton("Применить изменения")
@@ -223,6 +240,8 @@ class Inspector(QWidget):
         root.addWidget(self.if_label)
         root.addWidget(self.if_list)
         root.addLayout(self.if_btn_row)
+
+        root.addWidget(self.sep_before_seed)
 
         root.addWidget(self.sep_before_apply)
         root.addWidget(self.apply_btn)
@@ -257,6 +276,10 @@ class Inspector(QWidget):
             # IF часть
             self.sep_before_if, self.if_label, self.if_list,
             self.btn_add_cond, self.btn_add_else, self.btn_del_selected,
+            # SEED_MEMORY часть
+            self.sep_before_seed,
+            self.seed_priority_lbl, self.seed_priority_combo,
+            self.seed_content_lbl, self.seed_content_edit,
             # APPLY
             self.sep_before_apply, self.apply_btn
         ):
@@ -441,6 +464,21 @@ class Inspector(QWidget):
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
+        # SEED_MEMORY
+        if isinstance(self._ast, SeedMemory):
+            self.title_lbl.setText("Добавить в память")
+            idx = self.seed_priority_combo.findText(self._ast.priority)
+            if idx >= 0:
+                self.seed_priority_combo.setCurrentIndex(idx)
+            else:
+                self.seed_priority_combo.setCurrentText(self._ast.priority)
+            self.seed_content_edit.setPlainText(self._ast.content)
+            self.sep_before_seed.show()
+            self.seed_priority_lbl.show(); self.seed_priority_combo.show()
+            self.seed_content_lbl.show(); self.seed_content_edit.show()
+            self.sep_before_apply.show(); self.apply_btn.show()
+            return
+
         self.title_lbl.setText(type(self._ast).__name__)
 
     def _get_description(self, node: AstNode) -> str:
@@ -454,6 +492,8 @@ class Inspector(QWidget):
             return "Возвращает итоговый текст промпта. Завершает выполнение скрипта."
         elif isinstance(node, If):
             return "Условная развилка: выполняет разные ветки кода в зависимости от условий."
+        elif isinstance(node, SeedMemory):
+            return "Добавляет факт в долгосрочную память персонажа с указанным приоритетом (high/medium/low)."
         return ""
 
     def _on_branch_selected(self, idx: int):
@@ -574,6 +614,9 @@ class Inspector(QWidget):
         elif isinstance(self._ast, Return):
             # Теперь редактируем выражение напрямую
             self._ast.expr = self.ret_expr_edit.toPlainText().strip()
+        elif isinstance(self._ast, SeedMemory):
+            self._ast.priority = self.seed_priority_combo.currentText().strip()
+            self._ast.content = self.seed_content_edit.toPlainText().strip()
         self.ast_changed.emit()
 
     # ---------- utils for RETURN text<->expr (оставлены для совместимости) ----------

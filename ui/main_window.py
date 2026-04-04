@@ -10,6 +10,8 @@ from ui.tree_panel          import FileTreePanel
 from ui.tab_manager         import TabManager
 from ui.dsl_variables_dock  import DslVariablesDock
 from widgets.log_panel import LogPanel
+from widgets.info_editor_widget import InfoEditorDock
+from widgets.template_panel_widget import TemplatePanelDock
 
 # ---------- утилиты / константы -------
 from config import PROMPTS_DIR_NAME, SETTINGS_ORG_NAME, SETTINGS_APP_NAME
@@ -17,6 +19,7 @@ from utils.path_helpers import find_or_ask_prompts_root, select_prompts_director
 from utils.logger       import add_editor_log_handler, get_dsl_execution_logger, editor_logger, get_dsl_script_logger
 from dsl_manager        import DSL_ENGINE_AVAILABLE, CharacterClass
 from widgets.dsl_result_dialog import DslResultDialog
+from widgets.post_dsl_test_dialog import PostDslTestDialog
 
 # ---------- модели персонажей ----------
 from models.character import Character
@@ -138,6 +141,8 @@ class PromptEditorWindow(QMainWindow):
         spl.addWidget(self.tabs); spl.setStretchFactor(1, 1)
 
         self.vars_dock = DslVariablesDock(self); self.addDockWidget(Qt.RightDockWidgetArea, self.vars_dock)
+        self.info_dock = InfoEditorDock(self); self.addDockWidget(Qt.RightDockWidgetArea, self.info_dock)
+        self.tmpl_dock = TemplatePanelDock(self); self.addDockWidget(Qt.LeftDockWidgetArea, self.tmpl_dock)
         self.log_dock  = LogPanel(parent=self); self.addDockWidget(Qt.BottomDockWidgetArea, self.log_dock)
 
         sb = QStatusBar(); self.setStatusBar(sb)
@@ -145,8 +150,11 @@ class PromptEditorWindow(QMainWindow):
 
         self.tree.file_open_requested.connect(self.tabs.open_file)
         self.tree.character_selected.connect(self._on_char_selected)
+        self.tmpl_dock.file_open_requested.connect(self.tabs.open_file)
+        self.tabs.file_saved.connect(self._on_file_saved)
         self.tabs.modified_set_changed.connect(lambda: self.tree.viewport().update())
         self.tabs.currentChanged.connect(self._update_title)
+        self.tabs.currentChanged.connect(self._update_postdsl_action_state)
         self.vars_dock.reset_requested.connect(self._reset_vars)
         self.vars_dock.set_on_save_clicked(self._save_config_json_for_current_vars)
         self.vars_dock.editor().textChanged.connect(self._on_vars_text_changed)
@@ -182,6 +190,9 @@ class PromptEditorWindow(QMainWindow):
         tm = mb.addMenu("&Инструменты")
         tm.addAction("Проверить синтаксис", self._check_syntax).setShortcut("Ctrl+Shift+C")
         tm.addAction("Визуальный редактор .script (ноды)", self._open_node_editor).setShortcut("Ctrl+Shift+N")
+        self._test_postdsl_act = tm.addAction("Тестировать PostDSL…", self._test_postdsl)
+        self._test_postdsl_act.setShortcut("Ctrl+Shift+P")
+        self._test_postdsl_act.setEnabled(False)
 
         # -------- Вид --------
         vm = mb.addMenu("&Вид")
@@ -189,6 +200,14 @@ class PromptEditorWindow(QMainWindow):
         vars_toggle = self.vars_dock.toggleViewAction()
         vars_toggle.setText("Панель переменных DSL")
         vm.addAction(vars_toggle)
+
+        info_toggle = self.info_dock.toggleViewAction()
+        info_toggle.setText("Информация о промпте")
+        vm.addAction(info_toggle)
+
+        tmpl_toggle = self.tmpl_dock.toggleViewAction()
+        tmpl_toggle.setText("Файлы шаблона")
+        vm.addAction(tmpl_toggle)
 
         log_toggle = self.log_dock.toggleViewAction()
         log_toggle.setText("Панель логов")
@@ -202,6 +221,15 @@ class PromptEditorWindow(QMainWindow):
 
         title = "Параметры DSL" + (f" — {self.selected_char}" if self.selected_char else "")
         self.vars_dock.setWindowTitle(title)
+
+        # Обновляем панель info.json и файлов шаблона
+        self.info_dock.load_for_char(self.prompts_root, self.selected_char)
+        self.tmpl_dock.load_for_char(self.prompts_root, self.selected_char)
+
+    def _on_file_saved(self, path: str):
+        """Обновляем панель шаблона при сохранении main_template.txt."""
+        if os.path.basename(path) == "main_template.txt":
+            self.tmpl_dock.refresh()
 
     # ---------------------- vars panel -------------------------
     def _sync_vars_panel(self):
@@ -431,7 +459,20 @@ class PromptEditorWindow(QMainWindow):
         if have_char:
             self.run_act.setText(f'Скомпоновать промпт для “{self.selected_char}”')
         else:
-            self.run_act.setText("Скомпоновать промпт")
+            self.run_act.setText(“Скомпоновать промпт”)
+
+        self._update_postdsl_action_state()
+
+    def _update_postdsl_action_state(self):
+        “””Активируем «Тестировать PostDSL…» только если открыт .postscript файл.”””
+        if not hasattr(self, “_test_postdsl_act”):
+            return
+        ed = self.tabs.currentWidget()
+        if ed and hasattr(ed, “get_tab_file_path”):
+            path = ed.get_tab_file_path() or “”
+            self._test_postdsl_act.setEnabled(path.lower().endswith(“.postscript”))
+        else:
+            self._test_postdsl_act.setEnabled(False)
 
     # ------------------------ helpers -------------------------
     def _change_prompts_dir(self):
@@ -516,6 +557,27 @@ class PromptEditorWindow(QMainWindow):
         if (last := self.settings.value("lastPromptsDir")) and os.path.isdir(last):
             self.prompts_root = last
             self.tree.setRootIndex(self.tree.model().setRootPath(last))
+
+    def _test_postdsl(self):
+        """Открывает диалог тестирования PostDSL для текущего .postscript файла."""
+        ed = self.tabs.currentWidget()
+        if not ed or not hasattr(ed, "get_tab_file_path"):
+            return
+        path = ed.get_tab_file_path() or ""
+        if not path.lower().endswith(".postscript"):
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "PostDSL", "Откройте .postscript файл для тестирования.")
+            return
+
+        script_text = ed.toPlainText() if hasattr(ed, "toPlainText") else ""
+        variables = self._parse_vars()
+
+        if not hasattr(self, "_postdsl_dialogs"):
+            self._postdsl_dialogs = []
+        dlg = PostDslTestDialog(script_text, variables, parent=self)
+        self._postdsl_dialogs.append(dlg)
+        dlg.finished.connect(lambda: self._postdsl_dialogs.remove(dlg) if dlg in self._postdsl_dialogs else None)
+        dlg.show()
 
     def _setup_loggers(self):
         h = self.log_dock.get_handler()

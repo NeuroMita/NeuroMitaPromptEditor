@@ -47,3 +47,8 @@ class If(AstNode):
     def ensure_else(self):
         if self.else_body is None:
             self.else_body = []
+
+@dataclass
+class SeedMemory(AstNode):
+    priority: str = ""   # "high" | "medium" | "low" или произвольное выражение
+    content: str = ""    # текст или выражение

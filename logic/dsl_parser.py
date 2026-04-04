@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Tuple
 import re
 
-from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch
+from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory
 
 @dataclass
 class ParseError:
@@ -140,6 +140,12 @@ def parse_script(text: str) -> Tuple[Script, List[ParseError]]:
             if not args.strip():
                 errors.append(ParseError("RETURN requires argument", num, raw))
             add_node(Return(expr=args.strip(), line=num)); continue
+
+        if command == "SEED_MEMORY":
+            if not args.strip() or "|" not in args:
+                errors.append(ParseError("SEED_MEMORY требует формат: 'priority | content'", num, raw)); continue
+            parts = args.split("|", 1)
+            add_node(SeedMemory(priority=parts[0].strip(), content=parts[1].strip(), line=num)); continue
 
         errors.append(ParseError(f"Unknown DSL command '{command}'", num, raw))
 

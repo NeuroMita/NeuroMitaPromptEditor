@@ -15,6 +15,7 @@ _log = logging.getLogger(__name__)
 
 class TabManager(QTabWidget):
     modified_set_changed = Signal()     # когда self._modified_paths меняется
+    file_saved = Signal(str)            # абсолютный путь сохранённого файла
 
     def __init__(self, prompts_root_cb, parent=None):
         super().__init__(parent)
@@ -147,6 +148,7 @@ class TabManager(QTabWidget):
             s << clean_text
             qf.close()
             ed.document().setModified(False)
+            self.file_saved.emit(path)
             return True
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить:\n{e}")

@@ -1,7 +1,7 @@
 # logic/dsl_codegen.py
 from __future__ import annotations
 from typing import List
-from logic.dsl_ast import Script, Set, Log, AddSystemInfo, Return, If, AstNode
+from logic.dsl_ast import Script, Set, Log, AddSystemInfo, Return, If, SeedMemory, AstNode
 
 IND = "    "
 
@@ -17,6 +17,8 @@ def _gen_block(body: List[AstNode], depth: int, out: List[str]):
             out.append(f"{IND*depth}ADD_SYSTEM_INFO {node.expr}")
         elif isinstance(node, Return):
             out.append(f"{IND*depth}RETURN {node.expr}")
+        elif isinstance(node, SeedMemory):
+            out.append(f"{IND*depth}SEED_MEMORY {node.priority} | {node.content}")
         elif isinstance(node, If):
             _gen_if(node, depth, out)
         else:

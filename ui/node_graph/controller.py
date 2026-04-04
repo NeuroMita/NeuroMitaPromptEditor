@@ -7,7 +7,7 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QMessageBox
 
-from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If
+from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, SeedMemory
 from ui.node_graph.graph_primitives import NodeItem, PortItem
 from ui.node_graph.graph_scene import GraphScene
 
@@ -254,6 +254,12 @@ class NodeGraphController:
             subtitle = node.expr[:35] + "..." if len(node.expr) > 35 else node.expr
             desc = "Возвращает итоговый текст промпта. Завершает выполнение скрипта."
             item = NodeItem(title, subtitle, node); item.setRect(0, 0, 340, 80); item.set_description(desc)
+        elif isinstance(node, SeedMemory):
+            title = "Добавить в память"
+            preview = f"{node.content[:35]}..." if len(node.content) > 35 else node.content
+            subtitle = f"[{node.priority}] {preview}"
+            desc = "Добавляет факт в долгосрочную память персонажа с указанным приоритетом (high/medium/low)."
+            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 360, 80); item.set_description(desc)
         elif isinstance(node, If):
             title = "Условие"; subtitle = ""
             desc = "Условная развилка: выполняет разные ветки кода в зависимости от условий."

@@ -248,6 +248,15 @@ class PostScriptSyntaxChecker:
                 else:
                     self._validate_expression(args, num, raw_line)
 
+            elif command == "SEED_MEMORY":
+                if not args or "|" not in args:
+                    self._add_error("SEED_MEMORY требует формат: 'priority | content'.", num, raw_line)
+                else:
+                    parts = args.split("|", 1)
+                    priority = parts[0].strip()
+                    if not priority:
+                        self._add_error("SEED_MEMORY: приоритет не может быть пустым.", num, raw_line)
+
             elif command:
                 self._add_error(f"Неизвестная команда DSL: '{command}'.", num, raw_line, "Unknown Command")
 

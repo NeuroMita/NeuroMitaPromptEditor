@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QShortcut, QKeySequence, QFont
 
-from logic.dsl_ast import Script, Set, Log, AddSystemInfo, Return, If, IfBranch, AstNode
+from logic.dsl_ast import Script, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory, AstNode
 from logic.dsl_parser import parse_script, ParseError
 from logic.dsl_codegen import generate_script
 from logic.dsl_runner import DslAstRunner, RunnerReport, NodeRunInfo
@@ -451,6 +451,7 @@ class NodeGraphEditor(QWidget):
         a_asi = menu.addAction("ADD_SYSTEM_INFO")
         a_ret = menu.addAction("RETURN")
         a_if = menu.addAction("IF")
+        a_seed = menu.addAction("SEED_MEMORY")
 
         act = menu.exec(self.view.mapToGlobal(self.view.mapFromScene(scene_pos)))
         if not act:
@@ -464,6 +465,8 @@ class NodeGraphEditor(QWidget):
             node = AddSystemInfo(expr='LOAD "Main/part.txt"')
         elif act == a_ret:
             node = Return(expr='"text"')
+        elif act == a_seed:
+            node = SeedMemory(priority="medium", content="Важный факт")
         else:
             node = If(branches=[IfBranch(cond="True")])
 

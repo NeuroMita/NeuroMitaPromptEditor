@@ -46,6 +46,32 @@ def compute_defaults_for_char(char_id: str) -> dict:
             break
     return base
 
+def get_info_path(prompts_root: str | None, char_id: str | None) -> str:
+    import os
+    if not (prompts_root and char_id):
+        return ""
+    return os.path.join(prompts_root, char_id, "info.json")
+
+def read_info_json(prompts_root: str | None, char_id: str | None) -> dict:
+    import os, json
+    path = get_info_path(prompts_root, char_id)
+    if not path or not os.path.isfile(path):
+        return {"character": char_id or "", "author": "", "version": "", "description": ""}
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    for key in ("character", "author", "version", "description"):
+        data.setdefault(key, "")
+    return data
+
+def write_info_json(prompts_root: str | None, char_id: str | None, data: dict) -> None:
+    import os, json
+    path = get_info_path(prompts_root, char_id)
+    if not path:
+        raise RuntimeError("Некорректный путь к info.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
 def are_configs_equal(a: dict, b: dict) -> bool:
     def norm(v):
         if isinstance(v, bool):

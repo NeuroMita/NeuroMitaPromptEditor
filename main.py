@@ -27,7 +27,7 @@ def run_application():
 
     app = QApplication(sys.argv)
 
-    qdarktheme.setup_theme()
+    app.setStyleSheet(qdarktheme.load_stylesheet())
 
     main_editor_window = PromptEditorWindow()
     main_editor_window.show()

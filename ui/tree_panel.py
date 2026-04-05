@@ -101,16 +101,29 @@ class FileTreePanel(QTreeView):
 
     def _on_select_changed(self, idx, _prev):
         """
-        Персонаж = первая подпапка после Prompts/*,
-        даже если выбран файл внутри неё.
+        Определяем выбранный набор промптов: Prompts/<char>/<set>/...
+        Если выбрана вложенная папка или файл — поднимаемся до уровня набора.
+        Если структура плоская (main_template.txt прямо в папке персонажа) —
+        возвращаем просто имя персонажа.
+        Эмитируем "char/set" (например "Crazy/DefaultJson") или "char".
         """
         char_id = ""
         if idx.isValid() and self._prompts_root:
             try:
-                path = Path(self._model.filePath(idx)).resolve()
-                top  = path.relative_to(Path(self._prompts_root).resolve()).parts[0]
-                if not top.startswith("_"):
-                    char_id = top
+                path  = Path(self._model.filePath(idx)).resolve()
+                root  = Path(self._prompts_root).resolve()
+                parts = path.relative_to(root).parts
+                if parts and not parts[0].startswith("_"):
+                    char_part = parts[0]
+                    if len(parts) >= 2 and not parts[1].startswith("_"):
+                        # parts[1] — возможный набор: берём только если это папка
+                        candidate = root / char_part / parts[1]
+                        if candidate.is_dir():
+                            char_id = f"{char_part}/{parts[1]}"
+                        else:
+                            char_id = char_part
+                    else:
+                        char_id = char_part
             except ValueError:
                 pass  # выбор вне Prompts
         self.character_selected.emit(char_id)

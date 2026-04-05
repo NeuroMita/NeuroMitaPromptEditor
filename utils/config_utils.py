@@ -6,11 +6,15 @@ def get_bounds_defaults() -> dict:
         "stress_min": 0.0,   "stress_max": 100.0,
     }
 
+def _char_path_parts(char_id: str) -> list:
+    """Разбивает 'Crazy/DefaultJson' на ['Crazy', 'DefaultJson'] для os.path.join."""
+    return [p for p in char_id.replace("\\", "/").split("/") if p]
+
 def get_config_path(prompts_root: str | None, char_id: str | None) -> str:
     import os
     if not (prompts_root and char_id):
         return ""
-    return os.path.join(prompts_root, char_id, "config.json")
+    return os.path.join(prompts_root, *_char_path_parts(char_id), "config.json")
 
 def read_config_json(prompts_root: str | None, char_id: str | None, ensure_bounds: bool = True) -> dict | None:
     import os, json
@@ -33,15 +37,19 @@ def write_config_json(prompts_root: str | None, char_id: str | None, cfg: dict) 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=4, ensure_ascii=False)
 
-def compute_defaults_for_char(char_id: str) -> dict:
+def compute_defaults_for_char(char_id: str | None) -> dict:
     from models.character import Character
     from models.characters import (
         CrazyMita, KindMita, ShortHairMita,
         CappyMita, MilaMita, CreepyMita, SleepyMita
     )
     base = Character.BASE_DEFAULTS.copy()
+    if not char_id:
+        return base
+    # Используем только первую часть ("Crazy" из "Crazy/DefaultJson")
+    char_part = _char_path_parts(char_id)[0].lower()
     for cls in (CrazyMita, KindMita, ShortHairMita, CappyMita, MilaMita, CreepyMita, SleepyMita):
-        if cls.__name__.lower().startswith(char_id.lower()):
+        if cls.__name__.lower().startswith(char_part):
             base.update(getattr(cls, "DEFAULT_OVERRIDES", {}))
             break
     return base
@@ -50,7 +58,7 @@ def get_info_path(prompts_root: str | None, char_id: str | None) -> str:
     import os
     if not (prompts_root and char_id):
         return ""
-    return os.path.join(prompts_root, char_id, "info.json")
+    return os.path.join(prompts_root, *_char_path_parts(char_id), "info.json")
 
 def read_info_json(prompts_root: str | None, char_id: str | None) -> dict:
     import os, json

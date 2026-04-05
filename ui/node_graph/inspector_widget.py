@@ -75,6 +75,7 @@ class Inspector(QWidget):
         self._ast: Optional[AstNode] = None
         self._preview_provider: Optional[Callable[[str], str]] = None
         self._file_picker: Optional[Callable[[], Optional[str]]] = None
+        self._script_provider: Optional[Callable[[], object]] = None  # () -> Script
 
         self.setMinimumWidth(420)
         self.setStyleSheet("""
@@ -185,6 +186,18 @@ class Inspector(QWidget):
             self.pal_row.addWidget(b)
         self.pal_row.addStretch(1)
 
+        # ----------------- Picker переменных (общий для SET expr / RETURN / SEED) -----------------
+        self.sep_before_var_pick = self._hline()
+        var_pick_row = QHBoxLayout()
+        self.btn_var_pick = QPushButton("📌 Вставить переменную")
+        self.btn_var_pick.setToolTip(
+            "Вставить имя переменной из скрипта (SET-ноды) в позицию курсора"
+        )
+        self.btn_var_pick.clicked.connect(self._on_var_pick)
+        var_pick_row.addWidget(self.btn_var_pick)
+        var_pick_row.addStretch(1)
+        self._var_pick_row_layout = var_pick_row
+
         # ----------------- IF -----------------
         self.sep_before_if = self._hline()
         self.if_label = QLabel("Условия:")
@@ -236,6 +249,9 @@ class Inspector(QWidget):
         root.addWidget(self.ret_tabs)
         root.addLayout(self.pal_row)
 
+        root.addWidget(self.sep_before_var_pick)
+        root.addLayout(self._var_pick_row_layout)
+
         root.addWidget(self.sep_before_if)
         root.addWidget(self.if_label)
         root.addWidget(self.if_list)
@@ -257,6 +273,10 @@ class Inspector(QWidget):
     def set_file_picker(self, func: Callable[[], Optional[str]]):
         self._file_picker = func
 
+    def set_script_provider(self, func: Callable[[], object]):
+        """Передаёт функцию, возвращающую текущий Script — для сбора кастомных переменных."""
+        self._script_provider = func
+
     # Helpers
     def _hline(self):
         l = QFrame()
@@ -273,6 +293,8 @@ class Inspector(QWidget):
             # RETURN часть
             self.sep_before_return, self.return_expr_label, self.ret_tabs,
             self.btn_chip_load, self.btn_chip_tag, self.btn_chip_rel, self.btn_pick_file,
+            # Пикер переменных
+            self.sep_before_var_pick, self.btn_var_pick,
             # IF часть
             self.sep_before_if, self.if_label, self.if_list,
             self.btn_add_cond, self.btn_add_else, self.btn_del_selected,
@@ -399,6 +421,7 @@ class Inspector(QWidget):
 
             self.set_tabs.setTabEnabled(1, True)
             self._sync_tabs_height(self.expr_edit.height())
+            self.sep_before_var_pick.show(); self.btn_var_pick.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
@@ -412,6 +435,7 @@ class Inspector(QWidget):
             self.set_tabs.setTabEnabled(1, False)
             self.local_chk.hide()
             self._sync_tabs_height(self.expr_edit.height())
+            self.sep_before_var_pick.show(); self.btn_var_pick.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
@@ -425,6 +449,7 @@ class Inspector(QWidget):
             self.set_tabs.setTabEnabled(1, False)
             self.local_chk.hide()
             self._sync_tabs_height(self.expr_edit.height())
+            self.sep_before_var_pick.show(); self.btn_var_pick.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
@@ -437,6 +462,7 @@ class Inspector(QWidget):
             self.return_expr_label.show()
             self.ret_tabs.show()
             self.btn_chip_load.show(); self.btn_chip_tag.show(); self.btn_chip_rel.show(); self.btn_pick_file.show()
+            self.sep_before_var_pick.show(); self.btn_var_pick.show()
 
             self._sync_ret_tabs_height(self.ret_expr_edit.height())
             self._refresh_return_preview()
@@ -476,6 +502,7 @@ class Inspector(QWidget):
             self.sep_before_seed.show()
             self.seed_priority_lbl.show(); self.seed_priority_combo.show()
             self.seed_content_lbl.show(); self.seed_content_edit.show()
+            self.sep_before_var_pick.show(); self.btn_var_pick.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
@@ -523,6 +550,69 @@ class Inspector(QWidget):
         if not path:
             return
         self._insert_chip_return(f'LOAD "{path}"')
+
+    # --- Пикер кастомных переменных ---
+    def _get_script_vars(self) -> List[str]:
+        """Собирает имена переменных из всех SET-нод скрипта."""
+        if not self._script_provider:
+            return []
+        try:
+            script = self._script_provider()
+        except Exception:
+            return []
+        if script is None:
+            return []
+        from logic.dsl_ast import Set as SetNode
+        vars_found: List[str] = []
+        seen = set()
+
+        def walk(body):
+            from logic.dsl_ast import If as IfNode
+            for n in body:
+                if isinstance(n, SetNode) and n.var and n.var not in seen:
+                    vars_found.append(n.var)
+                    seen.add(n.var)
+                if isinstance(n, IfNode):
+                    for br in n.branches:
+                        walk(br.body)
+                    if n.else_body:
+                        walk(n.else_body)
+
+        try:
+            walk(script.body)
+        except Exception:
+            pass
+        return vars_found
+
+    def _active_expr_editor(self):
+        """Возвращает активный редактор выражения в зависимости от типа ноды."""
+        if isinstance(self._ast, Return):
+            return self.ret_expr_edit
+        if isinstance(self._ast, SeedMemory):
+            return self.seed_content_edit
+        return self.expr_edit
+
+    def _on_var_pick(self):
+        from PySide6.QtWidgets import QMenu
+        vars_list = self._get_script_vars()
+        menu = QMenu(self)
+        if not vars_list:
+            action = menu.addAction("(нет переменных в скрипте)")
+            action.setEnabled(False)
+        else:
+            for v in vars_list:
+                menu.addAction(v).triggered.connect(
+                    lambda checked=False, name=v: self._insert_var(name)
+                )
+        menu.exec(self.btn_var_pick.mapToGlobal(
+            self.btn_var_pick.rect().bottomLeft()
+        ))
+
+    def _insert_var(self, name: str):
+        editor = self._active_expr_editor()
+        cur = editor.textCursor()
+        cur.insertText(name)
+        editor.setTextCursor(cur)
 
     # --- IF handlers ---
     def _on_add_cond(self):

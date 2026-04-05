@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Optional
 import logging
 
-from PySide6.QtCore import QPointF, Qt, Signal
-from PySide6.QtGui import QPainter
+from PySide6.QtCore import QPointF, Qt, Signal, QRectF
+from PySide6.QtGui import QPainter, QColor, QFont, QPen
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QFrame
 
 from ui.node_graph.graph_primitives import EdgeItem, NodeItem, PortItem
@@ -211,6 +211,45 @@ class GraphView(QGraphicsView):
             e.accept()
             return
         super().mouseReleaseEvent(e)
+
+    def drawForeground(self, painter: QPainter, rect):
+        """Показывает подсказку по управлению, когда граф пустой (≤1 ноды)."""
+        node_count = sum(1 for it in self.scene().items() if isinstance(it, NodeItem))
+        if node_count > 1:
+            return
+        hint_lines = [
+            "ПКМ на холсте  →  добавить ноду",
+            "Тяни порт  ○  →  соединить ноды",
+            "Колёсико — зум,  средняя кнопка — перемещение",
+            "Del — удалить выделенную ноду",
+        ]
+        painter.save()
+        painter.resetTransform()
+        vp = self.viewport().rect()
+        f = QFont()
+        f.setPointSize(9)
+        painter.setFont(f)
+        fm = painter.fontMetrics()
+        line_h = fm.height() + 4
+        block_h = len(hint_lines) * line_h + 16
+        block_w = max(fm.horizontalAdvance(ln) for ln in hint_lines) + 24
+        x = (vp.width() - block_w) // 2
+        y = vp.height() - block_h - 30
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(20, 20, 20, 160))
+        painter.drawRoundedRect(x, y, block_w, block_h, 6, 6)
+        painter.setPen(QPen(QColor("#888888")))
+        for i, line in enumerate(hint_lines):
+            painter.drawText(x + 12, y + 8 + (i + 1) * line_h, line)
+        painter.restore()
+
+    def fit_all(self):
+        """Подогнать вид под все ноды на холсте."""
+        items = self.scene().items()
+        if not items:
+            return
+        rect = self.scene().itemsBoundingRect()
+        self.fitInView(rect.adjusted(-60, -60, 60, 60), Qt.KeepAspectRatio)
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Delete:

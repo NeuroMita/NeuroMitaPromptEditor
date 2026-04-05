@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Optional, Callable, Dict
 
 from PySide6.QtCore import QPointF, Qt, QRectF
-from PySide6.QtGui import QBrush, QColor, QFont, QPainterPath, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QGraphicsEllipseItem,
     QGraphicsItem,
@@ -23,6 +23,19 @@ TEXT_FG = QColor("#FFFFFF")
 TEXT_SECONDARY = QColor("#999999")
 EXEC_EDGE = QColor("#FFFFFF")
 BRANCH_EDGE = QColor("#FFA500")
+
+# Высота шапки ноды
+HEADER_H = 28
+
+# Стили шапки по типу ноды: тип -> (emoji, dark_color, light_color)
+NODE_TYPE_STYLES: dict = {
+    "SET":             ("🔵", "#2a1a4a", "#4a2a8a"),
+    "LOG":             ("📋", "#2a2a2a", "#4a4a4a"),
+    "ADD_SYSTEM_INFO": ("📎", "#1f3a5a", "#2a5a8a"),
+    "RETURN":          ("✅", "#1a4a2a", "#2a7a4a"),
+    "IF":              ("⚡", "#4a3a1a", "#8a6a2a"),
+    "SEED_MEMORY":     ("🧠", "#4a1a3a", "#7a2a5a"),
+}
 
 # Подсветка (hover/selection IF-веток)
 PORT_EXEC_COLOR = QColor("#F0F0F0")
@@ -236,16 +249,18 @@ class _PreviewTextItem(QGraphicsTextItem):
 
 
 class NodeItem(QGraphicsRectItem):
-    WIDTH = 280
+    WIDTH = 300
     HEIGHT = 96
     PADDING = 8
 
-    def __init__(self, title: str, subtitle: str, payload, bg: QColor = NODE_BG):
+    def __init__(self, title: str, subtitle: str, payload, bg: QColor = NODE_BG,
+                 node_type: str = ""):
         super().__init__(0, 0, NodeItem.WIDTH, NodeItem.HEIGHT)
         self.title = title
         self.subtitle = subtitle
         self.description = ""
         self.payload = payload
+        self.node_type = node_type
         self.custom_color: Optional[QColor] = None
         self._default_bg = bg
         self._in_ports: List[PortItem] = []
@@ -498,33 +513,92 @@ class NodeItem(QGraphicsRectItem):
 
     # ---------- painting ----------
     def paint(self, painter, option, widget=None):
-        # Рамка: подсветка выбранного -> зелёная рамка пути -> обычная
+        r = self.rect()
+        radius = 8.0
+
+        # 1. Тело ноды — закруглённый прямоугольник #202020
         if self._exec_path_emph:
-            pen = QPen(PATH_NODE_BORDER, 2.6)
+            border_pen = QPen(PATH_NODE_BORDER, 2.6)
         else:
-            pen = QPen(NODE_SELECTED if self.isSelected() else NODE_BORDER, 1.5 if self.isSelected() else 1.0)
-        painter.setPen(pen)
-        painter.setBrush(self.brush())
-        painter.drawRoundedRect(self.rect(), 2, 2)
+            border_pen = QPen(NODE_SELECTED if self.isSelected() else NODE_BORDER,
+                              1.5 if self.isSelected() else 1.0)
+        body_color = self.custom_color if self.custom_color else NODE_BG
+        painter.setPen(border_pen)
+        painter.setBrush(QBrush(body_color))
+        painter.drawRoundedRect(r, radius, radius)
 
-        painter.setPen(QPen(TEXT_FG))
-        f = QFont(); f.setBold(True); f.setPointSize(9)
-        painter.setFont(f)
-        painter.drawText(
-            self.rect().adjusted(self.PADDING, self.PADDING, -self.PADDING, -self.PADDING),
-            Qt.AlignTop | Qt.AlignLeft,
-            self.title,
-        )
+        # 2. Шапка с градиентом по типу ноды (только если тип задан)
+        style = NODE_TYPE_STYLES.get(self.node_type)
+        if style:
+            emoji, dark_hex, light_hex = style
+            # Путь для шапки: скруглённые верхние углы, плоское дно
+            hp = QPainterPath()
+            hp.moveTo(r.left() + radius, r.top())
+            hp.lineTo(r.right() - radius, r.top())
+            hp.quadTo(r.right(), r.top(), r.right(), r.top() + radius)
+            hp.lineTo(r.right(), r.top() + HEADER_H)
+            hp.lineTo(r.left(), r.top() + HEADER_H)
+            hp.lineTo(r.left(), r.top() + radius)
+            hp.quadTo(r.left(), r.top(), r.left() + radius, r.top())
+            hp.closeSubpath()
 
-        if self.subtitle:
-            f2 = QFont(); f2.setPointSize(8)
-            painter.setFont(f2)
-            painter.setPen(QPen(TEXT_SECONDARY))
-            painter.drawText(
-                self.rect().adjusted(self.PADDING, 26, -self.PADDING, -self.PADDING),
-                Qt.AlignTop | Qt.AlignLeft,
-                self.subtitle,
+            grad = QLinearGradient(0, r.top(), 0, r.top() + HEADER_H)
+            grad.setColorAt(0, QColor(light_hex))
+            grad.setColorAt(1, QColor(dark_hex))
+            painter.setPen(Qt.NoPen)
+            painter.fillPath(hp, QBrush(grad))
+
+            # Разделительная линия под шапкой
+            painter.setPen(QPen(QColor(dark_hex).darker(120), 1))
+            painter.drawLine(
+                int(r.left()), int(r.top() + HEADER_H),
+                int(r.right()), int(r.top() + HEADER_H)
             )
+
+            # Эмодзи в шапке
+            f_emoji = QFont()
+            f_emoji.setPointSize(12)
+            painter.setFont(f_emoji)
+            painter.setPen(QPen(TEXT_FG))
+            emoji_rect = QRectF(r.left() + 6, r.top(), 22, HEADER_H)
+            painter.drawText(emoji_rect, Qt.AlignVCenter | Qt.AlignLeft, emoji)
+
+            # Заголовок типа в шапке
+            f_title = QFont()
+            f_title.setBold(True)
+            f_title.setPointSize(8)
+            painter.setFont(f_title)
+            painter.setPen(QPen(TEXT_FG))
+            title_rect = QRectF(r.left() + 30, r.top(), r.width() - 36, HEADER_H)
+            painter.drawText(title_rect, Qt.AlignVCenter | Qt.AlignLeft, self.title)
+
+            # Подзаголовок в контентной зоне
+            if self.subtitle:
+                f_sub = QFont()
+                f_sub.setPointSize(8)
+                painter.setFont(f_sub)
+                painter.setPen(QPen(TEXT_SECONDARY))
+                sub_rect = r.adjusted(self.PADDING, HEADER_H + 6, -self.PADDING, -self.PADDING)
+                painter.drawText(sub_rect, Qt.AlignTop | Qt.AlignLeft, self.subtitle)
+        else:
+            # Fallback: старый стиль без шапки
+            painter.setPen(QPen(TEXT_FG))
+            f = QFont(); f.setBold(True); f.setPointSize(9)
+            painter.setFont(f)
+            painter.drawText(
+                r.adjusted(self.PADDING, self.PADDING, -self.PADDING, -self.PADDING),
+                Qt.AlignTop | Qt.AlignLeft,
+                self.title,
+            )
+            if self.subtitle:
+                f2 = QFont(); f2.setPointSize(8)
+                painter.setFont(f2)
+                painter.setPen(QPen(TEXT_SECONDARY))
+                painter.drawText(
+                    r.adjusted(self.PADDING, 26, -self.PADDING, -self.PADDING),
+                    Qt.AlignTop | Qt.AlignLeft,
+                    self.subtitle,
+                )
 
     def _layout_ports(self):
         r = self.rect()

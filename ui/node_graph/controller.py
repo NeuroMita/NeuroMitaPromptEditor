@@ -238,32 +238,32 @@ class NodeGraphController:
             title = "Установить переменную"
             subtitle = f"{'LOCAL ' if node.local else ''}{node.var} = {node.expr}"
             desc = "Создаёт или изменяет переменную. LOCAL — видна только внутри текущего блока."
-            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 320, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="SET"); item.setRect(0, 0, 320, 80); item.set_description(desc)
         elif isinstance(node, Log):
             title = "Записать в лог"
             subtitle = node.expr[:40] + "..." if len(node.expr) > 40 else node.expr
             desc = "Выводит значение выражения в лог для отладки."
-            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 320, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="LOG"); item.setRect(0, 0, 320, 80); item.set_description(desc)
         elif isinstance(node, AddSystemInfo):
             title = "Системная информация"
             subtitle = node.expr[:30] + "..." if len(node.expr) > 30 else node.expr
             desc = "Добавляет системные инструкции, обычно загружает файл в начало промпта."
-            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 340, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="ADD_SYSTEM_INFO"); item.setRect(0, 0, 340, 80); item.set_description(desc)
         elif isinstance(node, Return):
             title = "Вернуть результат"
             subtitle = node.expr[:35] + "..." if len(node.expr) > 35 else node.expr
             desc = "Возвращает итоговый текст промпта. Завершает выполнение скрипта."
-            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 340, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="RETURN"); item.setRect(0, 0, 340, 80); item.set_description(desc)
         elif isinstance(node, SeedMemory):
             title = "Добавить в память"
             preview = f"{node.content[:35]}..." if len(node.content) > 35 else node.content
             subtitle = f"[{node.priority}] {preview}"
             desc = "Добавляет факт в долгосрочную память персонажа с указанным приоритетом (high/medium/low)."
-            item = NodeItem(title, subtitle, node); item.setRect(0, 0, 360, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="SEED_MEMORY"); item.setRect(0, 0, 360, 80); item.set_description(desc)
         elif isinstance(node, If):
             title = "Условие"; subtitle = ""
             desc = "Условная развилка: выполняет разные ветки кода в зависимости от условий."
-            item = NodeItem(title, subtitle, node)
+            item = NodeItem(title, subtitle, node, node_type="IF")
             branches_count = len(node.branches) + (1 if node.else_body is not None else 0)
             base_h = 64; per_row = 28
             h = base_h + max(1, branches_count) * per_row + 10; w = 360

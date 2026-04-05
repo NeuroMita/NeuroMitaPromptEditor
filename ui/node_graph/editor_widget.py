@@ -25,6 +25,7 @@ from ui.node_graph.inspector_widget import Inspector
 from ui.node_graph.controller import NodeGraphController
 from ui.node_graph.preview_highlighter import SimplePromptHighlighter
 from ui.node_graph.runner_result_dialog import RunnerResultDialog
+from ui.node_graph.graph_legend import NodeLegend
 
 log = logging.getLogger("node_graph.editor")
 log.setLevel(logging.DEBUG)
@@ -74,6 +75,7 @@ class NodeGraphEditor(QWidget):
         self.inspector = Inspector(self)
         self.inspector.set_preview_provider(self._preview_for_expr)
         self.inspector.set_file_picker(self._pick_file_for_attach)
+        self.inspector.set_script_provider(lambda: self._ast)
         self.inspector.ast_changed.connect(self._on_ast_changed)
 
         self.controller = NodeGraphController(self.scene)
@@ -101,6 +103,8 @@ class NodeGraphEditor(QWidget):
         self.btn_run = QPushButton("▶ Запустить воркфлоу")
         self.btn_run.setToolTip("Выполнить от START до RETURN. Показать превью под узлами и итог.")
         self.btn_clear_previews = QPushButton("Очистить превью узлов")
+        self.btn_fit_view = QPushButton("⊙ По центру")
+        self.btn_fit_view.setToolTip("Подогнать вид под все ноды")
 
         self.btn_from_text.clicked.connect(self._rebuild_from_preview_text)
         self.btn_to_text.clicked.connect(self._apply_ast_to_preview)
@@ -109,12 +113,14 @@ class NodeGraphEditor(QWidget):
         self.btn_clear_meta.clicked.connect(self._clear_sidecar_meta)
         self.btn_run.clicked.connect(self._run_workflow)
         self.btn_clear_previews.clicked.connect(lambda: self.controller.clear_all_previews())
+        self.btn_fit_view.clicked.connect(self.view.fit_all)
 
         top_row = QHBoxLayout()
         top_row.addWidget(self.btn_from_text)
         top_row.addWidget(self.btn_to_text)
         top_row.addWidget(self.btn_save_meta)
         top_row.addWidget(self.btn_clear_meta)
+        top_row.addWidget(self.btn_fit_view)
         top_row.addStretch(1)
         top_row.addWidget(self.btn_clear_previews)
         top_row.addWidget(self.btn_run)
@@ -141,6 +147,9 @@ class NodeGraphEditor(QWidget):
         self._del_shortcut = QShortcut(QKeySequence(Qt.Key_Delete), self)
         self._del_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
         self._del_shortcut.activated.connect(self._delete_selected_nodes)
+
+        # Легенда (оверлей поверх view)
+        self._legend = NodeLegend(self.view)
 
         # Грузим мету (из сайдкара) — сначала в память
         self._load_sidecar_meta()

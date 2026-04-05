@@ -8,3 +8,4 @@ build
 Install.py
 metas
 ui/metas
+.claude/settings.json

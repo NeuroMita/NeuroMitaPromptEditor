@@ -21,8 +21,29 @@ def read_config_json(prompts_root: str | None, char_id: str | None, ensure_bound
     path = get_config_path(prompts_root, char_id)
     if not path or not os.path.isfile(path):
         return None
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    # Читаем как байты ДО вызова json-парсера, чтобы перехватить любые IO-ошибки
+    try:
+        with open(path, "rb") as f:
+            raw = f.read()
+    except OSError:
+        return None
+    if not raw or not raw.strip():
+        return None
+    # Декодируем вручную (utf-8-sig снимает BOM если он есть)
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("cp1251")
+        except UnicodeDecodeError:
+            return None
+    # json.loads() на строке — не трогает файловую систему, безопаснее json.load(f)
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
     if ensure_bounds:
         for k, v in get_bounds_defaults().items():
             data.setdefault(k, v)

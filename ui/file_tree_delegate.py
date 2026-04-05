@@ -42,8 +42,12 @@ class FileTreeDelegate(QStyledItemDelegate):
     def initStyleOption(self, option, index):
         super().initStyleOption(option, index)
 
-        file_info = index.model().fileInfo(index)
-        file_path = index.model().filePath(index)
+        model = index.model()
+        if model is None:
+            return
+
+        file_info = model.fileInfo(index)
+        file_path = model.filePath(index)
 
         # специальная иконка для *.script
         if file_info.isFile() and file_info.suffix().lower() == "script":
@@ -71,6 +75,8 @@ class FileTreeDelegate(QStyledItemDelegate):
 
         # жирный шрифт для изменённых файлов
         if self.modified_files_resolver:
-            modified_files    = self.modified_files_resolver()
-            current_file_path = index.model().filePath(index)
-            option.font.setBold(current_file_path in modified_files)
+            modified_files = self.modified_files_resolver()
+            if file_path in modified_files:
+                font = option.font
+                font.setBold(True)
+                option.font = font

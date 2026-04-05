@@ -231,6 +231,8 @@ class GlobalGraphWidget(QWidget):
         self._char_id: str | None = None
         self._nodes: list[TemplateNode] = []
         self._arrows: list[_GraphArrow] = []
+        self._refreshing: bool = False
+        self._empty_proxy = None  # QGraphicsProxyWidget для QLabel пустого состояния
 
         self._build_ui()
 
@@ -301,11 +303,30 @@ class GlobalGraphWidget(QWidget):
     # -- логика графа --------------------------------------------------------
 
     def _refresh(self):
+        # Защита от повторного входа (processEvents мог вызвать второй _refresh).
+        if self._refreshing:
+            return
+        self._refreshing = True
+        try:
+            self._do_refresh()
+        finally:
+            self._refreshing = False
+
+    def _do_refresh(self):
         # Явно отсоединяем прокси-виджеты кнопок ДО scene.clear().
         # Иначе C++ удаляет QPushButton пока Python держит ссылки →
         # stack buffer overrun (0xC0000409).
 
-        # Шаг 1: disconnect + detach + deleteLater для каждой кнопки
+        # Убираем QLabel пустого состояния (если есть) — до scene.clear()
+        if self._empty_proxy is not None:
+            try:
+                if self._empty_proxy.scene() is self._scene:
+                    self._scene.removeItem(self._empty_proxy)
+            except Exception:
+                pass
+            self._empty_proxy = None
+
+        # Шаг 1: disconnect + detach для каждой кнопки
         for node in list(self._nodes):
             node.clear_connected_arrows()
             for proxy in getattr(node, "_btn_proxies", []):
@@ -317,7 +338,6 @@ class GlobalGraphWidget(QWidget):
                         except Exception:
                             pass
                         proxy.setWidget(None)
-                        btn.deleteLater()
                 except Exception:
                     pass
 
@@ -330,11 +350,7 @@ class GlobalGraphWidget(QWidget):
                 except Exception:
                     pass
 
-        # Шаг 3: Дать Qt обработать deleteLater()
-        from PySide6.QtWidgets import QApplication
-        QApplication.processEvents()
-
-        # Шаг 4: Теперь безопасно очищать сцену
+        # Шаг 3: Безопасно очищаем сцену (без processEvents — источника re-entrancy)
         self._scene.clear()
         self._nodes.clear()
         self._arrows.clear()
@@ -350,8 +366,8 @@ class GlobalGraphWidget(QWidget):
             label = QLabel("main_template.txt не найден\nили не содержит включений.")
             label.setStyleSheet("color: #6e7681; font-size: 13px;")
             label.setAlignment(Qt.AlignCenter)
-            proxy = self._scene.addWidget(label)
-            proxy.setPos(0, 0)
+            self._empty_proxy = self._scene.addWidget(label)
+            self._empty_proxy.setPos(0, 0)
             return
 
         self._set_empty(False)

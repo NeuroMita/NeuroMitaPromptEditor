@@ -97,6 +97,13 @@ class TemplateNode(QGraphicsObject):
         return QRectF(0, 0, NODE_W, NODE_H)
 
     def paint(self, painter: QPainter, option, widget=None):
+        # try/except обязателен: Python-исключение внутри paint() вызывает C++-краш
+        try:
+            self._paint_impl(painter)
+        except Exception:
+            pass
+
+    def _paint_impl(self, painter: QPainter):
         kind = self._kind if self._exists else "missing"
         dark, light = _KIND_COLORS.get(kind, _KIND_COLORS["text"])
 
@@ -122,35 +129,36 @@ class TemplateNode(QGraphicsObject):
         painter.setPen(QPen(border_color, border_w))
         painter.drawPath(path)
 
-        # Заголовок (иконка + метка)
-        icon = _KIND_ICONS.get(kind, "📄")
+        # Иконка (emoji) — используем системный emoji-шрифт
+        icon = _KIND_ICONS.get(kind, "?")
         painter.setPen(QColor("#e6edf3"))
+        emoji_font = QFont()
+        emoji_font.setFamily("Segoe UI Emoji")
+        emoji_font.setPointSize(14)
+        painter.setFont(emoji_font)
+        painter.drawText(QRectF(0, 6, NODE_W, 26), Qt.AlignHCenter, icon)
 
-        # Иконка
-        icon_font = QFont("Segoe UI Emoji", 16)
-        painter.setFont(icon_font)
-        painter.drawText(QRectF(0, 8, NODE_W, 24), Qt.AlignHCenter, icon)
-
-        # Метка файла
+        # Метка файла (ASCII-безопасный шрифт)
         label_font = QFont("Segoe UI", 9)
         label_font.setBold(True)
         painter.setFont(label_font)
+        painter.setPen(QColor("#e6edf3"))
         label = self._label
         if len(label) > 22:
-            label = label[:20] + "…"
+            label = label[:20] + "..."
         painter.drawText(QRectF(6, 34, NODE_W - 12, 18), Qt.AlignHCenter, label)
 
-        # Бейдж "Common" если общий файл
+        # Бейдж (без emoji — используем ASCII для надёжности)
         if self._is_common:
             badge_font = QFont("Segoe UI", 7)
             painter.setFont(badge_font)
             painter.setPen(QColor("#7ed4a5"))
-            painter.drawText(QRectF(6, 52, NODE_W - 12, 14), Qt.AlignHCenter, "📦 Common")
+            painter.drawText(QRectF(6, 52, NODE_W - 12, 14), Qt.AlignHCenter, "[Common]")
         elif not self._exists:
             badge_font = QFont("Segoe UI", 7)
             painter.setFont(badge_font)
             painter.setPen(QColor("#f0883e"))
-            painter.drawText(QRectF(6, 52, NODE_W - 12, 14), Qt.AlignHCenter, "⚠️ Файл не найден")
+            painter.drawText(QRectF(6, 52, NODE_W - 12, 14), Qt.AlignHCenter, "! Файл не найден")
 
     def hoverEnterEvent(self, e):
         self._hovered = True

@@ -203,6 +203,19 @@ class GlobalGraphWidget(QWidget):
     # -- логика графа --------------------------------------------------------
 
     def _refresh(self):
+        # Явно отсоединяем прокси-виджеты кнопок ДО scene.clear().
+        # Иначе C++ удаляет QPushButton пока PySide2 держит Python-ссылки →
+        # stack buffer overrun (0xC0000409).
+        for node in self._nodes:
+            for proxy in getattr(node, "_btn_proxies", []):
+                try:
+                    btn = proxy.widget()
+                    if btn is not None:
+                        btn.clicked.disconnect()
+                    proxy.setWidget(None)
+                except Exception:
+                    pass
+
         self._scene.clear()
         self._nodes.clear()
         self._arrows.clear()

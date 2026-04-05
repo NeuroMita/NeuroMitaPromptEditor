@@ -13,6 +13,25 @@ class NodeGraphWindow(QMainWindow):
     """
     Полноценное окно (не диалог) для нодового редактора.
     """
+
+    @classmethod
+    def open_for_path(cls, path: str, prompts_root: Optional[str],
+                      apply_callback: Optional[Callable[[str], None]] = None,
+                      parent=None) -> "NodeGraphWindow":
+        """
+        Открывает NodeGraphWindow напрямую по пути к .script файлу.
+        Читает содержимое файла сам — не требует предварительного открытия в TabManager.
+        """
+        import os
+        try:
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+        except Exception:
+            text = ""
+        win = cls(text, file_path=path, prompts_root=prompts_root,
+                  apply_callback=apply_callback, parent=parent)
+        return win
+
     def __init__(self, initial_text: str, file_path: Optional[str], prompts_root: Optional[str],
                  apply_callback: Optional[Callable[[str], None]] = None, parent=None):
         super().__init__(parent)

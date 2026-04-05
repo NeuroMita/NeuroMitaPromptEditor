@@ -1,7 +1,7 @@
 import os, logging
 from pathlib import Path
 from PySide6.QtWidgets import (
-    QMainWindow, QSplitter, QStatusBar, QLabel, QMessageBox
+    QMainWindow, QSplitter, QStatusBar, QLabel, QMessageBox, QStackedWidget, QPushButton
 )
 from PySide6.QtCore import Qt, QSettings, QItemSelectionModel
 
@@ -44,11 +44,24 @@ class PromptEditorWindow(QMainWindow):
             f"{k}={str(v).lower() if isinstance(v, bool) else v}" for k, v in d.items()
         )
 
+    def _char_part(self) -> str | None:
+        """Возвращает только имя персонажа (первая часть 'Crazy/DefaultJson' → 'Crazy')."""
+        return self.selected_char.split("/")[0] if self.selected_char else None
+
+    def _set_display_name(self) -> str | None:
+        """Возвращает имя набора (последняя часть 'Crazy/DefaultJson' → 'DefaultJson')."""
+        return self.selected_char.split("/")[-1] if self.selected_char else None
+
+    def _vars_key(self) -> str:
+        """Ключ QSettings для хранения переменных текущего набора."""
+        return self.selected_char.lower().replace("/", "_") + "_vars" if self.selected_char else ""
+
     def _defaults_for(self, char_id: str | None) -> dict:
         if not char_id:
             return Character.BASE_DEFAULTS.copy()
+        char_part = char_id.split("/")[0]  # только имя персонажа, без набора
         for cls in _LEGACY_CLASSES:
-            if cls.__name__.lower().startswith(char_id.lower()):
+            if cls.__name__.lower().startswith(char_part.lower()):
                 merged = Character.BASE_DEFAULTS.copy()
                 merged.update(getattr(cls, "DEFAULT_OVERRIDES", {}))
                 return merged
@@ -101,6 +114,7 @@ class PromptEditorWindow(QMainWindow):
         # Загружаем и открываем последний открытый файл
         last_opened_file = self.settings.value("lastOpenedFile")
         if last_opened_file and os.path.isfile(last_opened_file):
+            self._show_editor()
             self.tabs.open_file(last_opened_file)
             editor_logger.info(f"Открыт последний файл: {last_opened_file}")
             
@@ -132,14 +146,48 @@ class PromptEditorWindow(QMainWindow):
 
     # --------------------- UI construction ----------------------
     def _build_ui(self):
-        spl = QSplitter(Qt.Horizontal, self); self.splitter = spl; self.setCentralWidget(spl)
+        from ui.character_selector import CharacterSelector
+        from ui.global_graph.global_graph_widget import GlobalGraphWidget
 
+        # Внешний QStackedWidget: страница 0 = CharacterSelector, страница 1 = редактор
+        self._stack = QStackedWidget(self)
+        self.setCentralWidget(self._stack)
+
+        # --- Страница 0: выбор персонажа ---
+        self.char_selector = CharacterSelector(self.prompts_root, self)
+        self.char_selector.character_chosen.connect(self._on_char_chosen_from_selector)
+        self.char_selector.open_folder_requested.connect(self._change_prompts_dir)
+        self._stack.addWidget(self.char_selector)       # index 0
+
+        # --- Страница 1: основной редактор ---
+        editor_page = QSplitter(Qt.Horizontal)
+        self.splitter = editor_page
+
+        # Левая панель: файловое дерево
         self.tree = FileTreePanel(self.prompts_root, lambda: self.tabs.modified_paths(), self)
-        spl.addWidget(self.tree)
+        editor_page.addWidget(self.tree)
+
+        # Центральный стек: GlobalGraph (0) ↔ TabManager (1)
+        self._center_stack = QStackedWidget()
+
+        self.global_graph = GlobalGraphWidget()
+        self.global_graph.open_text_requested.connect(self._open_file_in_tabs)
+        self.global_graph.open_nodes_requested.connect(self._open_nodes_for_path)
+        self.global_graph.open_code_requested.connect(self._open_file_in_tabs)
+        self.global_graph.open_postscript_requested.connect(self._open_postscript_rules)
+        self._center_stack.addWidget(self.global_graph)   # index 0
 
         self.tabs = TabManager(lambda: self.prompts_root, self)
-        spl.addWidget(self.tabs); spl.setStretchFactor(1, 1)
+        self._center_stack.addWidget(self.tabs)           # index 1
 
+        self._center_stack.setCurrentIndex(0)
+        editor_page.addWidget(self._center_stack)
+        editor_page.setStretchFactor(1, 1)
+
+        self._stack.addWidget(editor_page)               # index 1
+        self._stack.setCurrentIndex(0)
+
+        # Dock-и (общие для обеих страниц)
         self.vars_dock = DslVariablesDock(self); self.addDockWidget(Qt.RightDockWidgetArea, self.vars_dock)
         self.info_dock = InfoEditorDock(self); self.addDockWidget(Qt.RightDockWidgetArea, self.info_dock)
         self.tmpl_dock = TemplatePanelDock(self); self.addDockWidget(Qt.LeftDockWidgetArea, self.tmpl_dock)
@@ -147,6 +195,20 @@ class PromptEditorWindow(QMainWindow):
 
         sb = QStatusBar(); self.setStatusBar(sb)
         self.path_lbl = QLabel("Нет открытых файлов"); sb.addPermanentWidget(self.path_lbl)
+
+        # Кнопка "← Персонажи" в статусбаре
+        self._btn_back_to_selector = QPushButton("← Персонажи")
+        self._btn_back_to_selector.setStyleSheet("""
+            QPushButton {
+                background: #21262d; color: #8b949e;
+                border: 1px solid #30363d; border-radius: 4px;
+                padding: 2px 10px; font-size: 11px;
+            }
+            QPushButton:hover { background: #30363d; color: #e6edf3; }
+        """)
+        self._btn_back_to_selector.clicked.connect(self._show_selector)
+        self._btn_back_to_selector.setVisible(False)
+        sb.addWidget(self._btn_back_to_selector)
 
         self.tree.file_open_requested.connect(self.tabs.open_file)
         self.tree.character_selected.connect(self._on_char_selected)
@@ -160,6 +222,11 @@ class PromptEditorWindow(QMainWindow):
         self.vars_dock.editor().textChanged.connect(self._on_vars_text_changed)
 
         tb = self.addToolBar("DSL")
+        # Кнопка "← Граф" для возврата из текстового редактора к графу
+        self._act_show_graph = tb.addAction("🗺 Граф", self._show_graph_view)
+        self._act_show_graph.setToolTip("Показать граф промпта (структуру main_template)")
+        self._act_show_graph.setVisible(False)
+        tb.addSeparator()
         self.run_act = tb.addAction("Скомпоновать промпт", self._run_dsl)
         self._update_run_dsl_state()
 
@@ -171,6 +238,25 @@ class PromptEditorWindow(QMainWindow):
 
         self._baseline_cfg_dict = None
         self._update_save_button_state()
+
+    def _on_char_chosen_from_selector(self, char_id: str):
+        """Пользователь выбрал персонажа на стартовом экране → переходим в редактор."""
+        self._show_editor()
+        self._show_graph_view()   # показываем граф, не текстовый редактор
+        self._on_char_selected(char_id)
+
+    def _show_editor(self):
+        """Переключает на страницу редактора."""
+        self._stack.setCurrentIndex(1)
+        self._btn_back_to_selector.setVisible(True)
+
+    def _show_selector(self):
+        """Переключает на стартовый экран."""
+        self._stack.setCurrentIndex(0)
+        self._btn_back_to_selector.setVisible(False)
+        if self.prompts_root:
+            self.char_selector.reload(self.prompts_root)
+        self.char_selector.set_active_char(self.selected_char)
 
 
     def _build_menu(self):
@@ -219,12 +305,99 @@ class PromptEditorWindow(QMainWindow):
         self._sync_vars_panel()
         self._update_run_dsl_state()
 
-        title = "Параметры DSL" + (f" — {self.selected_char}" if self.selected_char else "")
+        display = self._set_display_name()
+        title = "Параметры DSL" + (f" — {display}" if display else "")
         self.vars_dock.setWindowTitle(title)
 
         # Обновляем панель info.json и файлов шаблона
         self.info_dock.load_for_char(self.prompts_root, self.selected_char)
         self.tmpl_dock.load_for_char(self.prompts_root, self.selected_char)
+
+        # Обновляем глобальный граф
+        if self.selected_char and self.prompts_root:
+            self.global_graph.load_character(self.prompts_root, self.selected_char)
+            self._show_graph_view()   # при смене персонажа показываем граф
+
+    # ---------- переключение центральных видов ----------
+
+    def _show_graph_view(self):
+        """Показывает глобальный граф промпта."""
+        self._center_stack.setCurrentIndex(0)
+        self._act_show_graph.setVisible(False)
+
+    def _show_tabs_view(self):
+        """Показывает текстовый/нодовый редактор."""
+        self._center_stack.setCurrentIndex(1)
+        self._act_show_graph.setVisible(True)
+
+    # ---------- открытие файлов из графа ----------
+
+    def _open_file_in_tabs(self, path: str):
+        """Открывает файл в TabManager и переключается на вкладки."""
+        if path and os.path.isfile(path):
+            self.tabs.open_file(path)
+            self._show_editor()
+            self._show_tabs_view()
+
+    def _open_nodes_for_path(self, path: str):
+        """Открывает .script в NodeGraphEditor (из ноды графа) напрямую по пути."""
+        if not path or not os.path.isfile(path):
+            return
+        try:
+            from ui.node_graph_window import NodeGraphWindow
+            if not hasattr(self, "_node_windows"):
+                self._node_windows = []
+
+            def apply_back(new_text: str):
+                # Если файл открыт в TabManager — обновим там тоже
+                for i in range(self.tabs.count()):
+                    w = self.tabs.widget(i)
+                    if hasattr(w, "get_tab_file_path") and w.get_tab_file_path() == path:
+                        w.setPlainText(new_text)
+                        return
+                # Иначе сохраняем на диск напрямую
+                try:
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(new_text)
+                except Exception as e:
+                    editor_logger.error(f"Error writing {path}: {e}")
+
+            win = NodeGraphWindow.open_for_path(
+                path, prompts_root=self.prompts_root,
+                apply_callback=apply_back, parent=self
+            )
+            self._node_windows.append(win)
+            win.show()
+        except Exception as e:
+            QMessageBox.critical(self, "Нодовый редактор", f"Ошибка запуска: {e}")
+
+    def _open_postscript_rules(self, path: str):
+        """Открывает .postscript в визуальном Rule Builder."""
+        if not path or not os.path.isfile(path):
+            return
+        try:
+            from widgets.post_dsl_rule_list import PostScriptRuleList
+            from PySide6.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox
+            dlg = QDialog(self)
+            dlg.setWindowTitle(f"PostScript: {os.path.basename(path)}")
+            dlg.resize(700, 600)
+            lay = QVBoxLayout(dlg)
+            lay.setContentsMargins(0, 0, 0, 4)
+            rule_list = PostScriptRuleList(dlg)
+            rule_list.load_file(path)
+            lay.addWidget(rule_list, 1)
+            btns = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Close)
+            btns.accepted.connect(lambda: (rule_list.save(), dlg.accept()))
+            btns.rejected.connect(dlg.reject)
+            lay.addWidget(btns)
+            dlg.exec()
+        except Exception as e:
+            editor_logger.error(f"PostScript Rule Builder error: {e}", exc_info=True)
+            # Фолбэк: открываем как текст
+            if os.path.isfile(path):
+                self.tabs.open_file(path)
+                self._show_editor()
+                self._show_tabs_view()
 
     def _on_file_saved(self, path: str):
         """Обновляем панель шаблона при сохранении main_template.txt."""
@@ -234,26 +407,33 @@ class PromptEditorWindow(QMainWindow):
     # ---------------------- vars panel -------------------------
     def _sync_vars_panel(self):
         from utils.config_utils import read_config_json, get_bounds_defaults, compute_defaults_for_char
-        ed = self.vars_dock.editor(); ed.blockSignals(True)
         if self.selected_char:
-            key = f"{self.selected_char.lower()}_vars"
+            # Передаём bounds для слайдеров (attitude 0-100, boredom 0-100, stress 0-100)
+            raw_bounds = get_bounds_defaults()
+            bounds: dict = {}
+            for k in raw_bounds:
+                if k.endswith("_min"):
+                    varname = k[:-4]
+                    bounds[varname] = (raw_bounds[k], raw_bounds.get(f"{varname}_max", 100.0))
+            self.vars_dock.set_bounds(bounds)
+
+            key = self._vars_key()
             saved = self.settings.value(key, "")
             if saved:
-                ed.setPlainText(saved)
+                self.vars_dock.load_vars_text(saved)
             else:
                 cfg = read_config_json(self.prompts_root, self.selected_char)
                 if cfg:
-                    ed.setPlainText(self._dict2txt(cfg))
+                    self.vars_dock.load_vars_text(self._dict2txt(cfg))
                 else:
-                    base = compute_defaults_for_char(self.selected_char)
-                    for k, v in get_bounds_defaults().items():
-                        base.setdefault(k, v)
-                    ed.setPlainText(self._dict2txt(base))
+                    base = compute_defaults_for_char(self._char_part())
+                    for k2, v in get_bounds_defaults().items():
+                        base.setdefault(k2, v)
+                    self.vars_dock.load_vars_text(self._dict2txt(base))
             self._baseline_cfg_dict = read_config_json(self.prompts_root, self.selected_char)
         else:
-            ed.clear()
+            self.vars_dock.clear_vars()
             self._baseline_cfg_dict = None
-        ed.blockSignals(False)
         self._update_save_button_state()
 
     def _open_node_editor(self):
@@ -289,23 +469,22 @@ class PromptEditorWindow(QMainWindow):
 
     def _apply_config_or_defaults_to_editor(self):
         from utils.config_utils import read_config_json, get_bounds_defaults, compute_defaults_for_char
-        ed = self.vars_dock.editor()
         if self.selected_char:
             cfg = read_config_json(self.prompts_root, self.selected_char)
             if cfg:
                 txt = self._dict2txt(cfg)
                 self._baseline_cfg_dict = cfg
             else:
-                base = compute_defaults_for_char(self.selected_char)
+                base = compute_defaults_for_char(self._char_part())
                 for k, v in get_bounds_defaults().items():
                     base.setdefault(k, v)
                 txt = self._dict2txt(base)
                 self._baseline_cfg_dict = None
-            ed.setPlainText(txt)
-            self.settings.setValue(f"{self.selected_char.lower()}_vars", txt)
-            self.vars_dock.setWindowTitle(f"Параметры DSL — {self.selected_char}")
+            self.vars_dock.load_vars_text(txt)
+            self.settings.setValue(self._vars_key(), txt)
+            self.vars_dock.setWindowTitle(f"Параметры DSL — {self._set_display_name()}")
         else:
-            ed.clear()
+            self.vars_dock.clear_vars()
             self.vars_dock.setWindowTitle("Параметры DSL")
             self._baseline_cfg_dict = None
         self._update_save_button_state()
@@ -336,8 +515,8 @@ class PromptEditorWindow(QMainWindow):
             write_config_json(self.prompts_root, self.selected_char, final_cfg)
             QMessageBox.information(self, "config.json", f"Сохранено:\n{cfg_path}")
             txt = self._dict2txt(final_cfg)
-            self.vars_dock.editor().setPlainText(txt)
-            self.settings.setValue(f"{self.selected_char.lower()}_vars", txt)
+            self.vars_dock.load_vars_text(txt)
+            self.settings.setValue(self._vars_key(), txt)
             self._baseline_cfg_dict = final_cfg
             self._update_save_button_state()
         except Exception as e:
@@ -364,7 +543,7 @@ class PromptEditorWindow(QMainWindow):
         self.vars_dock.set_save_enabled(not are_configs_equal(current, baseline))
 
     def _check_syntax(self):
-        from syntax.syntax_checker import PostScriptSyntaxChecker, SyntaxError  # Импортируем здесь, чтобы избежать циклических зависимостей
+        from syntax.syntax_checker import PostScriptSyntaxChecker  # Импортируем здесь, чтобы избежать циклических зависимостей
 
         current_editor = self.tabs.currentWidget()
         if not current_editor:
@@ -378,7 +557,7 @@ class PromptEditorWindow(QMainWindow):
 
         file_content = current_editor.toPlainText()
         checker = PostScriptSyntaxChecker()
-        errors: List[SyntaxError] = []
+        errors: list = []
         
         if file_path.lower().endswith(".postscript"):
             errors = checker.check_postscript_syntax(file_content, file_path)
@@ -417,7 +596,8 @@ class PromptEditorWindow(QMainWindow):
             return
 
         vars_dict = self._parse_vars()
-        char = CharacterClass(self.selected_char, self.selected_char, self.prompts_root, vars_dict)
+        display_name = self._set_display_name()
+        char = CharacterClass(self.selected_char, display_name, self.prompts_root, vars_dict)
         try:
             # Если нужны инсерты — добавьте tags. Иначе None.
             tags = None
@@ -425,7 +605,7 @@ class PromptEditorWindow(QMainWindow):
             blocks, sys_infos, vars_before, vars_after = char.run_dsl(tags)
 
             dlg = DslResultDialog(
-                f"DSL: {self.selected_char}",
+                f"DSL: {display_name}",
                 content_blocks=blocks,
                 system_infos=sys_infos,
                 vars_before=vars_before,
@@ -457,7 +637,7 @@ class PromptEditorWindow(QMainWindow):
         self.run_act.setEnabled(enabled)
 
         if have_char:
-            self.run_act.setText(f'Скомпоновать промпт для “{self.selected_char}”')
+            self.run_act.setText(f'Скомпоновать промпт для "{self._set_display_name()}"')
         else:
             self.run_act.setText(“Скомпоновать промпт”)
 
@@ -474,6 +654,19 @@ class PromptEditorWindow(QMainWindow):
         else:
             self._test_postdsl_act.setEnabled(False)
 
+        self._update_postdsl_action_state()
+
+    def _update_postdsl_action_state(self):
+        """Активируем «Тестировать PostDSL…» только если открыт .postscript файл."""
+        if not hasattr(self, "_test_postdsl_act"):
+            return
+        ed = self.tabs.currentWidget()
+        if ed and hasattr(ed, "get_tab_file_path"):
+            path = ed.get_tab_file_path() or ""
+            self._test_postdsl_act.setEnabled(path.lower().endswith(".postscript"))
+        else:
+            self._test_postdsl_act.setEnabled(False)
+
     # ------------------------ helpers -------------------------
     def _change_prompts_dir(self):
         if self.tabs.count() and not self._ask_close_all_tabs(): return
@@ -482,8 +675,8 @@ class PromptEditorWindow(QMainWindow):
         new_prompts_path = select_prompts_directory_dialog(self, self.settings, PROMPTS_DIR_NAME, "Выберите папку Prompts")
         
         if new_prompts_path:
-            self.prompts_root = new_prompts_path #
-            
+            self.prompts_root = new_prompts_path
+
             if hasattr(self.tree, 'update_prompts_root'):
                 self.tree.update_prompts_root(new_prompts_path)
             else:
@@ -491,6 +684,9 @@ class PromptEditorWindow(QMainWindow):
                 self.tree.setRootIndex(self.tree.model().index(new_prompts_path))
                 editor_logger.warning("FileTreePanel.update_prompts_root() не найден, используется старый метод обновления.")
 
+            # Обновляем стартовый экран с новой папкой
+            self.char_selector.reload(new_prompts_path)
+            self._show_selector()
             self._on_char_selected("") 
 
 
@@ -510,12 +706,21 @@ class PromptEditorWindow(QMainWindow):
             self.setWindowTitle(f"{os.path.basename(path)}{star} — {base}")
             self.path_lbl.setText(path)
 
-            # Попытка определить персонажа из пути файла
+            # Попытка определить персонажа и набор из пути файла
             if self.prompts_root and path != "Новый файл":
                 try:
-                    relative_path = Path(path).relative_to(self.prompts_root)
-                    # Предполагаем, что имя персонажа - это первая папка после prompts_root
-                    current_char_id = str(relative_path.parts[0])
+                    root = Path(self.prompts_root)
+                    parts = Path(path).relative_to(root).parts
+                    if parts:
+                        char_part = parts[0]
+                        if len(parts) >= 2 and not parts[1].startswith("_"):
+                            candidate = root / char_part / parts[1]
+                            if candidate.is_dir():
+                                current_char_id = f"{char_part}/{parts[1]}"
+                            else:
+                                current_char_id = char_part
+                        else:
+                            current_char_id = char_part
                 except ValueError:
                     editor_logger.debug(f"Не удалось определить персонажа из пути файла (вне prompts_root): {path}")
                 except IndexError:
@@ -545,7 +750,7 @@ class PromptEditorWindow(QMainWindow):
 
         if self.selected_char:
             self.settings.setValue(
-                f"{self.selected_char.lower()}_vars",
+                self._vars_key(),
                 self.vars_dock.editor().toPlainText()
             )
         if self.prompts_root:
@@ -583,7 +788,6 @@ class PromptEditorWindow(QMainWindow):
         h = self.log_dock.get_handler()
 
         # 1) Локальный редакторский логгер
-        from utils.logger import add_editor_log_handler, get_dsl_execution_logger, get_dsl_script_logger
         add_editor_log_handler(h)
 
         # 2) DSL-логгеры

@@ -14,6 +14,7 @@ class DslVariablesDock(QDockWidget):
         super().__init__("Параметры DSL", parent)
         self.setObjectName("DslVariablesDock")
         self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self._save_callback = None
         self._build()
 
     # ---------- API совместимости с main_window.py ----------
@@ -59,11 +60,14 @@ class DslVariablesDock(QDockWidget):
             self.reset_requested.emit()
 
     def set_on_save_clicked(self, callback):
-        try:
-            self._btn_save_cfg.clicked.disconnect()
-        except Exception:
-            pass
-        self._btn_save_cfg.clicked.connect(callback)
+        if self._save_callback is not None:
+            try:
+                self._btn_save_cfg.clicked.disconnect(self._save_callback)
+            except Exception:
+                pass
+        self._save_callback = callback
+        if callback is not None:
+            self._btn_save_cfg.clicked.connect(callback)
 
     def set_save_enabled(self, enabled: bool):
         self._btn_save_cfg.setEnabled(bool(enabled))

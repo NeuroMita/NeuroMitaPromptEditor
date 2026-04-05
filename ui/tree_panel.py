@@ -113,6 +113,8 @@ class FileTreePanel(QTreeView):
                 path  = Path(self._model.filePath(idx)).resolve()
                 root  = Path(self._prompts_root).resolve()
                 parts = path.relative_to(root).parts
+                if parts and parts[0].startswith("_"):
+                    return  # общий/служебный файл — не менять контекст персонажа
                 if parts and not parts[0].startswith("_"):
                     char_part = parts[0]
                     if len(parts) >= 2 and not parts[1].startswith("_"):

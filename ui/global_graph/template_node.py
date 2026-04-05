@@ -26,7 +26,7 @@ from PySide6.QtGui import (
     QPainterPath, QLinearGradient,
 )
 from PySide6.QtWidgets import (
-    QGraphicsItem, QGraphicsObject, QGraphicsProxyWidget,
+    QGraphicsItem, QGraphicsObject, QGraphicsProxyWidget, QGraphicsEllipseItem,
     QPushButton, QWidget, QHBoxLayout,
 )
 
@@ -49,6 +49,42 @@ _KIND_ICONS: dict[str, str] = {
 
 NODE_W = 180
 NODE_H = 110
+PORT_R = 7
+
+
+class _NodePortItem(QGraphicsEllipseItem):
+    """Порт ноды — круг на краю, начальная/конечная т��чка стрелки."""
+
+    def __init__(self, is_input: bool, owner: "TemplateNode"):
+        super().__init__(-PORT_R, -PORT_R, PORT_R * 2, PORT_R * 2, owner)
+        self.is_input = is_input
+        self.owner = owner
+        if is_input:
+            self.setPos(0, NODE_H / 2)
+        else:
+            self.setPos(NODE_W, NODE_H / 2)
+        self._set_normal()
+        self.setZValue(20)
+        self.setAcceptHoverEvents(True)
+
+    def _set_normal(self):
+        self.setBrush(QBrush(QColor("#5a8fbe")))
+        self.setPen(QPen(QColor("#c9d1d9"), 1.5))
+
+    def _set_highlighted(self):
+        self.setBrush(QBrush(QColor("#79b8ff")))
+        self.setPen(QPen(QColor("#ffffff"), 2.0))
+
+    def center_scene(self) -> QPointF:
+        return self.mapToScene(QPointF(0, 0))
+
+    def hoverEnterEvent(self, event):
+        self._set_highlighted()
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        self._set_normal()
+        super().hoverLeaveEvent(event)
 
 
 class TemplateNodeSignals(QObject):
@@ -90,6 +126,13 @@ class TemplateNode(QGraphicsObject):
         # Кнопки (через QGraphicsProxyWidget)
         self._btn_proxies: list[QGraphicsProxyWidget] = []
         self._build_buttons()
+
+        # Порты (левый = вход, правый = выход)
+        self.in_port = _NodePortItem(True, self)
+        self.out_port = _NodePortItem(False, self)
+
+        # Стрелки, соединённые с этой нодой (заполняется из _refresh)
+        self._connected_arrows: list = []
 
     # -- QGraphicsItem protocol --
 
@@ -237,3 +280,21 @@ class TemplateNode(QGraphicsObject):
 
     def _on_rules(self):
         self.signals.rules_requested.emit(self._resolved)
+
+    # -- стрелки --
+
+    def add_connected_arrow(self, arrow):
+        if arrow not in self._connected_arrows:
+            self._connected_arrows.append(arrow)
+
+    def clear_connected_arrows(self):
+        self._connected_arrows.clear()
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.ItemPositionHasChanged:
+            for arrow in list(self._connected_arrows):
+                try:
+                    arrow._update()
+                except Exception:
+                    pass
+        return super().itemChange(change, value)

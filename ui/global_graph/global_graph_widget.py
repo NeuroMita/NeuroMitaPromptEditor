@@ -22,15 +22,15 @@ from typing import Callable
 
 from PySide6.QtCore import Qt, QRectF, QPointF, Signal, QTimer
 from PySide6.QtGui import (
-    QPainter, QPen, QColor, QPainterPath, QWheelEvent,
+    QPainter, QPen, QColor, QPainterPath, QWheelEvent, QBrush,
 )
 from PySide6.QtWidgets import (
     QGraphicsScene, QGraphicsView, QGraphicsLineItem, QGraphicsPathItem,
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFrame,
-    QSizePolicy,
+    QSizePolicy, QMenu, QApplication,
 )
 
-from ui.global_graph.template_node import TemplateNode, NODE_W, NODE_H
+from ui.global_graph.template_node import TemplateNode, NODE_W, NODE_H, _NodePortItem
 from ui.global_graph.template_to_graph import build_graph_from_template
 
 
@@ -45,30 +45,64 @@ _MARGIN_Y  = 40
 class _GraphArrow(QGraphicsPathItem):
     """Стрелка-соединение между нодами."""
 
+    _PEN_NORMAL   = QPen(QColor("#5a8fbe"), 2.0, Qt.SolidLine)
+    _PEN_HOVER    = QPen(QColor("#79b8ff"), 2.5, Qt.SolidLine)
+    _PEN_SELECTED = QPen(QColor("#f8c012"), 2.5, Qt.SolidLine)
+
     def __init__(self, src: TemplateNode, dst: TemplateNode):
         super().__init__()
         self._src = src
         self._dst = dst
-        self.setPen(QPen(QColor("#5a8fbe"), 2.0, Qt.SolidLine))
+        self.setPen(self._PEN_NORMAL)
         self.setZValue(-1)
+        self.setFlag(QGraphicsPathItem.ItemIsSelectable, True)
+        self.setAcceptHoverEvents(True)
         self._update()
 
-    def _update(self):
-        sp = self._src.pos()
-        dp = self._dst.pos()
+    @property
+    def source_node(self) -> TemplateNode:
+        return self._src
 
-        # Если ноды в одной строке — стрелка слева-направо (right → left)
-        same_row = abs(sp.y() - dp.y()) < NODE_H
+    @property
+    def target_node(self) -> TemplateNode:
+        return self._dst
+
+    def hoverEnterEvent(self, event):
+        if not self.isSelected():
+            self.setPen(self._PEN_HOVER)
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        if not self.isSelected():
+            self.setPen(self._PEN_NORMAL)
+        super().hoverLeaveEvent(event)
+
+    def itemChange(self, change, value):
+        if change == QGraphicsPathItem.ItemSelectedHasChanged:
+            self.setPen(self._PEN_SELECTED if value else self._PEN_NORMAL)
+        return super().itemChange(change, value)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu()
+        act_del = menu.addAction("🗑 Удалить связь")
+        result = menu.exec(event.screenPos().toPoint())
+        if result is act_del:
+            sc = self.scene()
+            if sc and hasattr(sc, "_on_arrow_delete_requested"):
+                sc._on_arrow_delete_requested(self)
+        event.accept()
+
+    def _update(self):
+        # Используем позиции портов нод
+        start = self._src.out_port.center_scene()
+        end   = self._dst.in_port.center_scene()
+
+        same_row = abs(start.y() - end.y()) < NODE_H
         if same_row:
-            start = sp + QPointF(NODE_W, NODE_H / 2)
-            end   = dp + QPointF(0,     NODE_H / 2)
             cx = (start.x() + end.x()) / 2
             path = QPainterPath(start)
             path.cubicTo(QPointF(cx, start.y()), QPointF(cx, end.y()), end)
         else:
-            # Перенос строки: из правого-нижнего угла в левый-верхний следующей строки
-            start = sp + QPointF(NODE_W / 2, NODE_H)
-            end   = dp + QPointF(NODE_W / 2, 0)
             cy = (start.y() + end.y()) / 2
             path = QPainterPath(start)
             path.cubicTo(QPointF(start.x(), cy), QPointF(end.x(), cy), end)
@@ -76,10 +110,73 @@ class _GraphArrow(QGraphicsPathItem):
 
 
 class _GlobalGraphScene(QGraphicsScene):
+    """Сцена глобального графа с поддержкой перетаскивания портов."""
+
+    # src_node, dst_node — оба TemplateNode
+    connection_requested = Signal(object, object)
+
     def __init__(self):
         super().__init__()
         self.setSceneRect(-5000, -5000, 10000, 10000)
         self.setBackgroundBrush(QColor("#0d1117"))
+        self._drag_src: TemplateNode | None = None
+        self._temp_edge: QGraphicsLineItem | None = None
+
+    def _port_at(self, scene_pos: QPointF) -> "_NodePortItem | None":
+        """Возвращает порт под курсором (если есть)."""
+        view = self.views()[0] if self.views() else None
+        if not view:
+            return None
+        it = self.itemAt(scene_pos, view.transform())
+        if isinstance(it, _NodePortItem):
+            return it
+        return None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            port = self._port_at(event.scenePos())
+            if port and not port.is_input:
+                # Начинаем drag с output порта
+                self._drag_src = port.owner
+                p = port.center_scene()
+                self._temp_edge = QGraphicsLineItem(p.x(), p.y(), p.x(), p.y())
+                self._temp_edge.setPen(QPen(QColor("#f8c012"), 2, Qt.DashLine))
+                self._temp_edge.setZValue(100)
+                self.addItem(self._temp_edge)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._temp_edge and self._drag_src:
+            line = self._temp_edge.line()
+            p = event.scenePos()
+            self._temp_edge.setLine(line.x1(), line.y1(), p.x(), p.y())
+            # Подсветить input порт под курсором
+            port = self._port_at(p)
+            if port and port.is_input and port.owner is not self._drag_src:
+                port._set_highlighted()
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self._temp_edge and self._drag_src:
+            port = self._port_at(event.scenePos())
+            if port and port.is_input and port.owner is not self._drag_src:
+                self.connection_requested.emit(self._drag_src, port.owner)
+            # Убрать временную линию
+            self.removeItem(self._temp_edge)
+            self._temp_edge = None
+            self._drag_src = None
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def _on_arrow_delete_requested(self, arrow: _GraphArrow):
+        """Вызывается из _GraphArrow.contextMenuEvent."""
+        # Пробрасываем в GlobalGraphWidget через сигнал (используем connection_requested с None dst)
+        self.connection_requested.emit(arrow.source_node, None)
 
 
 class _GraphView(QGraphicsView):
@@ -185,6 +282,7 @@ class GlobalGraphWidget(QWidget):
 
         # --- Холст ---
         self._scene = _GlobalGraphScene()
+        self._scene.connection_requested.connect(self._on_connection_requested)
         self._view = _GraphView(self._scene, self)
         outer.addWidget(self._view, 1)
 
@@ -204,18 +302,39 @@ class GlobalGraphWidget(QWidget):
 
     def _refresh(self):
         # Явно отсоединяем прокси-виджеты кнопок ДО scene.clear().
-        # Иначе C++ удаляет QPushButton пока PySide2 держит Python-ссылки →
+        # Иначе C++ удаляет QPushButton пока Python держит ссылки →
         # stack buffer overrun (0xC0000409).
-        for node in self._nodes:
+
+        # Шаг 1: disconnect + detach + deleteLater для каждой кнопки
+        for node in list(self._nodes):
+            node.clear_connected_arrows()
             for proxy in getattr(node, "_btn_proxies", []):
                 try:
                     btn = proxy.widget()
                     if btn is not None:
-                        btn.clicked.disconnect()
-                    proxy.setWidget(None)
+                        try:
+                            btn.clicked.disconnect()
+                        except Exception:
+                            pass
+                        proxy.setWidget(None)
+                        btn.deleteLater()
                 except Exception:
                     pass
 
+        # Шаг 2: Явно удалить прокси из сцены ДО scene.clear()
+        for node in list(self._nodes):
+            for proxy in getattr(node, "_btn_proxies", []):
+                try:
+                    if proxy.scene() is self._scene:
+                        self._scene.removeItem(proxy)
+                except Exception:
+                    pass
+
+        # Шаг 3: Дать Qt обработать deleteLater()
+        from PySide6.QtWidgets import QApplication
+        QApplication.processEvents()
+
+        # Шаг 4: Теперь безопасно очищать сцену
         self._scene.clear()
         self._nodes.clear()
         self._arrows.clear()
@@ -260,6 +379,8 @@ class GlobalGraphWidget(QWidget):
             arrow = _GraphArrow(self._nodes[i], self._nodes[i + 1])
             self._scene.addItem(arrow)
             self._arrows.append(arrow)
+            self._nodes[i].add_connected_arrow(arrow)
+            self._nodes[i + 1].add_connected_arrow(arrow)
 
         # Обновляем заголовок
         char_display = self._char_id.split("/")[-1] if "/" in self._char_id else self._char_id
@@ -270,6 +391,133 @@ class GlobalGraphWidget(QWidget):
 
     def _fit_view(self):
         self._view.fit_all()
+
+    # -- соединения (port drag) -----------------------------------------------
+
+    def _on_connection_requested(self, src_node: TemplateNode, dst_node):
+        """
+        Пользователь соединил src → dst (или dst=None = удалить исходящую от src).
+        Переставляет dst сразу после src в порядке нод, перерисовывает граф
+        и перезаписывает main_template.txt.
+        """
+        if dst_node is None:
+            # Удаление: убрать стрелку из src (src теряет преемника)
+            # Находим и удаляем соответствующую стрелку
+            for arrow in list(self._arrows):
+                if arrow.source_node is src_node:
+                    src_node.clear_connected_arrows()
+                    dst_node2 = arrow.target_node
+                    dst_node2.clear_connected_arrows()
+                    try:
+                        self._scene.removeItem(arrow)
+                    except Exception:
+                        pass
+                    self._arrows.remove(arrow)
+                    # Перебираем оставшиеся стрелки, обновляем ссылки
+                    for a in self._arrows:
+                        a.source_node.add_connected_arrow(a)
+                        a.target_node.add_connected_arrow(a)
+                    self._write_current_order()
+                    return
+            return
+
+        if src_node is dst_node:
+            return
+
+        # Перестановка: перемещаем dst_node сразу после src_node
+        try:
+            src_idx = self._nodes.index(src_node)
+            dst_idx = self._nodes.index(dst_node)
+        except ValueError:
+            return
+
+        if src_idx == dst_idx - 1:
+            return  # уже в нужном порядке
+
+        # Убрать dst из текущей позиции и вставить сразу после src
+        self._nodes.pop(dst_idx)
+        new_src_idx = self._nodes.index(src_node)
+        self._nodes.insert(new_src_idx + 1, dst_node)
+
+        # Перестроить стрелки
+        self._rebuild_arrows()
+        self._write_current_order()
+
+    def _rebuild_arrows(self):
+        """Удалить все стрелки и создать заново по текущему self._nodes."""
+        for arrow in list(self._arrows):
+            try:
+                self._scene.removeItem(arrow)
+            except Exception:
+                pass
+        self._arrows.clear()
+        for node in self._nodes:
+            node.clear_connected_arrows()
+
+        for i in range(len(self._nodes) - 1):
+            arrow = _GraphArrow(self._nodes[i], self._nodes[i + 1])
+            self._scene.addItem(arrow)
+            self._arrows.append(arrow)
+            self._nodes[i].add_connected_arrow(arrow)
+            self._nodes[i + 1].add_connected_arrow(arrow)
+
+    def _write_current_order(self):
+        """Перезаписывает main_template.txt согласно текущему self._nodes."""
+        ordered_raws = [n._spec["raw"] for n in self._nodes if "raw" in n._spec]
+        self._write_template_order(ordered_raws)
+
+    def _write_template_order(self, ordered_raws: list):
+        """Перезаписывает порядок [<...>] включений в main_template.txt."""
+        import re
+        if not self._prompts_root or not self._char_id:
+            return
+        parts = self._char_id.split("/")
+        char_base = os.path.join(self._prompts_root, *parts)
+        tmpl_path = os.path.join(char_base, "main_template.txt")
+        if not os.path.isfile(tmpl_path):
+            return
+        try:
+            with open(tmpl_path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception:
+            return
+
+        _RE = re.compile(r"\[<([^>]+\.(?:script|txt|system))>\]")
+        matches = list(_RE.finditer(content))
+        if len(matches) == 0:
+            return
+
+        # Берём только те raws, которые присутствовали в исходном файле
+        orig_raws = [m.group(1) for m in matches]
+        # Фил��труем ordered_raws, оставляя только те, что есть в файле
+        file_raws_set = set(orig_raws)
+        filtered = [r for r in ordered_raws if r in file_raws_set]
+        # Добавляем не упомянутые (например postscript-ноды добавляемые отдельно)
+        mentioned = set(filtered)
+        for r in orig_raws:
+            if r not in mentioned:
+                filtered.append(r)
+
+        if len(filtered) != len(matches):
+            return  # не совпадает количество — не перезаписываем
+
+        # Вставляем новый порядок
+        result = []
+        prev = 0
+        for match, raw in zip(matches, filtered):
+            result.append(content[prev:match.start()])
+            result.append(f"[<{raw}>]")
+            prev = match.end()
+        result.append(content[prev:])
+        new_content = "".join(result)
+
+        try:
+            with open(tmpl_path, "w", encoding="utf-8") as f:
+                f.write(new_content)
+        except Exception as e:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Ошибка записи шаблона",
+                                 f"Не удалось сохранить main_template.txt:\n{e}")
 
 
 # --------------------------------------------------------------------------- #

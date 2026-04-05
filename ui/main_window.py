@@ -639,18 +639,18 @@ class PromptEditorWindow(QMainWindow):
         if have_char:
             self.run_act.setText(f'Скомпоновать промпт для "{self._set_display_name()}"')
         else:
-            self.run_act.setText(“Скомпоновать промпт”)
+            self.run_act.setText('Скомпоновать промпт')
 
         self._update_postdsl_action_state()
 
     def _update_postdsl_action_state(self):
-        “””Активируем «Тестировать PostDSL…» только если открыт .postscript файл.”””
-        if not hasattr(self, “_test_postdsl_act”):
+        """Активируем «Тестировать PostDSL…» только если открыт .postscript файл."""
+        if not hasattr(self, "_test_postdsl_act"):
             return
         ed = self.tabs.currentWidget()
-        if ed and hasattr(ed, “get_tab_file_path”):
-            path = ed.get_tab_file_path() or “”
-            self._test_postdsl_act.setEnabled(path.lower().endswith(“.postscript”))
+        if ed and hasattr(ed, "get_tab_file_path"):
+            path = ed.get_tab_file_path() or ""
+            self._test_postdsl_act.setEnabled(path.lower().endswith(".postscript"))
         else:
             self._test_postdsl_act.setEnabled(False)
 

@@ -301,7 +301,9 @@ class PromptEditorWindow(QMainWindow):
 
     # --------------------- tree -> персонаж ---------------------
     def _on_char_selected(self, char_id: str):
-        self.selected_char = char_id or None
+        new_char = char_id or None
+        char_changed = (new_char != self.selected_char)
+        self.selected_char = new_char
         self._sync_vars_panel()
         self._update_run_dsl_state()
 
@@ -313,10 +315,12 @@ class PromptEditorWindow(QMainWindow):
         self.info_dock.load_for_char(self.prompts_root, self.selected_char)
         self.tmpl_dock.load_for_char(self.prompts_root, self.selected_char)
 
-        # Обновляем глобальный граф
-        if self.selected_char and self.prompts_root:
+        # Обновляем глобальный граф только если персонаж изменился
+        if self.selected_char and self.prompts_root and char_changed:
             self.global_graph.load_character(self.prompts_root, self.selected_char)
-            self._show_graph_view()   # при смене персонажа показываем граф
+            # Переключаемся на граф только если мы уже на странице редактора
+            if self._stack.currentIndex() == 1:
+                self._show_graph_view()
 
     # ---------- переключение центральных видов ----------
 
@@ -640,19 +644,6 @@ class PromptEditorWindow(QMainWindow):
             self.run_act.setText(f'Скомпоновать промпт для "{self._set_display_name()}"')
         else:
             self.run_act.setText('Скомпоновать промпт')
-
-        self._update_postdsl_action_state()
-
-    def _update_postdsl_action_state(self):
-        """Активируем «Тестировать PostDSL…» только если открыт .postscript файл."""
-        if not hasattr(self, "_test_postdsl_act"):
-            return
-        ed = self.tabs.currentWidget()
-        if ed and hasattr(ed, "get_tab_file_path"):
-            path = ed.get_tab_file_path() or ""
-            self._test_postdsl_act.setEnabled(path.lower().endswith(".postscript"))
-        else:
-            self._test_postdsl_act.setEnabled(False)
 
         self._update_postdsl_action_state()
 

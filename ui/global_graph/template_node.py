@@ -207,6 +207,17 @@ class TemplateNode(QGraphicsObject):
             proxy.setPos(x, btn_y)
             self._btn_proxies.append(proxy)
 
+    def mouseDoubleClickEvent(self, event):
+        """Двойной клик = войти в ноду (без кода)."""
+        if event.button() == Qt.LeftButton:
+            if self._kind == "script":
+                self._on_nodes()
+            elif self._kind == "postscript":
+                self._on_rules()
+            else:
+                self._on_edit()
+        super().mouseDoubleClickEvent(event)
+
     def _on_edit(self):
         self.signals.edit_requested.emit(self._resolved)
 

@@ -49,17 +49,29 @@ class _GraphArrow(QGraphicsPathItem):
         super().__init__()
         self._src = src
         self._dst = dst
-        self.setPen(QPen(QColor("#404a56"), 1.5, Qt.SolidLine))
+        self.setPen(QPen(QColor("#5a8fbe"), 2.0, Qt.SolidLine))
         self.setZValue(-1)
         self._update()
 
     def _update(self):
-        sp = self._src.pos() + QPointF(NODE_W, NODE_H / 2)
-        dp = self._dst.pos() + QPointF(0, NODE_H / 2)
-        cx = (sp.x() + dp.x()) / 2
+        sp = self._src.pos()
+        dp = self._dst.pos()
 
-        path = QPainterPath(sp)
-        path.cubicTo(QPointF(cx, sp.y()), QPointF(cx, dp.y()), dp)
+        # Если ноды в одной строке — стрелка слева-направо (right → left)
+        same_row = abs(sp.y() - dp.y()) < NODE_H
+        if same_row:
+            start = sp + QPointF(NODE_W, NODE_H / 2)
+            end   = dp + QPointF(0,     NODE_H / 2)
+            cx = (start.x() + end.x()) / 2
+            path = QPainterPath(start)
+            path.cubicTo(QPointF(cx, start.y()), QPointF(cx, end.y()), end)
+        else:
+            # Перенос строки: из правого-нижнего угла в левый-верхний следующей строки
+            start = sp + QPointF(NODE_W / 2, NODE_H)
+            end   = dp + QPointF(NODE_W / 2, 0)
+            cy = (start.y() + end.y()) / 2
+            path = QPainterPath(start)
+            path.cubicTo(QPointF(start.x(), cy), QPointF(end.x(), cy), end)
         self.setPath(path)
 
 
@@ -230,17 +242,11 @@ class GlobalGraphWidget(QWidget):
             node.signals.code_requested.connect(self.open_code_requested)
             node.signals.rules_requested.connect(self.open_postscript_requested)
 
-        # Рисуем стрелки в горизонтальном направлении (в пределах строки)
+        # Рисуем стрелки между всеми соседними нодами (в порядке включения)
         for i in range(len(self._nodes) - 1):
-            curr = self._nodes[i]
-            nxt  = self._nodes[i + 1]
-            # Стрелку рисуем только если они в одной строке
-            curr_row = i // _COLS
-            nxt_row  = (i + 1) // _COLS
-            if curr_row == nxt_row:
-                arrow = _GraphArrow(curr, nxt)
-                self._scene.addItem(arrow)
-                self._arrows.append(arrow)
+            arrow = _GraphArrow(self._nodes[i], self._nodes[i + 1])
+            self._scene.addItem(arrow)
+            self._arrows.append(arrow)
 
         # Обновляем заголовок
         char_display = self._char_id.split("/")[-1] if "/" in self._char_id else self._char_id

@@ -1,7 +1,8 @@
 import os, logging
 from pathlib import Path
 from PySide6.QtWidgets import (
-    QMainWindow, QSplitter, QStatusBar, QLabel, QMessageBox, QStackedWidget, QPushButton
+    QMainWindow, QSplitter, QStatusBar, QLabel, QMessageBox, QStackedWidget, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QFrame,
 )
 from PySide6.QtCore import Qt, QSettings, QItemSelectionModel
 
@@ -181,7 +182,45 @@ class PromptEditorWindow(QMainWindow):
         self._center_stack.addWidget(self.tabs)           # index 1
 
         self._center_stack.setCurrentIndex(0)
-        editor_page.addWidget(self._center_stack)
+
+        # Обёртка: навбар (кнопка "← Граф") + центральный стек
+        center_wrapper = QWidget()
+        cw_layout = QVBoxLayout(center_wrapper)
+        cw_layout.setContentsMargins(0, 0, 0, 0)
+        cw_layout.setSpacing(0)
+
+        self._nav_bar = QFrame()
+        self._nav_bar.setFixedHeight(32)
+        self._nav_bar.setStyleSheet(
+            "QFrame { background: #161b22; border-bottom: 1px solid #30363d; }"
+        )
+        nb_row = QHBoxLayout(self._nav_bar)
+        nb_row.setContentsMargins(6, 2, 6, 2)
+        nb_row.setSpacing(6)
+
+        self._btn_nav_graph = QPushButton("🗺 ← Граф")
+        self._btn_nav_graph.setFixedHeight(24)
+        self._btn_nav_graph.setStyleSheet("""
+            QPushButton {
+                background: #21262d; color: #4a9eff;
+                border: 1px solid #30363d; border-radius: 4px;
+                padding: 1px 12px; font-size: 11px; font-weight: bold;
+            }
+            QPushButton:hover { background: #1f6feb; color: #ffffff; border-color: #1f6feb; }
+        """)
+        self._btn_nav_graph.clicked.connect(self._show_graph_view)
+        nb_row.addWidget(self._btn_nav_graph)
+
+        self._nav_char_lbl = QLabel("")
+        self._nav_char_lbl.setStyleSheet("color: #6e7681; font-size: 11px;")
+        nb_row.addWidget(self._nav_char_lbl)
+        nb_row.addStretch()
+
+        self._nav_bar.setVisible(False)   # виден только когда открыт текстовый редактор
+        cw_layout.addWidget(self._nav_bar)
+        cw_layout.addWidget(self._center_stack, 1)
+
+        editor_page.addWidget(center_wrapper)
         editor_page.setStretchFactor(1, 1)
 
         self._stack.addWidget(editor_page)               # index 1
@@ -328,11 +367,15 @@ class PromptEditorWindow(QMainWindow):
         """Показывает глобальный граф промпта."""
         self._center_stack.setCurrentIndex(0)
         self._act_show_graph.setVisible(False)
+        self._nav_bar.setVisible(False)
 
     def _show_tabs_view(self):
         """Показывает текстовый/нодовый редактор."""
         self._center_stack.setCurrentIndex(1)
         self._act_show_graph.setVisible(True)
+        self._nav_bar.setVisible(True)
+        char_label = self.selected_char or ""
+        self._nav_char_lbl.setText(char_label if char_label else "")
 
     # ---------- открытие файлов из графа ----------
 

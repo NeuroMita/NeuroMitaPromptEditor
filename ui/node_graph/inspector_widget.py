@@ -1,18 +1,50 @@
 # File: ui/node_graph/inspector_widget.py
 from __future__ import annotations
 from typing import Optional, Callable, List
+import os
 import re
 
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QFormLayout, QLineEdit,
     QCheckBox, QListWidget, QListWidgetItem, QPushButton,
-    QHBoxLayout, QFrame, QAbstractItemView, QTabWidget, QSizePolicy, QComboBox
+    QHBoxLayout, QFrame, QAbstractItemView, QTabWidget, QSizePolicy, QComboBox,
+    QScrollArea,
 )
 from PySide6.QtGui import QTextOption
 
 from logic.dsl_ast import AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory
 from ui.node_graph.tag_text_edit import TagTextEdit
+
+
+class FileChipWidget(QWidget):
+    """Маленький чип: имя файла + кнопка удаления ×."""
+    removed = Signal()
+
+    def __init__(self, label: str, tooltip: str = "", parent=None):
+        super().__init__(parent)
+        self.setToolTip(tooltip)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(6, 1, 4, 1)
+        lay.setSpacing(4)
+
+        lbl = QLabel(label)
+        lbl.setStyleSheet("color: #c9d1d9; font-size: 8pt; background: transparent; border: none;")
+
+        btn = QPushButton("×")
+        btn.setFixedSize(14, 14)
+        btn.setStyleSheet(
+            "QPushButton { background: transparent; color: #8b949e; border: none; font-size: 10pt; padding: 0; }"
+            "QPushButton:hover { color: #ff6b6b; }"
+        )
+        btn.clicked.connect(self.removed)
+
+        lay.addWidget(lbl)
+        lay.addWidget(btn)
+        self.setFixedHeight(22)
+        self.setStyleSheet(
+            "FileChipWidget { background: #2a3a4a; border: 1px solid #3a5a7a; border-radius: 10px; }"
+        )
 
 
 class AutoResizingTextEdit(TagTextEdit):
@@ -238,6 +270,30 @@ class Inspector(QWidget):
         self.form.addRow(self.seed_priority_lbl, self.seed_priority_combo)
         self.form.addRow(self.seed_content_lbl, self.seed_content_edit)
 
+        # ----------------- ADD_SYSTEM_INFO: file picker row -----------------
+        self._asi_expr_hidden = ""
+        self.asi_lbl = QLabel("Файл:")
+        self.asi_file_container = QWidget()
+        _asi_lay = QHBoxLayout(self.asi_file_container)
+        _asi_lay.setContentsMargins(0, 0, 0, 0)
+        _asi_lay.setSpacing(6)
+        self.asi_file_btn = QPushButton("📂 Выбрать файл")
+        self.asi_file_btn.setFixedHeight(26)
+        self.asi_file_btn.clicked.connect(self._pick_file_for_asi)
+        self.asi_file_lbl = QLabel("(не выбран)")
+        self.asi_file_lbl.setStyleSheet("color: #8b949e; font-size: 9pt; padding: 2px;")
+        _asi_lay.addWidget(self.asi_file_btn)
+        _asi_lay.addWidget(self.asi_file_lbl, 1)
+        self.form.addRow(self.asi_lbl, self.asi_file_container)
+
+        # ----------------- RETURN: file chips area -----------------
+        self.ret_chips_widget = QWidget()
+        self._ret_chips_layout = QHBoxLayout(self.ret_chips_widget)
+        self._ret_chips_layout.setContentsMargins(0, 2, 0, 2)
+        self._ret_chips_layout.setSpacing(4)
+        self._ret_chips_layout.addStretch(1)
+        self.ret_chips_widget.setVisible(False)
+
         # APPLY
         self.sep_before_apply = self._hline()
         self.apply_btn = QPushButton("Применить изменения")
@@ -246,6 +302,7 @@ class Inspector(QWidget):
         # Сборка нижних секций
         root.addWidget(self.sep_before_return)
         root.addWidget(self.return_expr_label)
+        root.addWidget(self.ret_chips_widget)
         root.addWidget(self.ret_tabs)
         root.addLayout(self.pal_row)
 
@@ -290,8 +347,10 @@ class Inspector(QWidget):
             self.description_lbl,
             # SET/LOG/ASI часть
             self.var_lbl, self.var_edit, self.expr_lbl, self.set_tabs, self.local_chk,
+            # ASI file picker
+            self.asi_lbl, self.asi_file_container,
             # RETURN часть
-            self.sep_before_return, self.return_expr_label, self.ret_tabs,
+            self.sep_before_return, self.return_expr_label, self.ret_chips_widget, self.ret_tabs,
             self.btn_chip_load, self.btn_chip_tag, self.btn_chip_rel, self.btn_pick_file,
             # Пикер переменных
             self.sep_before_var_pick, self.btn_var_pick,
@@ -439,27 +498,33 @@ class Inspector(QWidget):
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
-        # ADD_SYSTEM_INFO (без превью)
+        # ADD_SYSTEM_INFO — визуальный file picker
         if isinstance(self._ast, AddSystemInfo):
             self.title_lbl.setText("Системная информация")
-            self.expr_edit.setPlainText(self._ast.expr)
-            self.var_lbl.hide(); self.var_edit.hide()
-            self.expr_lbl.show(); self.set_tabs.show()
-            self.set_tabs.setCurrentIndex(0)
-            self.set_tabs.setTabEnabled(1, False)
-            self.local_chk.hide()
-            self._sync_tabs_height(self.expr_edit.height())
-            self.sep_before_var_pick.show(); self.btn_var_pick.show()
+            self._asi_expr_hidden = self._ast.expr
+            m = re.search(r'LOAD\s+"([^"]+)"', self._ast.expr, re.IGNORECASE)
+            if m:
+                path = m.group(1)
+                self.asi_file_lbl.setText(os.path.basename(path))
+                self.asi_file_lbl.setToolTip(path)
+            elif self._ast.expr.strip():
+                self.asi_file_lbl.setText(self._ast.expr[:40])
+                self.asi_file_lbl.setToolTip(self._ast.expr)
+            else:
+                self.asi_file_lbl.setText("(не выбран)")
+                self.asi_file_lbl.setToolTip("")
+            self.asi_lbl.show(); self.asi_file_container.show()
             self.sep_before_apply.show(); self.apply_btn.show()
             return
 
-        # RETURN — теперь тоже Выражение с вкладками
+        # RETURN — Выражение с вкладками + чипы файлов
         if isinstance(self._ast, Return):
             self.title_lbl.setText("Вернуть результат")
             self.ret_expr_edit.setPlainText(self._ast.expr)
 
             self.sep_before_return.show()
             self.return_expr_label.show()
+            self._rebuild_return_chips()
             self.ret_tabs.show()
             self.btn_chip_load.show(); self.btn_chip_tag.show(); self.btn_chip_rel.show(); self.btn_pick_file.show()
             self.sep_before_var_pick.show(); self.btn_var_pick.show()
@@ -534,6 +599,52 @@ class Inspector(QWidget):
         is_else = (it.data(Qt.UserRole) == "ELSE")
         self.btn_del_selected.setEnabled(is_else or idx > 0)
 
+    # --- ASI file picker ---
+    def _pick_file_for_asi(self):
+        if not self._file_picker:
+            return
+        path = self._file_picker()
+        if not path:
+            return
+        self._asi_expr_hidden = f'LOAD "{path}"'
+        self.asi_file_lbl.setText(os.path.basename(path))
+        self.asi_file_lbl.setToolTip(path)
+
+    # --- RETURN chips management ---
+    def _rebuild_return_chips(self):
+        """Перестроить чипы файлов по текущему содержимому ret_expr_edit."""
+        while self._ret_chips_layout.count():
+            item = self._ret_chips_layout.takeAt(0)
+            if item and item.widget():
+                item.widget().deleteLater()
+
+        expr = self.ret_expr_edit.toPlainText()
+        loads = re.findall(r'LOAD\s+"([^"]+)"', expr, re.IGNORECASE)
+        for path in loads:
+            filename = os.path.basename(path)
+            chip = FileChipWidget(filename, tooltip=path)
+            chip.removed.connect(lambda p=path: self._remove_load_from_return(p))
+            self._ret_chips_layout.addWidget(chip)
+        self._ret_chips_layout.addStretch(1)
+        self.ret_chips_widget.setVisible(bool(loads))
+
+    def _remove_load_from_return(self, path: str):
+        """Удалить LOAD "path" из выражения Return и обновить чипы."""
+        expr = self.ret_expr_edit.toPlainText()
+        token = f'LOAD "{path}"'
+        for pat in (
+            f'\n+ {token}', f' + {token}',
+            f'{token} +\n', f'{token} + ',
+            f'\n{token}', f'{token}\n',
+            token,
+        ):
+            if pat in expr:
+                expr = expr.replace(pat, '', 1)
+                break
+        self.ret_expr_edit.setPlainText(expr.strip())
+        self._rebuild_return_chips()
+        self._refresh_return_preview()
+
     # --- RETURN chips insert ---
     def _insert_chip_return(self, snippet: str):
         if not self.ret_tabs.isVisible():
@@ -550,6 +661,7 @@ class Inspector(QWidget):
         if not path:
             return
         self._insert_chip_return(f'LOAD "{path}"')
+        self._rebuild_return_chips()
 
     # --- Пикер кастомных переменных ---
     def _get_script_vars(self) -> List[str]:
@@ -699,8 +811,10 @@ class Inspector(QWidget):
             self._ast.var = self.var_edit.text().strip()
             self._ast.expr = self.expr_edit.toPlainText().strip()
             self._ast.local = self.local_chk.isChecked()
-        elif isinstance(self._ast, (Log, AddSystemInfo)):
+        elif isinstance(self._ast, Log):
             self._ast.expr = self.expr_edit.toPlainText().strip()
+        elif isinstance(self._ast, AddSystemInfo):
+            self._ast.expr = self._asi_expr_hidden
         elif isinstance(self._ast, Return):
             # Теперь редактируем выражение напрямую
             self._ast.expr = self.ret_expr_edit.toPlainText().strip()

@@ -15,7 +15,10 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from ui.main_window import PromptEditorWindow
-from utils.logger import editor_logger 
+from utils.logger import editor_logger
+
+import faulthandler
+faulthandler.enable()
 
 def run_application():
     editor_logger.info("Запуск приложения Prompt Editor...")

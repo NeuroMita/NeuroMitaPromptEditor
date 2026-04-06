@@ -86,6 +86,7 @@ class NodeGraphEditor(QWidget):
         self.scene.node_selected.connect(self._on_node_selected)
         self.scene.connection_finished.connect(self._on_connection_finished)
         self.scene.request_create_menu.connect(self._on_request_create_menu)
+        self.scene.edge_disconnect_requested.connect(self._on_edge_disconnect_requested)
 
         self.preview = QPlainTextEdit()
         self.preview.setReadOnly(False)
@@ -445,6 +446,39 @@ class NodeGraphEditor(QWidget):
             self._save_sidecar_meta(silent=True)
         except Exception as e:
             QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка соединения:\n{e}\n{traceback.format_exc()}")
+
+    def _on_edge_disconnect_requested(self, src_port):
+        """Disconnect the node that follows src_port's owner in the AST."""
+        try:
+            # Special case: START node (no AST node) — just refresh edges
+            src_node = self.controller.item2node.get(src_port.owner)
+            if not src_node:
+                self._draw_start_edge()
+                self._refresh_preview()
+                return
+
+            src_parent = self.controller.parent_map.get(src_node.id, self._ast.body)
+            try:
+                sidx = src_parent.index(src_node)
+            except ValueError:
+                return
+            if sidx + 1 >= len(src_parent):
+                return
+
+            old_next = src_parent[sidx + 1]
+            # Remove from current sequential position
+            src_parent.remove(old_next)
+            # Preserve as orphan in script.body so the node isn't lost
+            if old_next not in self._ast.body:
+                self._ast.body.append(old_next)
+            self.controller.parent_map[old_next.id] = self._ast.body
+
+            self._draw_start_edge()
+            self._refresh_preview()
+            self._save_sidecar_meta(silent=True)
+        except Exception as e:
+            import traceback
+            QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка отцепки:\n{e}\n{traceback.format_exc()}")
 
     # -------- creation menu --------
     def _on_request_create_menu(self, source_port: Optional[PortItem], scene_pos):

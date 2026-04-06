@@ -390,6 +390,22 @@ class NodeGraphController:
             return False
         return check_parent(node)
 
+    def insert_after(self, prev_node: Optional[AstNode], new_node: AstNode):
+        """Insert new_node into the AST. If prev_node is None, append to script.body."""
+        if prev_node is None:
+            if new_node not in self.script.body:
+                self.script.body.append(new_node)
+            self.parent_map[new_node.id] = self.script.body
+        else:
+            parent = self.parent_map.get(prev_node.id, self.script.body)
+            try:
+                idx = parent.index(prev_node)
+                parent.insert(idx + 1, new_node)
+                self.parent_map[new_node.id] = parent
+            except ValueError:
+                self.script.body.append(new_node)
+                self.parent_map[new_node.id] = self.script.body
+
     def _detach_node(self, node: AstNode):
         for body in self._all_bodies():
             if node in body:

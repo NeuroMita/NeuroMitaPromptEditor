@@ -114,6 +114,8 @@ class _GlobalGraphScene(QGraphicsScene):
 
     # src_node, dst_node — оба TemplateNode
     connection_requested = Signal(object, object)
+    # Запрос создания ноды на пустом месте холста
+    create_node_requested = Signal(object)  # scene_pos: QPointF
 
     def __init__(self):
         super().__init__()
@@ -143,6 +145,14 @@ class _GlobalGraphScene(QGraphicsScene):
                 self._temp_edge.setPen(QPen(QColor("#f8c012"), 2, Qt.DashLine))
                 self._temp_edge.setZValue(100)
                 self.addItem(self._temp_edge)
+                event.accept()
+                return
+        if event.button() == Qt.RightButton:
+            view = self.views()[0] if self.views() else None
+            it = self.itemAt(event.scenePos(), view.transform()) if view else None
+            # Пустой холст (нет элементов под курсором) → создать ноду
+            if it is None:
+                self.create_node_requested.emit(event.scenePos())
                 event.accept()
                 return
         super().mousePressEvent(event)
@@ -285,6 +295,7 @@ class GlobalGraphWidget(QWidget):
         # --- Холст ---
         self._scene = _GlobalGraphScene()
         self._scene.connection_requested.connect(self._on_connection_requested)
+        self._scene.create_node_requested.connect(self._on_create_node_requested)
         self._view = _GraphView(self._scene, self)
         outer.addWidget(self._view, 1)
 
@@ -331,6 +342,7 @@ class GlobalGraphWidget(QWidget):
         old_scene = self._scene
         self._scene = _GlobalGraphScene()
         self._scene.connection_requested.connect(self._on_connection_requested)
+        self._scene.create_node_requested.connect(self._on_create_node_requested)
         self._view.setScene(self._scene)
         old_scene.deleteLater()
 
@@ -371,6 +383,7 @@ class GlobalGraphWidget(QWidget):
             node.signals.nodes_requested.connect(self.open_nodes_requested)
             node.signals.code_requested.connect(self.open_code_requested)
             node.signals.rules_requested.connect(self.open_postscript_requested)
+            node.signals.delete_requested.connect(self._on_delete_node_requested)
 
         # Рисуем стрелки между всеми соседними нодами (в порядке включения)
         for i in range(len(self._nodes) - 1):
@@ -516,6 +529,104 @@ class GlobalGraphWidget(QWidget):
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.critical(self, "Ошибка записи шаблона",
                                  f"Не удалось сохранить main_template.txt:\n{e}")
+
+    # -- создание / удаление нод ---------------------------------------------
+
+    def _on_create_node_requested(self, scene_pos):
+        """ПКМ на пустом холсте → меню создания новой ноды."""
+        from PySide6.QtWidgets import QMenu, QInputDialog, QMessageBox
+        if not self._prompts_root or not self._char_id:
+            QMessageBox.information(self, "Граф", "Сначала выберите персонажа.")
+            return
+
+        menu = QMenu()
+        act_txt    = menu.addAction("📄 Текстовый файл (.txt)")
+        act_script = menu.addAction("⚡ Скрипт (.script)")
+        act_sys    = menu.addAction("ℹ️ Системный файл (.system)")
+
+        view = self._view
+        global_pos = view.mapToGlobal(view.mapFromScene(scene_pos))
+        act = menu.exec(global_pos)
+        if act is None:
+            return
+
+        ext = ".txt"
+        if act == act_script:
+            ext = ".script"
+        elif act == act_sys:
+            ext = ".system"
+
+        name, ok = QInputDialog.getText(
+            self, "Новый файл", f"Имя файла (без расширения):"
+        )
+        if not ok or not name.strip():
+            return
+        name = name.strip().replace(" ", "_")
+        filename = name + ext
+
+        # Путь к папке персонажа
+        parts = self._char_id.split("/")
+        char_base = os.path.join(self._prompts_root, *parts)
+        file_path = os.path.join(char_base, filename)
+
+        if os.path.exists(file_path):
+            QMessageBox.warning(self, "Файл существует",
+                                f"Файл {filename} уже существует в папке персонажа.")
+        else:
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write("")
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка создания", f"Не удалось создать файл:\n{e}")
+                return
+
+        # Добавляем [<filename>] в main_template.txt
+        tmpl_path = os.path.join(char_base, "main_template.txt")
+        try:
+            existing = open(tmpl_path, "r", encoding="utf-8").read() if os.path.isfile(tmpl_path) else ""
+            entry = f"[<{filename}>]"
+            if entry not in existing:
+                with open(tmpl_path, "a", encoding="utf-8") as f:
+                    if existing and not existing.endswith("\n"):
+                        f.write("\n")
+                    f.write(entry + "\n")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка шаблона",
+                                 f"Не удалось обновить main_template.txt:\n{e}")
+            return
+
+        self._refresh()
+
+    def _on_delete_node_requested(self, resolved_path: str):
+        """ПКМ → 'Убрать из шаблона' на ноде."""
+        from PySide6.QtWidgets import QMessageBox
+        # Находим ноду по пути
+        target = None
+        for node in self._nodes:
+            if node._spec.get("resolved") == resolved_path:
+                target = node
+                break
+        if target is None:
+            return
+
+        label = target._label
+        answer = QMessageBox.question(
+            self, "Убрать ноду",
+            f"Убрать «{label}» из шаблона?\n"
+            f"Файл на диске удалён не будет.",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if answer != QMessageBox.Yes:
+            return
+
+        # Удаляем из списка и перестраиваем
+        self._nodes.remove(target)
+        self._write_current_order()
+        self._rebuild_arrows()
+        try:
+            self._scene.removeItem(target)
+        except Exception:
+            pass
 
 
 # --------------------------------------------------------------------------- #

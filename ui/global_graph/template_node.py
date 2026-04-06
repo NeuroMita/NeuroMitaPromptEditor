@@ -93,6 +93,7 @@ class TemplateNodeSignals(QObject):
     nodes_requested   = Signal(str)   # resolved path (.script)
     code_requested    = Signal(str)   # resolved path
     rules_requested   = Signal(str)   # resolved path (.postscript)
+    delete_requested  = Signal(str)   # resolved path (удалить из шаблона)
 
 
 class TemplateNode(QGraphicsObject):
@@ -257,6 +258,24 @@ class TemplateNode(QGraphicsObject):
             x = 6 + i * (btn_w + 4)
             proxy.setPos(x, btn_y)
             self._btn_proxies.append(proxy)
+
+    def contextMenuEvent(self, event):
+        """ПКМ на ноде: меню управления."""
+        from PySide6.QtWidgets import QMenu
+        menu = QMenu()
+        if self._kind == "script":
+            menu.addAction("🔵 Открыть ноды", self._on_nodes)
+        elif self._kind == "postscript":
+            menu.addAction("⚙ Открыть правила", self._on_rules)
+        else:
+            menu.addAction("✏ Редактировать", self._on_edit)
+        menu.addAction("< > Код", self._on_code)
+        menu.addSeparator()
+        act_del = menu.addAction("🗑 Убрать из шаблона")
+        act = menu.exec(event.screenPos().toPoint())
+        if act == act_del:
+            self.signals.delete_requested.emit(self._resolved)
+        event.accept()
 
     def mouseDoubleClickEvent(self, event):
         """Двойной клик = войти в ноду (без кода)."""

@@ -194,9 +194,9 @@ class PromptEditorWindow(QMainWindow):
         self._nav_bar.setStyleSheet(
             "QFrame { background: #161b22; border-bottom: 1px solid #30363d; }"
         )
-        nb_row = QHBoxLayout(self._nav_bar)
-        nb_row.setContentsMargins(6, 2, 6, 2)
-        nb_row.setSpacing(6)
+        self._nb_row = QHBoxLayout(self._nav_bar)
+        self._nb_row.setContentsMargins(6, 2, 6, 2)
+        self._nb_row.setSpacing(6)
 
         self._btn_nav_graph = QPushButton("🗺 ← Граф")
         self._btn_nav_graph.setFixedHeight(24)
@@ -209,14 +209,18 @@ class PromptEditorWindow(QMainWindow):
             QPushButton:hover { background: #1f6feb; color: #ffffff; border-color: #1f6feb; }
         """)
         self._btn_nav_graph.clicked.connect(self._show_graph_view)
-        nb_row.addWidget(self._btn_nav_graph)
+        self._nb_row.addWidget(self._btn_nav_graph)
 
         self._nav_char_lbl = QLabel("")
         self._nav_char_lbl.setStyleSheet("color: #6e7681; font-size: 11px;")
-        nb_row.addWidget(self._nav_char_lbl)
-        nb_row.addStretch()
+        self._nb_row.addWidget(self._nav_char_lbl)
+        self._nb_row.addStretch()
 
-        self._nav_bar.setVisible(False)   # виден только когда открыт текстовый редактор
+        # Навигационный стек (drill-down в скрипты)
+        self._drill_pages: list[tuple] = []   # list of (widget, title, file_path)
+        self._crumb_btns: list = []
+
+        self._nav_bar.setVisible(False)   # виден только когда открыт текстовый редактор / drill-down
         cw_layout.addWidget(self._nav_bar)
         cw_layout.addWidget(self._center_stack, 1)
 
@@ -364,18 +368,113 @@ class PromptEditorWindow(QMainWindow):
     # ---------- переключение центральных видов ----------
 
     def _show_graph_view(self):
-        """Показывает глобальный граф промпта."""
+        """Показывает глобальный граф промпта, удаляя все drill-down страницы."""
+        # Убираем все drill-down страницы
+        for widget, _title, _path in list(self._drill_pages):
+            try:
+                self._center_stack.removeWidget(widget)
+                widget.deleteLater()
+            except Exception:
+                pass
+        self._drill_pages.clear()
+        self._update_breadcrumb()
         self._center_stack.setCurrentIndex(0)
         self._act_show_graph.setVisible(False)
         self._nav_bar.setVisible(False)
 
     def _show_tabs_view(self):
-        """Показывает текстовый/нодовый редактор."""
+        """Показывает текстовый редактор (TabManager)."""
         self._center_stack.setCurrentIndex(1)
         self._act_show_graph.setVisible(True)
         self._nav_bar.setVisible(True)
         char_label = self.selected_char or ""
         self._nav_char_lbl.setText(char_label if char_label else "")
+        # В режиме текстового редактора показываем метку персонажа, не breadcrumb
+        self._nav_char_lbl.setVisible(True)
+        for item in self._crumb_btns:
+            try:
+                item.setVisible(False)
+            except Exception:
+                pass
+
+    # ---------- drill-down навигация (провалиться в скрипт) ----------
+
+    def _push_drill_view(self, widget, title: str, file_path: str = ""):
+        """Провалиться в новый вид: добавляет страницу в center_stack с breadcrumb."""
+        self._drill_pages.append((widget, title, file_path))
+        self._center_stack.addWidget(widget)
+        self._center_stack.setCurrentWidget(widget)
+        self._act_show_graph.setVisible(True)
+        self._nav_bar.setVisible(True)
+        self._nav_char_lbl.setVisible(False)
+        self._update_breadcrumb()
+
+    def _pop_to_drill_depth(self, depth: int):
+        """Вернуться на уровень depth в стеке (0 = на главный граф)."""
+        if depth == 0:
+            self._show_graph_view()
+            return
+        while len(self._drill_pages) > depth:
+            widget, _title, _path = self._drill_pages.pop()
+            try:
+                self._center_stack.removeWidget(widget)
+                widget.deleteLater()
+            except Exception:
+                pass
+        if self._drill_pages:
+            last_widget, _, _ = self._drill_pages[-1]
+            self._center_stack.setCurrentWidget(last_widget)
+        self._update_breadcrumb()
+
+    def _update_breadcrumb(self):
+        """Перестраивает breadcrumb-кнопки в nav_bar."""
+        # Убираем старые crumb-кнопки
+        for item in self._crumb_btns:
+            self._nb_row.removeWidget(item)
+            try:
+                item.deleteLater()
+            except Exception:
+                pass
+        self._crumb_btns.clear()
+
+        if not self._drill_pages:
+            self._nav_char_lbl.setVisible(True)
+            return
+
+        self._nav_char_lbl.setVisible(False)
+        _crumb_btn_style = (
+            "background: transparent; border: none; color: #4a9eff; font-size: 11px;"
+            " padding: 1px 4px;"
+        )
+        _crumb_cur_style = (
+            "background: transparent; border: none; color: #e6edf3; font-size: 11px;"
+            " font-weight: bold; padding: 1px 4px;"
+        )
+
+        # Удалим stretch перед вставкой (он последний)
+        stretch_idx = self._nb_row.count() - 1
+        self._nb_row.removeItem(self._nb_row.itemAt(stretch_idx))
+
+        for i, (_widget, title, _path) in enumerate(self._drill_pages):
+            sep = QLabel("›")
+            sep.setStyleSheet("color: #6e7681; font-size: 13px; padding: 0 2px;")
+            self._nb_row.addWidget(sep)
+            self._crumb_btns.append(sep)
+
+            is_current = (i == len(self._drill_pages) - 1)
+            btn = QPushButton(title)
+            btn.setFixedHeight(22)
+            btn.setStyleSheet(_crumb_cur_style if is_current else _crumb_btn_style)
+            if not is_current:
+                depth = i + 1
+                btn.clicked.connect(lambda checked=False, d=depth: self._pop_to_drill_depth(d))
+            else:
+                btn.setEnabled(False)
+            self._nb_row.addWidget(btn)
+            self._crumb_btns.append(btn)
+
+        # Восстанавливаем stretch
+        self._nb_row.addStretch()
 
     # ---------- открытие файлов из графа ----------
 
@@ -387,36 +486,53 @@ class PromptEditorWindow(QMainWindow):
             self._show_tabs_view()
 
     def _open_nodes_for_path(self, path: str):
-        """Открывает .script в NodeGraphEditor (из ноды графа) напрямую по пути."""
+        """Проваливается в NodeGraphEditor для .script файла (встроенный drill-down)."""
         if not path or not os.path.isfile(path):
             return
         try:
-            from ui.node_graph_window import NodeGraphWindow
-            if not hasattr(self, "_node_windows"):
-                self._node_windows = []
+            from ui.node_graph.editor_widget import NodeGraphEditor
 
-            def apply_back(new_text: str):
-                # Если файл открыт в TabManager — обновим там тоже
-                for i in range(self.tabs.count()):
-                    w = self.tabs.widget(i)
-                    if hasattr(w, "get_tab_file_path") and w.get_tab_file_path() == path:
-                        w.setPlainText(new_text)
-                        return
-                # Иначе сохраняем на диск напрямую
+            # Если уже открыт этот файл в стеке — просто переключиться на него
+            for idx, (widget, _title, fpath) in enumerate(self._drill_pages):
+                if fpath == path:
+                    self._pop_to_drill_depth(idx + 1)
+                    return
+
+            base_dir = os.path.dirname(path)
+            try:
+                with open(path, encoding="utf-8") as f:
+                    text = f.read()
+            except Exception:
+                text = ""
+
+            editor = NodeGraphEditor(
+                base_dir=base_dir, prompts_root=self.prompts_root,
+                file_path=path, parent=None
+            )
+            editor.load_text(text)
+
+            # Автосохранение при изменении
+            def _on_text_updated(new_text: str):
                 try:
                     with open(path, "w", encoding="utf-8") as f:
                         f.write(new_text)
+                    # Синхронизировать с TabManager если файл там открыт
+                    for i in range(self.tabs.count()):
+                        w = self.tabs.widget(i)
+                        if hasattr(w, "get_tab_file_path") and w.get_tab_file_path() == path:
+                            w.setPlainText(new_text)
+                            break
                 except Exception as e:
-                    editor_logger.error(f"Error writing {path}: {e}")
+                    editor_logger.error(f"Ошибка автосохранения {path}: {e}")
 
-            win = NodeGraphWindow.open_for_path(
-                path, prompts_root=self.prompts_root,
-                apply_callback=apply_back, parent=self
-            )
-            self._node_windows.append(win)
-            win.show()
+            editor.text_updated.connect(_on_text_updated)
+
+            title = os.path.basename(path)
+            self._push_drill_view(editor, title, file_path=path)
+
         except Exception as e:
-            QMessageBox.critical(self, "Нодовый редактор", f"Ошибка запуска: {e}")
+            import traceback
+            QMessageBox.critical(self, "Нодовый редактор", f"Ошибка запуска:\n{e}\n{traceback.format_exc()}")
 
     def _open_postscript_rules(self, path: str):
         """Открывает .postscript в визуальном Rule Builder."""

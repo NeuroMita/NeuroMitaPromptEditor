@@ -17,12 +17,15 @@ class GraphScene(QGraphicsScene):
     node_selected = Signal(object)                 # ast_node
     connection_finished = Signal(object, object)   # (source_port:PortItem, target_port:PortItem)
     request_create_menu = Signal(object, object)   # (source_port_or_None, scene_pos:QPointF)
+    edge_disconnect_requested = Signal(object)     # src_port: PortItem (whose outgoing connection to sever)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._drag_edge: Optional[EdgeItem] = None
         self._drag_source: Optional[PortItem] = None
         self._is_clearing: bool = False
+        self._is_reconnecting: bool = False
+        self._reconnect_old_target_port: Optional[PortItem] = None
         self.setSceneRect(-5000, -5000, 10000, 10000)
         self.selectionChanged.connect(self._on_selection_changed)
         log.debug("GraphScene.__init__: scene created, rect=%s", self.sceneRect())
@@ -71,19 +74,60 @@ class GraphScene(QGraphicsScene):
             return it
         return None
 
+    def _edge_under_pos(self, scene_pos) -> Optional[EdgeItem]:
+        view = self.views()[0] if self.views() else None
+        if not view:
+            return None
+        for it in self.items(scene_pos, Qt.IntersectsItemShape, Qt.DescendingOrder, view.transform()):
+            if isinstance(it, EdgeItem) and self._is_alive_item(it):
+                return it
+        return None
+
     # ------- interaction for connections -------
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             port = self._port_under_pos(event.scenePos())
+            # Grab the TARGET (input) end of an existing edge → reconnect drag
+            if port and port.is_input and port.edges:
+                edge = port.edges[-1]
+                if self._is_alive_item(edge) and edge.source and self._is_alive_item(edge.source):
+                    self._reconnect_old_target_port = port
+                    edge.set_target(None)
+                    edge.set_temp_end(event.scenePos())
+                    self._drag_edge = edge
+                    self._drag_source = edge.source
+                    self._is_reconnecting = True
+                    event.accept()
+                    return
+            # Drag from output port → new connection
             if port and not port.is_input:
                 self._drag_source = port
                 self._drag_edge = EdgeItem(port, None, is_branch=("branch" in port.key or port.key == "else"))
                 self.addItem(self._drag_edge)
                 self._drag_edge.set_temp_end(event.scenePos())
+                self._is_reconnecting = False
+                self._reconnect_old_target_port = None
                 event.accept()
                 return
 
         if event.button() == Qt.RightButton:
+            # Right-click on an edge → disconnect context menu
+            edge = self._edge_under_pos(event.scenePos())
+            if edge and self._is_alive_item(edge) and edge.source and self._is_alive_item(edge.source):
+                from PySide6.QtWidgets import QMenu
+                menu = QMenu()
+                act_disconnect = menu.addAction("Отцепить соединение")
+                view = self.views()[0] if self.views() else None
+                act = menu.exec(view.mapToGlobal(view.mapFromScene(event.scenePos())) if view else event.screenPos().toPoint())
+                if act == act_disconnect:
+                    src_port = edge.source
+                    try:
+                        edge.destroy()
+                    except Exception:
+                        pass
+                    self.edge_disconnect_requested.emit(src_port)
+                event.accept()
+                return
             node = self._node_under_pos(event.scenePos())
             if node is None:
                 self.request_create_menu.emit(None, event.scenePos())
@@ -102,6 +146,8 @@ class GraphScene(QGraphicsScene):
                     pass
                 self._drag_edge = None
                 self._drag_source = None
+                self._is_reconnecting = False
+                self._reconnect_old_target_port = None
                 event.accept()
                 return
             self._drag_edge.set_temp_end(event.scenePos())
@@ -113,17 +159,39 @@ class GraphScene(QGraphicsScene):
         if self._drag_edge and self._drag_source:
             target: Optional[PortItem] = self._port_under_pos(event.scenePos())
             if target and target.is_input and target.owner is not self._drag_source.owner:
-                self.connection_finished.emit(self._drag_source, target)
+                if self._is_reconnecting and target is self._reconnect_old_target_port:
+                    # Released back on the original port → restore (no-op)
+                    self._drag_edge.set_target(target)
+                else:
+                    # Connect (new or reconnect to different port)
+                    try:
+                        if self._drag_edge:
+                            self._drag_edge.destroy()
+                    except Exception:
+                        pass
+                    self.connection_finished.emit(self._drag_source, target)
             else:
-                self.request_create_menu.emit(self._drag_source, event.scenePos())
+                if self._is_reconnecting:
+                    # Released on empty while reconnecting → disconnect
+                    src_port = self._drag_source
+                    try:
+                        if self._drag_edge:
+                            self._drag_edge.destroy()
+                    except Exception:
+                        pass
+                    self.edge_disconnect_requested.emit(src_port)
+                else:
+                    try:
+                        if self._drag_edge:
+                            self._drag_edge.destroy()
+                    except Exception:
+                        pass
+                    self.request_create_menu.emit(self._drag_source, event.scenePos())
 
-            try:
-                if self._drag_edge:
-                    self._drag_edge.destroy()
-            except Exception:
-                pass
             self._drag_edge = None
             self._drag_source = None
+            self._is_reconnecting = False
+            self._reconnect_old_target_port = None
             event.accept()
             return
         super().mouseReleaseEvent(event)
@@ -219,7 +287,9 @@ class GraphView(QGraphicsView):
             return
         hint_lines = [
             "ПКМ на холсте  →  добавить ноду",
-            "Тяни порт  ○  →  соединить ноды",
+            "Тяни выход ○ →  соединить ноды",
+            "Тяни вход ●  →  перецепить стрелку",
+            "ПКМ на стрелке  →  отцепить",
             "Колёсико — зум,  средняя кнопка — перемещение",
             "Del — удалить выделенную ноду",
         ]

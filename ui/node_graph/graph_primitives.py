@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Optional, Callable, Dict
 
 from PySide6.QtCore import QPointF, Qt, QRectF
-from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainterPath, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainterPath, QPen, QPainterPathStroker
 from PySide6.QtWidgets import (
     QGraphicsEllipseItem,
     QGraphicsItem,
@@ -126,7 +126,8 @@ class EdgeItem(QGraphicsPathItem):
         self.is_branch = is_branch
         self.is_highlighted = False  # для фактического пути исполнения (зелёный)
         self._update_pen()
-        self.setZValue(-1)
+        self.setZValue(-0.5)
+        self.setAcceptHoverEvents(True)
         if self.source:
             self.source.add_edge(self)
         if self.target:
@@ -140,6 +141,11 @@ class EdgeItem(QGraphicsPathItem):
         else:
             color = BRANCH_EDGE if self.is_branch else EXEC_EDGE
             self.setPen(QPen(color, 2.0))
+
+    def shape(self):
+        stroker = QPainterPathStroker()
+        stroker.setWidth(10)
+        return stroker.createStroke(self.path())
 
     def set_highlighted(self, on: bool):
         self.is_highlighted = on

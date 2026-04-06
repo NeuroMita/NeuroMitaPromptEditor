@@ -302,56 +302,38 @@ class GlobalGraphWidget(QWidget):
 
     # -- логика графа --------------------------------------------------------
 
+    def _do_refresh_deferred(self):
+        try:
+            self._do_refresh()
+        finally:
+            self._refreshing = False
+
     def _refresh(self):
-        # Защита от повторного входа (processEvents мог вызвать второй _refresh).
+        # Защита от повторного входа
         if self._refreshing:
             return
         self._refreshing = True
+        # Откладываем выполнение, чтобы дерево успело завершить обработку клика
+        QTimer.singleShot(0, self._do_refresh_deferred)
+
+    def _do_refresh_deferred(self):
         try:
             self._do_refresh()
         finally:
             self._refreshing = False
 
     def _do_refresh(self):
-        # Явно отсоединяем прокси-виджеты кнопок ДО scene.clear().
-        # Иначе C++ удаляет QPushButton пока Python держит ссылки →
-        # stack buffer overrun (0xC0000409).
+        self._empty_proxy = None
 
-        # Убираем QLabel пустого состояния (если есть) — до scene.clear()
-        if self._empty_proxy is not None:
-            try:
-                if self._empty_proxy.scene() is self._scene:
-                    self._scene.removeItem(self._empty_proxy)
-            except Exception:
-                pass
-            self._empty_proxy = None
+        # НАСТОЯЩЕЕ РЕШЕНИЕ проблемы 0xC0000409 в QGraphicsScene:
+        # Вместо scene.clear() и мучительного удаления элементов по одному (что ломает C++),
+        # мы просто создаем НОВУЮ сцену, а старую безопасно ставим в очередь на удаление.
+        old_scene = self._scene
+        self._scene = _GlobalGraphScene()
+        self._scene.connection_requested.connect(self._on_connection_requested)
+        self._view.setScene(self._scene)
+        old_scene.deleteLater()
 
-        # Шаг 1: disconnect + detach для каждой кнопки
-        for node in list(self._nodes):
-            node.clear_connected_arrows()
-            for proxy in getattr(node, "_btn_proxies", []):
-                try:
-                    btn = proxy.widget()
-                    if btn is not None:
-                        try:
-                            btn.clicked.disconnect()
-                        except Exception:
-                            pass
-                        proxy.setWidget(None)
-                except Exception:
-                    pass
-
-        # Шаг 2: Явно удалить прокси из сцены ДО scene.clear()
-        for node in list(self._nodes):
-            for proxy in getattr(node, "_btn_proxies", []):
-                try:
-                    if proxy.scene() is self._scene:
-                        self._scene.removeItem(proxy)
-                except Exception:
-                    pass
-
-        # Шаг 3: Безопасно очищаем сцену (без processEvents — источника re-entrancy)
-        self._scene.clear()
         self._nodes.clear()
         self._arrows.clear()
 

@@ -227,20 +227,30 @@ class VariablesFormWidget(QWidget):
         self._building = True
         try:
             vars_dict = _parse_vars_text(text)
-            # Обновляем или создаём строки
-            for name, value in vars_dict.items():
-                if name in self._rows:
-                    self._rows[name].set_value(value, silent=True)
-                else:
+            
+            needs_rebuild = set(vars_dict.keys()) != set(self._rows.keys())
+            if not needs_rebuild:
+                for k, v in vars_dict.items():
+                    if _infer_type(v) != self._rows[k]._type:
+                        needs_rebuild = True
+                        break
+            
+            if needs_rebuild:
+                self._clear_layout()
+                self._rows.clear()
+                for name, value in vars_dict.items():
                     lo, hi = self._bounds.get(name, (None, None))
                     row = _VarRow(name, value, lo, hi)
                     row.changed.connect(self._on_any_changed)
                     self._rows[name] = row
-            # Обновляем скрытый редактор без генерации сигнала
+                    self._add_row_to_layout(name, row)
+            else:
+                for name, value in vars_dict.items():
+                    self._rows[name].set_value(value, silent=True)
+
             self._text_editor.blockSignals(True)
             self._text_editor.setPlainText(text)
             self._text_editor.blockSignals(False)
-            self._rebuild_form()
         finally:
             self._building = False
 
@@ -256,13 +266,14 @@ class VariablesFormWidget(QWidget):
         self._bounds = bounds
 
     def clear(self):
-        self._rows.clear()
         self._building = True
+        self._clear_layout()
+        self._rows.clear()
+        self._add_empty_hint()
         self._text_editor.blockSignals(True)
         self._text_editor.clear()
         self._text_editor.blockSignals(False)
         self._building = False
-        self._rebuild_form()
 
     # -- построение UI -------------------------------------------------------
 
@@ -314,27 +325,21 @@ class VariablesFormWidget(QWidget):
 
         outer.addWidget(self._tabs)
 
-    def _rebuild_form(self):
-        """Перестраивает QFormLayout из self._rows."""
-        # Удаляем все виджеты
-        while self._form_layout.count():
-            item = self._form_layout.takeAt(0)
-            w = item.widget()
-            if w:
-                w.setParent(None)
+    def _clear_layout(self):
+        # В QFormLayout категорически нельзя использовать takeAt(0)!
+        # Это ломает внутреннюю таблицу макета и вызывает краш 0xC0000409.
+        while self._form_layout.rowCount() > 0:
+            self._form_layout.removeRow(0)
 
-        # Добавляем строки
-        for name, row in self._rows.items():
-            lbl = QLabel(name)
-            lbl.setStyleSheet("color: #8b949e; font-size: 11px;")
-            lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            self._form_layout.addRow(lbl, row)
+    def _add_empty_hint(self):
+        hint = QLabel("Персонаж не выбран")
+        hint.setStyleSheet("color: #555; font-style: italic;")
+        hint.setAlignment(Qt.AlignCenter)
+        self._form_layout.addRow(hint)
 
-        if not self._rows:
-            hint = QLabel("Персонаж не выбран")
-            hint.setStyleSheet("color: #555; font-style: italic;")
-            hint.setAlignment(Qt.AlignCenter)
-            self._form_layout.addRow(hint)
+    def _add_row_to_layout(self, name: str, row: _VarRow):
+        lbl = QLabel(name)
+        lbl.setStyleSheet("color: #8b949e; font-size: 11px;")
 
     # -- сигналы / синхронизация ---------------------------------------------
 
@@ -367,18 +372,26 @@ class VariablesFormWidget(QWidget):
         self._building = True
         try:
             vars_dict = _parse_vars_text(text)
-            changed = False
-            for name, value in vars_dict.items():
-                if name in self._rows:
-                    self._rows[name].set_value(value, silent=True)
-                else:
+            
+            needs_rebuild = set(vars_dict.keys()) != set(self._rows.keys())
+            if not needs_rebuild:
+                for k, v in vars_dict.items():
+                    if _infer_type(v) != self._rows[k]._type:
+                        needs_rebuild = True
+                        break
+            
+            if needs_rebuild:
+                self._clear_layout()
+                self._rows.clear()
+                for name, value in vars_dict.items():
                     lo, hi = self._bounds.get(name, (None, None))
                     row = _VarRow(name, value, lo, hi)
                     row.changed.connect(self._on_any_changed)
                     self._rows[name] = row
-                    changed = True
-            if changed:
-                self._rebuild_form()
+                    self._add_row_to_layout(name, row)
+            else:
+                for name, value in vars_dict.items():
+                    self._rows[name].set_value(value, silent=True)
         finally:
             self._building = False
 

@@ -106,6 +106,9 @@ class NodeGraphEditor(QWidget):
         self.btn_clear_previews = QPushButton("Очистить превью узлов")
         self.btn_fit_view = QPushButton("⊙ По центру")
         self.btn_fit_view.setToolTip("Подогнать вид под все ноды")
+        self.btn_hint = QPushButton("? Подсказка")
+        self.btn_hint.setToolTip("Показать/скрыть подсказку по управлению графом")
+        self.btn_hint.setCheckable(True)
 
         self.btn_from_text.clicked.connect(self._rebuild_from_preview_text)
         self.btn_to_text.clicked.connect(self._apply_ast_to_preview)
@@ -115,6 +118,7 @@ class NodeGraphEditor(QWidget):
         self.btn_run.clicked.connect(self._run_workflow)
         self.btn_clear_previews.clicked.connect(lambda: self.controller.clear_all_previews())
         self.btn_fit_view.clicked.connect(self.view.fit_all)
+        self.btn_hint.clicked.connect(self._toggle_hint)
 
         top_row = QHBoxLayout()
         top_row.addWidget(self.btn_from_text)
@@ -122,6 +126,7 @@ class NodeGraphEditor(QWidget):
         top_row.addWidget(self.btn_save_meta)
         top_row.addWidget(self.btn_clear_meta)
         top_row.addWidget(self.btn_fit_view)
+        top_row.addWidget(self.btn_hint)
         top_row.addStretch(1)
         top_row.addWidget(self.btn_clear_previews)
         top_row.addWidget(self.btn_run)
@@ -398,6 +403,10 @@ class NodeGraphEditor(QWidget):
         visible = self.preview.isVisible()
         self.preview.setVisible(not visible)
         self.btn_toggle_preview.setText("Показать превью" if visible else "Скрыть превью")
+
+    def _toggle_hint(self):
+        self.view.toggle_hint()
+        self.btn_hint.setChecked(self.view._hint_forced)
 
     # -------- START node --------
     def _ensure_start_node(self):

@@ -94,6 +94,9 @@ class TemplateNodeSignals(QObject):
     code_requested    = Signal(str)   # resolved path
     rules_requested   = Signal(str)   # resolved path (.postscript)
     delete_requested  = Signal(str)   # resolved path (удалить из шаблона)
+    move_up_requested     = Signal(str)  # resolved path (переместить вверх)
+    move_down_requested   = Signal(str)  # resolved path (переместить вниз)
+    disconnect_requested  = Signal(str)  # resolved path (убрать соединения)
 
 
 class TemplateNode(QGraphicsObject):
@@ -271,8 +274,12 @@ class TemplateNode(QGraphicsObject):
             menu.addAction("✏ Редактировать", self._on_edit)
         menu.addAction("< > Код", self._on_code)
         menu.addSeparator()
+        menu.addAction("↑ Переместить вверх", lambda: self.signals.move_up_requested.emit(self._resolved))
+        menu.addAction("↓ Переместить вниз", lambda: self.signals.move_down_requested.emit(self._resolved))
+        menu.addAction("✂ Отсоединить", lambda: self.signals.disconnect_requested.emit(self._resolved))
+        menu.addSeparator()
         act_del = menu.addAction("🗑 Убрать из шаблона")
-        act = menu.exec(event.screenPos().toPoint())
+        act = menu.exec(event.screenPos())
         if act == act_del:
             self.signals.delete_requested.emit(self._resolved)
         event.accept()

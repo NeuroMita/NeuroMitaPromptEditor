@@ -253,9 +253,9 @@ class PromptEditorWindow(QMainWindow):
         self._btn_back_to_selector.setVisible(False)
         sb.addWidget(self._btn_back_to_selector)
 
-        self.tree.file_open_requested.connect(self.tabs.open_file)
+        self.tree.file_open_requested.connect(self._on_file_open_requested)
         self.tree.character_selected.connect(self._on_char_selected)
-        self.tmpl_dock.file_open_requested.connect(self.tabs.open_file)
+        self.tmpl_dock.file_open_requested.connect(self._on_file_open_requested)
         self.tabs.file_saved.connect(self._on_file_saved)
         self.tabs.modified_set_changed.connect(lambda: self.tree.viewport().update())
         self.tabs.currentChanged.connect(self._update_title)
@@ -477,6 +477,16 @@ class PromptEditorWindow(QMainWindow):
         self._nb_row.addStretch()
 
     # ---------- открытие файлов из графа ----------
+
+    def _on_file_open_requested(self, path: str):
+        """Маршрутизирует открытие файла по расширению."""
+        ext = os.path.splitext(path)[1].lower()
+        if ext == ".script":
+            self._open_nodes_for_path(path)
+        elif ext == ".postscript":
+            self._open_postscript_rules(path)
+        else:
+            self._open_file_in_tabs(path)
 
     def _open_file_in_tabs(self, path: str):
         """Открывает файл в TabManager и переключается на вкладки."""

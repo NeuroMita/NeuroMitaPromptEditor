@@ -245,6 +245,7 @@ class GraphView(QGraphicsView):
         self.setFrameShape(QFrame.NoFrame)
         self._panning = False
         self._last_pos = None
+        self._hint_forced = False
         log.debug("GraphView.__init__")
 
     def wheelEvent(self, e):
@@ -280,10 +281,15 @@ class GraphView(QGraphicsView):
             return
         super().mouseReleaseEvent(e)
 
+    def toggle_hint(self):
+        """Принудительно показать/скрыть подсказку по управлению."""
+        self._hint_forced = not self._hint_forced
+        self.viewport().update()
+
     def drawForeground(self, painter: QPainter, rect):
-        """Показывает подсказку по управлению, когда граф пустой (≤1 ноды)."""
+        """Показывает подсказку по управлению, когда граф пустой (≤1 ноды) или принудительно."""
         node_count = sum(1 for it in self.scene().items() if isinstance(it, NodeItem))
-        if node_count > 1:
+        if node_count > 1 and not self._hint_forced:
             return
         hint_lines = [
             "ПКМ на холсте  →  добавить ноду",

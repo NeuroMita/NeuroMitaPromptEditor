@@ -134,11 +134,21 @@ class _GlobalGraphScene(QGraphicsScene):
             return it
         return None
 
+    def _node_at(self, scene_pos: QPointF) -> "TemplateNode | None":
+        """Возвращает TemplateNode под курсором (проходит вверх по иерархии)."""
+        view = self.views()[0] if self.views() else None
+        if not view:
+            return None
+        it = self.itemAt(scene_pos, view.transform())
+        while it is not None and not isinstance(it, TemplateNode):
+            it = it.parentItem()
+        return it if isinstance(it, TemplateNode) else None
+
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             port = self._port_at(event.scenePos())
+            # Drag только с output-порта (кружок справа)
             if port and not port.is_input:
-                # Начинаем drag с output порта
                 self._drag_src = port.owner
                 p = port.center_scene()
                 self._temp_edge = QGraphicsLineItem(p.x(), p.y(), p.x(), p.y())
@@ -147,10 +157,11 @@ class _GlobalGraphScene(QGraphicsScene):
                 self.addItem(self._temp_edge)
                 event.accept()
                 return
+
         if event.button() == Qt.RightButton:
             view = self.views()[0] if self.views() else None
             it = self.itemAt(event.scenePos(), view.transform()) if view else None
-            # Пустой холст (нет элементов под курсором) → создать ноду
+            # Пустой холст → создать ноду
             if it is None:
                 self.create_node_requested.emit(event.scenePos())
                 event.accept()
@@ -172,16 +183,34 @@ class _GlobalGraphScene(QGraphicsScene):
 
     def mouseReleaseEvent(self, event):
         if self._temp_edge and self._drag_src:
-            port = self._port_at(event.scenePos())
-            if port and port.is_input and port.owner is not self._drag_src:
-                self.connection_requested.emit(self._drag_src, port.owner)
-            # Убрать временную линию
+            drag_src = self._drag_src
+            # Убираем temp-линию ДО itemAt, иначе она перекроет цель
             self.removeItem(self._temp_edge)
             self._temp_edge = None
             self._drag_src = None
+            # Ищем цель: сначала input-порт, потом любую ноду целиком
+            port = self._port_at(event.scenePos())
+            if port and port.is_input and port.owner is not drag_src:
+                self.connection_requested.emit(drag_src, port.owner)
+            else:
+                node = self._node_at(event.scenePos())
+                if node and node is not drag_src:
+                    self.connection_requested.emit(drag_src, node)
             event.accept()
             return
         super().mouseReleaseEvent(event)
+
+    def contextMenuEvent(self, event):
+        """ПКМ: находим TemplateNode под курсором (даже через дочерние элементы)."""
+        view = self.views()[0] if self.views() else None
+        it = self.itemAt(event.scenePos(), view.transform()) if view else None
+        node = it
+        while node is not None and not isinstance(node, TemplateNode):
+            node = node.parentItem()
+        if isinstance(node, TemplateNode):
+            node.contextMenuEvent(event)
+            return
+        super().contextMenuEvent(event)
 
     def _on_arrow_delete_requested(self, arrow: _GraphArrow):
         """Вызывается из _GraphArrow.contextMenuEvent."""
@@ -384,6 +413,9 @@ class GlobalGraphWidget(QWidget):
             node.signals.code_requested.connect(self.open_code_requested)
             node.signals.rules_requested.connect(self.open_postscript_requested)
             node.signals.delete_requested.connect(self._on_delete_node_requested)
+            node.signals.move_up_requested.connect(self._on_move_node_up)
+            node.signals.move_down_requested.connect(self._on_move_node_down)
+            node.signals.disconnect_requested.connect(self._on_disconnect_node)
 
         # Рисуем стрелки между всеми соседними нодами (в порядке включения)
         for i in range(len(self._nodes) - 1):
@@ -450,7 +482,8 @@ class GlobalGraphWidget(QWidget):
         new_src_idx = self._nodes.index(src_node)
         self._nodes.insert(new_src_idx + 1, dst_node)
 
-        # Перестроить стрелки
+        # Перестроить позиции и стрелки
+        self._relayout_nodes()
         self._rebuild_arrows()
         self._write_current_order()
 
@@ -476,6 +509,57 @@ class GlobalGraphWidget(QWidget):
         """Перезаписывает main_template.txt согласно текущему self._nodes."""
         ordered_raws = [n._spec["raw"] for n in self._nodes if "raw" in n._spec]
         self._write_template_order(ordered_raws)
+
+    def _relayout_nodes(self):
+        """Переставляет ноды на сцене согласно текущему порядку self._nodes."""
+        for i, node in enumerate(self._nodes):
+            col = i % _COLS
+            row = i // _COLS
+            x = _MARGIN_X + col * _COL_STEP
+            y = _MARGIN_Y + row * _ROW_STEP
+            node.setPos(x, y)
+
+    def _on_move_node_up(self, path: str):
+        node = next((n for n in self._nodes if n._resolved == path), None)
+        if not node:
+            return
+        idx = self._nodes.index(node)
+        if idx > 0:
+            self._nodes[idx - 1], self._nodes[idx] = self._nodes[idx], self._nodes[idx - 1]
+            self._relayout_nodes()
+            self._rebuild_arrows()
+            self._write_current_order()
+
+    def _on_move_node_down(self, path: str):
+        node = next((n for n in self._nodes if n._resolved == path), None)
+        if not node:
+            return
+        idx = self._nodes.index(node)
+        if idx < len(self._nodes) - 1:
+            self._nodes[idx], self._nodes[idx + 1] = self._nodes[idx + 1], self._nodes[idx]
+            self._relayout_nodes()
+            self._rebuild_arrows()
+            self._write_current_order()
+
+    def _on_disconnect_node(self, path: str):
+        """Убирает все стрелки входа и выхода у ноды (визуально отсоединяет)."""
+        node = next((n for n in self._nodes if n._resolved == path), None)
+        if not node:
+            return
+        to_remove = [a for a in list(self._arrows)
+                     if a.source_node is node or a.target_node is node]
+        for arrow in to_remove:
+            try:
+                self._scene.removeItem(arrow)
+            except Exception:
+                pass
+            if arrow in self._arrows:
+                self._arrows.remove(arrow)
+        node.clear_connected_arrows()
+        # Обновляем ссылки на стрелки у соседей
+        for a in self._arrows:
+            a.source_node.add_connected_arrow(a)
+            a.target_node.add_connected_arrow(a)
 
     def _write_template_order(self, ordered_raws: list):
         """Перезаписывает порядок [<...>] включений в main_template.txt."""

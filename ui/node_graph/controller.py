@@ -82,8 +82,8 @@ class NodeGraphController:
 
         NODE_W = 360
         NODE_H = 96
-        COL_GAP = 140
-        ROW_GAP = 40
+        COL_GAP = 80
+        ROW_GAP = 20
         H_STEP = NODE_W + COL_GAP
         V_STEP = NODE_H + ROW_GAP
 

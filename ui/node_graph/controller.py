@@ -85,10 +85,10 @@ class NodeGraphController:
         self.node2item.clear()
         self.item2node.clear()
 
-        NODE_W = 360
-        NODE_H = 96
-        COL_GAP = 80
-        ROW_GAP = 20
+        NODE_W = 280   # ширина ноды (совпадает с реальной max шириной)
+        NODE_H = 96    # высота ноды для расчёта шага
+        COL_GAP = 40   # горизонтальный зазор между колонками
+        ROW_GAP = 16   # вертикальный зазор между нодами
         H_STEP = NODE_W + COL_GAP
         V_STEP = NODE_H + ROW_GAP
 
@@ -237,44 +237,62 @@ class NodeGraphController:
 
         body_edges(self.script.body)
 
+    @staticmethod
+    def _node_h(subtitle: str, node_w: int, min_h: int = 60) -> int:
+        """Считает высоту ноды по тексту subtitle с переносом слов."""
+        from PySide6.QtGui import QFontMetrics, QFont
+        from PySide6.QtCore import Qt as _Qt
+        HEADER_H = 24; PADDING = 6
+        if not subtitle:
+            return min_h
+        f = QFont(); f.setPointSize(7)
+        fm = QFontMetrics(f)
+        r = fm.boundingRect(0, 0, node_w - 2 * PADDING, 10000,
+                            _Qt.TextWordWrap | _Qt.AlignTop, subtitle)
+        return max(min_h, HEADER_H + 6 + r.height() + PADDING + 4)
+
     def _node_item_for(self, node: AstNode) -> NodeItem:
         from logic.dsl_ast import If
         if isinstance(node, Set):
             title = "Установить переменную"
             subtitle = f"{'LOCAL ' if node.local else ''}{node.var} = {node.expr}"
             desc = "Создаёт или изменяет переменную. LOCAL — видна только внутри текущего блока."
-            item = NodeItem(title, subtitle, node, node_type="SET"); item.setRect(0, 0, 240, 72); item.set_description(desc)
+            w = 240; h = self._node_h(subtitle, w)
+            item = NodeItem(title, subtitle, node, node_type="SET"); item.setRect(0, 0, w, h); item.set_description(desc)
         elif isinstance(node, Log):
             title = "Логирование"
-            subtitle = node.expr[:32] + "..." if len(node.expr) > 32 else node.expr
+            subtitle = node.expr
             desc = "Выводит значение выражения в лог для отладки."
-            item = NodeItem(title, subtitle, node, node_type="LOG"); item.setRect(0, 0, 240, 72); item.set_description(desc)
+            w = 240; h = self._node_h(subtitle, w)
+            item = NodeItem(title, subtitle, node, node_type="LOG"); item.setRect(0, 0, w, h); item.set_description(desc)
         elif isinstance(node, AddSystemInfo):
             title = "Системная информация"
-            subtitle = node.expr[:28] + "..." if len(node.expr) > 28 else node.expr
+            subtitle = node.expr
             desc = "Добавляет системные инструкции, обычно загружает файл в начало промпта. Двойной клик для открытия файла."
-            item = NodeItem(title, subtitle, node, node_type="ADD_SYSTEM_INFO"); item.setRect(0, 0, 280, 72); item.set_description(desc)
+            w = 280; h = self._node_h(subtitle, w)
+            item = NodeItem(title, subtitle, node, node_type="ADD_SYSTEM_INFO"); item.setRect(0, 0, w, h); item.set_description(desc)
         elif isinstance(node, Return):
             title = "Вернуть результат"
-            subtitle = node.expr[:28] + "..." if len(node.expr) > 28 else node.expr
+            subtitle = node.expr
             desc = "Возвращает итоговый текст промпта. Завершает выполнение скрипта."
-            item = NodeItem(title, subtitle, node, node_type="RETURN"); item.setRect(0, 0, 280, 72); item.set_description(desc)
+            w = 280; h = self._node_h(subtitle, w)
+            item = NodeItem(title, subtitle, node, node_type="RETURN"); item.setRect(0, 0, w, h); item.set_description(desc)
         elif isinstance(node, SeedMemory):
             title = "В памяти"
-            preview = f"{node.content[:28]}..." if len(node.content) > 28 else node.content
-            subtitle = f"[{node.priority}] {preview}"
+            subtitle = f"[{node.priority}] {node.content}"
             desc = "Добавляет факт в долгосрочную память персонажа с указанным приоритетом (high/medium/low)."
-            item = NodeItem(title, subtitle, node, node_type="SEED_MEMORY"); item.setRect(0, 0, 280, 72); item.set_description(desc)
+            w = 280; h = self._node_h(subtitle, w)
+            item = NodeItem(title, subtitle, node, node_type="SEED_MEMORY"); item.setRect(0, 0, w, h); item.set_description(desc)
         elif isinstance(node, If):
             title = "Условие"; subtitle = ""
             desc = "Условная развилка: выполняет разные ветки кода в зависимости от условий."
             item = NodeItem(title, subtitle, node, node_type="IF")
             branches_count = len(node.branches) + (1 if node.else_body is not None else 0)
-            base_h = 60; per_row = 24
+            base_h = 56; per_row = 22
             h = base_h + max(1, branches_count) * per_row + 8; w = 280
             item.setRect(0, 0, w, h); item.set_description(desc)
         else:
-            item = NodeItem(type(node).__name__, "", node); item.setRect(0, 0, 240, 72); item.set_description("")
+            item = NodeItem(type(node).__name__, "", node); item.setRect(0, 0, 240, 60); item.set_description("")
         item.add_in_port("exec", "Выполнение")
         from logic.dsl_ast import If as IfNode
         if not isinstance(node, Return): item.add_out_port("exec", "Далее")
@@ -358,6 +376,8 @@ class NodeGraphController:
             if cb:
                 buttons.append((label, path, kind, cb))
 
+        log.debug("_attach_drilldown_buttons: node=%s buttons=%s on_drilldown=%s",
+                  type(node).__name__, [(b[0], b[2]) for b in buttons], self._on_drilldown)
         if buttons:
             item.set_drilldown_buttons(buttons)
 

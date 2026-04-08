@@ -85,7 +85,10 @@ class NodeGraphEditor(QWidget):
         # двойной клик по ноде -> открыть полный превью или детали
         self.controller.set_item_double_click_callback(self._on_item_double_clicked)
         # кнопки провала под нодой -> открыть файл/скрипт
-        self.controller.set_drilldown_callback(lambda p: self._open_file_navigator(p, []))
+        def _drilldown_cb(p: str):
+            log.debug("drilldown_callback called: path=%s", p)
+            self._open_file_navigator(p, [])
+        self.controller.set_drilldown_callback(_drilldown_cb)
 
         self.scene.node_selected.connect(self._on_node_selected)
         self.scene.connection_finished.connect(self._on_connection_finished)
@@ -905,7 +908,11 @@ class NodeGraphEditor(QWidget):
         txt.setFont(QFont("Consolas", 10))
         txt.setPlainText("\n".join(body_lines))
         v.addWidget(txt)
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Save | QDialogButtonBox.Copy)
+        btns_layout = QHBoxLayout()
+        btn_copy = QPushButton("📋 Копировать")
+        btn_save = QPushButton("💾 Сохранить")
+        btn_ok   = QPushButton("OK")
+        btn_ok.setDefault(True)
         def _copy():
             from PySide6.QtWidgets import QApplication
             QApplication.clipboard().setText(txt.toPlainText() or "")
@@ -917,10 +924,14 @@ class NodeGraphEditor(QWidget):
                         f.write(txt.toPlainText())
                 except Exception as e:
                     QMessageBox.critical(self, "Сохранение", f"Ошибка: {e}")
-        btns.button(QDialogButtonBox.Copy).clicked.connect(_copy)
-        btns.button(QDialogButtonBox.Save).clicked.connect(_save)
-        btns.accepted.connect(dlg.accept)
-        v.addWidget(btns)
+        btn_copy.clicked.connect(_copy)
+        btn_save.clicked.connect(_save)
+        btn_ok.clicked.connect(dlg.accept)
+        btns_layout.addWidget(btn_copy)
+        btns_layout.addWidget(btn_save)
+        btns_layout.addStretch()
+        btns_layout.addWidget(btn_ok)
+        v.addLayout(btns_layout)
         dlg.exec()
 
     def _open_file_navigator(self, rel_path: str, breadcrumb: List[str]):
@@ -1016,13 +1027,19 @@ class NodeGraphEditor(QWidget):
         layout.addWidget(txt)
 
         # ---- Кнопки ----
-        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Copy)
+        btns_layout = QHBoxLayout()
+        btn_copy = QPushButton("📋 Копировать")
+        btn_ok   = QPushButton("OK")
+        btn_ok.setDefault(True)
         def _copy():
             from PySide6.QtWidgets import QApplication
             QApplication.clipboard().setText(txt.toPlainText() or "")
-        btns.button(QDialogButtonBox.Copy).clicked.connect(_copy)
-        btns.accepted.connect(dlg.accept)
-        layout.addWidget(btns)
+        btn_copy.clicked.connect(_copy)
+        btn_ok.clicked.connect(dlg.accept)
+        btns_layout.addWidget(btn_copy)
+        btns_layout.addStretch()
+        btns_layout.addWidget(btn_ok)
+        layout.addLayout(btns_layout)
 
         dlg.exec()
 

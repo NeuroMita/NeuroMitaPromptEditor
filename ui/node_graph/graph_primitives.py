@@ -304,19 +304,18 @@ class DrilldownButton(QGraphicsRectItem):
         self._refresh()
         super().hoverLeaveEvent(event)
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            try:
+    def trigger(self):
+        """Вызвать callback провала (вызывается из NodeItem.mousePressEvent)."""
+        import logging as _log
+        _log.getLogger("node_graph").debug("DrilldownButton.trigger label=%s cb=%s", self._label, self._callback)
+        try:
+            if callable(self._callback):
                 self._callback()
-            except Exception:
-                pass
-            event.accept()
-        else:
-            super().mousePressEvent(event)
-
-    # Не даём ноде двигаться при клике на кнопку
-    def mouseReleaseEvent(self, event):
-        event.accept()
+            else:
+                _log.getLogger("node_graph").warning("DrilldownButton.trigger: callback is None!")
+        except Exception as e:
+            import traceback
+            _log.getLogger("node_graph").error("DrilldownButton.trigger error: %s\n%s", e, traceback.format_exc())
 
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
@@ -713,14 +712,17 @@ class NodeItem(QGraphicsRectItem):
             title_rect = QRectF(r.left() + 24, r.top(), r.width() - 28, HEADER_H)
             painter.drawText(title_rect, Qt.AlignVCenter | Qt.AlignLeft, self.title)
 
-            # Подзаголовок в контентной зоне (сжато)
+            # Подзаголовок в контентной зоне — перенос слов
             if self.subtitle:
                 f_sub = QFont()
                 f_sub.setPointSize(7)
                 painter.setFont(f_sub)
                 painter.setPen(QPen(TEXT_SECONDARY))
-                sub_rect = r.adjusted(self.PADDING, HEADER_H + 3, -self.PADDING, -self.PADDING)
-                painter.drawText(sub_rect, Qt.AlignTop | Qt.AlignLeft, self.subtitle)
+                sub_rect = r.adjusted(self.PADDING, HEADER_H + 3,
+                                      -self.PADDING, -self.PADDING - self._drilldown_zone_h)
+                painter.drawText(sub_rect,
+                                 Qt.AlignTop | Qt.AlignLeft | Qt.TextWordWrap,
+                                 self.subtitle)
 
             # Значок провала в правом нижнем углу
             if self.drilldown_type == "script":
@@ -830,6 +832,27 @@ class NodeItem(QGraphicsRectItem):
                 e.update_path()
 
     def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            # event.pos() — уже в локальных координатах этой ноды.
+            # DrilldownButton.pos()=(0,0) внутри ноды, поэтому btn.rect()
+            # тоже в локальных координатах ноды — сравниваем напрямую.
+            local = event.pos()
+            import logging as _log
+            _log.getLogger("node_graph").debug(
+                "NodeItem click local=(%s,%s)  btns=%d",
+                local.x(), local.y(), len(self._drilldown_btns)
+            )
+            for btn in self._drilldown_btns:
+                r = btn.rect()
+                _log.getLogger("node_graph").debug(
+                    "  btn rect=(%s,%s,%s,%s) cb=%s",
+                    r.x(), r.y(), r.width(), r.height(), btn._callback
+                )
+                if r.contains(local):
+                    _log.getLogger("node_graph").debug("  → HIT, triggering")
+                    btn.trigger()
+                    event.accept()
+                    return
         for key, lab in self._port_labels_internal.items():
             if lab.contains(lab.mapFromScene(event.scenePos())):
                 self.highlight_branch(key, True)

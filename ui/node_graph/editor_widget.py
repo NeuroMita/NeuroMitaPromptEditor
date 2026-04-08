@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSplitter,
     QLabel, QPlainTextEdit, QMenu, QMessageBox, QFileDialog, QDialog, QDialogButtonBox
 )
-from PySide6.QtGui import QShortcut, QKeySequence, QFont
+from PySide6.QtGui import QShortcut, QKeySequence, QFont, QColor
 
 from logic.dsl_ast import Script, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory, AstNode
 from logic.dsl_parser import parse_script, ParseError
@@ -44,6 +44,8 @@ class NodeGraphEditor(QWidget):
         re.IGNORECASE | re.VERBOSE,
     )
     _LOAD_REL_RE = re.compile(r"""\bLOAD(?:_REL|REL)\s+(['"])(.+?)\1""", re.IGNORECASE)
+    # Простой LOAD "path" без FROM и без суффикса
+    _LOAD_SIMPLE_RE = re.compile(r"""\bLOAD\b(?!\s+[A-Z0-9_]+\s+FROM)(?!_REL|REL)\s+(['"])(.+?)\1""", re.IGNORECASE)
     _SECTION_MARKER_RE = re.compile(r"^[ \t]*\[(?:#|/)\s*[A-Z0-9_]+\s*\][ \t]*\r?\n?", re.IGNORECASE | re.MULTILINE)
     _TAG_SECTION_RE_TMPL = r"\[#\s*{tag}\s*\](.*?)\s*\[/\s*{tag}\s*\]"
 
@@ -82,6 +84,8 @@ class NodeGraphEditor(QWidget):
         self.controller.set_metadata_changed_callback(self._on_metadata_changed)
         # двойной клик по ноде -> открыть полный превью или детали
         self.controller.set_item_double_click_callback(self._on_item_double_clicked)
+        # кнопки провала под нодой -> открыть файл/скрипт
+        self.controller.set_drilldown_callback(lambda p: self._open_file_navigator(p, []))
 
         self.scene.node_selected.connect(self._on_node_selected)
         self.scene.connection_finished.connect(self._on_connection_finished)
@@ -413,7 +417,8 @@ class NodeGraphEditor(QWidget):
         if self._start_item and self._is_item_alive(self._start_item):
             return
         self._start_item = None
-        start = NodeItem("START", "Точка входа", payload="_START_")
+        start = NodeItem("▶ START", "", payload="_START_", bg=QColor("#1a4a1a"))
+        start.setRect(0, 0, 100, 50)
         start.set_description("Начальная точка выполнения скрипта")
         start.add_out_port("exec", "Начать выполнение")
         self.scene.add_node_item(start, self._start_pos)
@@ -568,13 +573,33 @@ class NodeGraphEditor(QWidget):
     def _resolve_path(self, rel_path: str) -> Optional[str]:
         if not rel_path: return None
         if os.path.isabs(rel_path) and os.path.exists(rel_path): return rel_path
+        # Ищем в base_dir и всех его родителях (скрипт может быть во вложенной папке)
         if self._base_dir:
-            p = os.path.normpath(os.path.join(self._base_dir, rel_path))
-            if os.path.exists(p): return p
+            candidate = self._base_dir
+            for _ in range(5):  # до 5 уровней вверх
+                p = os.path.normpath(os.path.join(candidate, rel_path))
+                if os.path.exists(p): return p
+                parent = os.path.dirname(candidate)
+                if parent == candidate: break
+                candidate = parent
         if self._prompts_root:
             p = os.path.normpath(os.path.join(self._prompts_root, rel_path))
             if os.path.exists(p): return p
         return None
+
+    def _resolve_path_debug(self, rel_path: str) -> List[str]:
+        """Вернуть список всех кандидатов (для сообщения об ошибке)."""
+        candidates: List[str] = []
+        if self._base_dir:
+            candidate = self._base_dir
+            for _ in range(5):
+                candidates.append(os.path.normpath(os.path.join(candidate, rel_path)))
+                parent = os.path.dirname(candidate)
+                if parent == candidate: break
+                candidate = parent
+        if self._prompts_root:
+            candidates.append(os.path.normpath(os.path.join(self._prompts_root, rel_path)))
+        return candidates
 
     def _read_file(self, path: str) -> str:
         try:
@@ -806,8 +831,42 @@ class NodeGraphEditor(QWidget):
             steps.append(step)
         return steps
 
+    # --------- helpers: извлечь все LOAD пути из выражения --------
+    def _extract_load_paths(self, expr: str) -> List[str]:
+        """Вернуть список всех путей из LOAD/LOAD_REL/LOAD "path" команд в выражении."""
+        paths: List[str] = []
+        for m in self._INLINE_LOAD_RE.finditer(expr):
+            p = m.group(3)
+            if p and p not in paths:
+                paths.append(p)
+        for m in self._LOAD_REL_RE.finditer(expr):
+            p = m.group(2)
+            if p and p not in paths:
+                paths.append(p)
+        for m in self._LOAD_SIMPLE_RE.finditer(expr):
+            p = m.group(2)
+            if p and p not in paths:
+                paths.append(p)
+        return paths
+
+    def _node_expr(self, node: AstNode) -> Optional[str]:
+        """Вернуть строку выражения из ноды (если есть)."""
+        if isinstance(node, (AddSystemInfo, Return, Log)):
+            return node.expr
+        if isinstance(node, Set):
+            return node.expr
+        return None
+
     # --------- double click on node => open full details --------
     def _on_item_double_clicked(self, node: AstNode):
+        # Проверяем наличие LOAD в выражении — если есть, открываем навигатор
+        expr = self._node_expr(node)
+        if expr:
+            paths = self._extract_load_paths(expr)
+            if paths:
+                self._open_file_navigator(paths[0], breadcrumb=[])
+                return
+
         rep = self._last_runner_report
         if not rep:
             QMessageBox.information(self, "Превью узла", "Нет данных выполнения. Нажмите «Запустить воркфлоу».")
@@ -862,6 +921,171 @@ class NodeGraphEditor(QWidget):
         btns.button(QDialogButtonBox.Save).clicked.connect(_save)
         btns.accepted.connect(dlg.accept)
         v.addWidget(btns)
+        dlg.exec()
+
+    def _open_file_navigator(self, rel_path: str, breadcrumb: List[str]):
+        """
+        Открыть просмотрщик файла с иерархией навигации (хлебные крошки).
+        rel_path: относительный путь файла (из LOAD).
+        breadcrumb: список rel_path всех родителей (от корня до текущего).
+        """
+        resolved = self._resolve_path(rel_path)
+        if not resolved or not os.path.exists(resolved):
+            tried = "\n".join(self._resolve_path_debug(rel_path))
+            QMessageBox.warning(self, "Файл не найден",
+                                f"Файл не найден: {rel_path}\n\nПробовал:\n{tried}")
+            return
+
+        # Если это скрипт — открываем как граф нод
+        _, ext = os.path.splitext(rel_path.lower())
+        if ext in (".script", ".postscript"):
+            self._open_script_graph(rel_path, resolved, breadcrumb)
+            return
+
+        content = self._read_file(resolved)
+        # LOAD команды внутри самого файла — для рекурсивного провала
+        child_paths = self._extract_load_paths(content)
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"📄 {rel_path}")
+        dlg.setMinimumSize(820, 640)
+        layout = QVBoxLayout(dlg)
+        layout.setSpacing(4)
+
+        # ---- Хлебные крошки ----
+        nav_layout = QHBoxLayout()
+        nav_layout.setSpacing(2)
+
+        # Кнопка «← Граф» всегда первая
+        btn_root = QPushButton("← Граф")
+        btn_root.setMaximumWidth(80)
+        btn_root.setStyleSheet("font-size:11px;")
+        btn_root.clicked.connect(dlg.close)
+        nav_layout.addWidget(btn_root)
+
+        # Кнопки родительских файлов
+        for i, parent_path in enumerate(breadcrumb):
+            sep = QLabel("›")
+            sep.setStyleSheet("color:#666; padding:0 2px;")
+            nav_layout.addWidget(sep)
+            btn = QPushButton(os.path.basename(parent_path))
+            btn.setMaximumWidth(160)
+            btn.setStyleSheet("font-size:11px;")
+            # при клике переоткрыть на этом уровне
+            def _go_parent(p=parent_path, bc=breadcrumb[:i]):
+                dlg.close()
+                self._open_file_navigator(p, bc)
+            btn.clicked.connect(_go_parent)
+            nav_layout.addWidget(btn)
+
+        # Текущий файл (не кнопка)
+        sep_cur = QLabel("›")
+        sep_cur.setStyleSheet("color:#666; padding:0 2px;")
+        nav_layout.addWidget(sep_cur)
+        cur_label = QLabel(f"<b>{os.path.basename(rel_path)}</b>")
+        cur_label.setStyleSheet("font-size:11px;")
+        nav_layout.addWidget(cur_label)
+        nav_layout.addStretch()
+        layout.addLayout(nav_layout)
+
+        # ---- Кнопки провала в дочерние файлы (если есть LOAD внутри) ----
+        if child_paths:
+            child_layout = QHBoxLayout()
+            child_layout.setSpacing(4)
+            child_label = QLabel("Внутри:")
+            child_label.setStyleSheet("color:#888; font-size:10px;")
+            child_layout.addWidget(child_label)
+            for cp in child_paths[:8]:  # не более 8 кнопок
+                btn_child = QPushButton(f"↓ {os.path.basename(cp)}")
+                btn_child.setToolTip(cp)
+                btn_child.setStyleSheet("font-size:10px; padding:2px 6px;")
+                def _go_child(child=cp):
+                    dlg.close()
+                    self._open_file_navigator(child, breadcrumb + [rel_path])
+                btn_child.clicked.connect(_go_child)
+                child_layout.addWidget(btn_child)
+            child_layout.addStretch()
+            layout.addLayout(child_layout)
+
+        # ---- Содержимое файла ----
+        txt = QPlainTextEdit()
+        txt.setReadOnly(True)
+        txt.setFont(QFont("Consolas", 9))
+        txt.setPlainText(content)
+        txt.setStyleSheet("background:#1f2329;color:#e6edf3;border:1px solid #333;")
+        layout.addWidget(txt)
+
+        # ---- Кнопки ----
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Copy)
+        def _copy():
+            from PySide6.QtWidgets import QApplication
+            QApplication.clipboard().setText(txt.toPlainText() or "")
+        btns.button(QDialogButtonBox.Copy).clicked.connect(_copy)
+        btns.accepted.connect(dlg.accept)
+        layout.addWidget(btns)
+
+        dlg.exec()
+
+    def _open_script_graph(self, rel_path: str, resolved: str, breadcrumb: List[str]):
+        """
+        Открыть .script файл как полноценный граф нод в диалоге.
+        """
+        content = self._read_file(resolved)
+        script_base_dir = os.path.dirname(resolved)
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"📜 {rel_path}")
+        dlg.setMinimumSize(1100, 750)
+        layout = QVBoxLayout(dlg)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+
+        # ---- Хлебные крошки ----
+        nav_layout = QHBoxLayout()
+        nav_layout.setSpacing(2)
+        btn_root = QPushButton("← Граф")
+        btn_root.setMaximumWidth(80)
+        btn_root.setStyleSheet("font-size:11px;")
+        btn_root.clicked.connect(dlg.close)
+        nav_layout.addWidget(btn_root)
+
+        for i, parent_path in enumerate(breadcrumb):
+            sep = QLabel("›")
+            sep.setStyleSheet("color:#666; padding:0 2px;")
+            nav_layout.addWidget(sep)
+            btn = QPushButton(os.path.basename(parent_path))
+            btn.setMaximumWidth(160)
+            btn.setStyleSheet("font-size:11px;")
+            def _go_parent(p=parent_path, bc=breadcrumb[:i]):
+                dlg.close()
+                self._open_file_navigator(p, bc)
+            btn.clicked.connect(_go_parent)
+            nav_layout.addWidget(btn)
+
+        sep_cur = QLabel("›")
+        sep_cur.setStyleSheet("color:#666; padding:0 2px;")
+        nav_layout.addWidget(sep_cur)
+        cur_label = QLabel(f"<b>📜 {os.path.basename(rel_path)}</b>")
+        cur_label.setStyleSheet("font-size:11px; color:#22dd66;")
+        nav_layout.addWidget(cur_label)
+        nav_layout.addStretch()
+        layout.addLayout(nav_layout)
+
+        # ---- Встроенный NodeGraphEditor ----
+        child_editor = NodeGraphEditor(
+            base_dir=script_base_dir,
+            prompts_root=self._prompts_root,
+            file_path=resolved,
+            parent=dlg,
+        )
+        # Прокидываем провал дальше — через тот же механизм, но с расширенным breadcrumb
+        def _child_drilldown(child_rel: str, child_breadcrumb: List[str]):
+            self._open_file_navigator(child_rel, breadcrumb + [rel_path] + child_breadcrumb)
+
+        child_editor._open_file_navigator = lambda rp, bc: _child_drilldown(rp, bc)
+        child_editor.load_text(content)
+        layout.addWidget(child_editor)
+
         dlg.exec()
 
     # --------- IF variables preview helpers ----------

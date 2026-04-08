@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Dict, List, Optional, Set as PySet, Callable
 import logging
+import re
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
@@ -30,9 +31,13 @@ class NodeGraphController:
         self.node_colors: Dict[str, QColor] = {}
         self._on_metadata_changed: Optional[callable] = None
         self._on_item_double_click: Optional[Callable[[AstNode], None]] = None
+        self._on_drilldown: Optional[Callable[[str], None]] = None   # (rel_path) -> None
 
     def set_metadata_changed_callback(self, cb: callable):
         self._on_metadata_changed = cb
+
+    def set_drilldown_callback(self, cb: Optional[Callable[[str], None]]):
+        self._on_drilldown = cb
 
     def set_item_double_click_callback(self, cb: Callable[[AstNode], None]):
         self._on_item_double_click = cb
@@ -238,38 +243,38 @@ class NodeGraphController:
             title = "Установить переменную"
             subtitle = f"{'LOCAL ' if node.local else ''}{node.var} = {node.expr}"
             desc = "Создаёт или изменяет переменную. LOCAL — видна только внутри текущего блока."
-            item = NodeItem(title, subtitle, node, node_type="SET"); item.setRect(0, 0, 320, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="SET"); item.setRect(0, 0, 240, 72); item.set_description(desc)
         elif isinstance(node, Log):
-            title = "Записать в лог"
-            subtitle = node.expr[:40] + "..." if len(node.expr) > 40 else node.expr
+            title = "Логирование"
+            subtitle = node.expr[:32] + "..." if len(node.expr) > 32 else node.expr
             desc = "Выводит значение выражения в лог для отладки."
-            item = NodeItem(title, subtitle, node, node_type="LOG"); item.setRect(0, 0, 320, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="LOG"); item.setRect(0, 0, 240, 72); item.set_description(desc)
         elif isinstance(node, AddSystemInfo):
             title = "Системная информация"
-            subtitle = node.expr[:30] + "..." if len(node.expr) > 30 else node.expr
-            desc = "Добавляет системные инструкции, обычно загружает файл в начало промпта."
-            item = NodeItem(title, subtitle, node, node_type="ADD_SYSTEM_INFO"); item.setRect(0, 0, 340, 80); item.set_description(desc)
+            subtitle = node.expr[:28] + "..." if len(node.expr) > 28 else node.expr
+            desc = "Добавляет системные инструкции, обычно загружает файл в начало промпта. Двойной клик для открытия файла."
+            item = NodeItem(title, subtitle, node, node_type="ADD_SYSTEM_INFO"); item.setRect(0, 0, 280, 72); item.set_description(desc)
         elif isinstance(node, Return):
             title = "Вернуть результат"
-            subtitle = node.expr[:35] + "..." if len(node.expr) > 35 else node.expr
+            subtitle = node.expr[:28] + "..." if len(node.expr) > 28 else node.expr
             desc = "Возвращает итоговый текст промпта. Завершает выполнение скрипта."
-            item = NodeItem(title, subtitle, node, node_type="RETURN"); item.setRect(0, 0, 340, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="RETURN"); item.setRect(0, 0, 280, 72); item.set_description(desc)
         elif isinstance(node, SeedMemory):
-            title = "Добавить в память"
-            preview = f"{node.content[:35]}..." if len(node.content) > 35 else node.content
+            title = "В памяти"
+            preview = f"{node.content[:28]}..." if len(node.content) > 28 else node.content
             subtitle = f"[{node.priority}] {preview}"
             desc = "Добавляет факт в долгосрочную память персонажа с указанным приоритетом (high/medium/low)."
-            item = NodeItem(title, subtitle, node, node_type="SEED_MEMORY"); item.setRect(0, 0, 360, 80); item.set_description(desc)
+            item = NodeItem(title, subtitle, node, node_type="SEED_MEMORY"); item.setRect(0, 0, 280, 72); item.set_description(desc)
         elif isinstance(node, If):
             title = "Условие"; subtitle = ""
             desc = "Условная развилка: выполняет разные ветки кода в зависимости от условий."
             item = NodeItem(title, subtitle, node, node_type="IF")
             branches_count = len(node.branches) + (1 if node.else_body is not None else 0)
-            base_h = 64; per_row = 28
-            h = base_h + max(1, branches_count) * per_row + 10; w = 360
+            base_h = 60; per_row = 24
+            h = base_h + max(1, branches_count) * per_row + 8; w = 280
             item.setRect(0, 0, w, h); item.set_description(desc)
         else:
-            item = NodeItem(type(node).__name__, "", node); item.setRect(0, 0, 320, 80); item.set_description("")
+            item = NodeItem(type(node).__name__, "", node); item.setRect(0, 0, 240, 72); item.set_description("")
         item.add_in_port("exec", "Выполнение")
         from logic.dsl_ast import If as IfNode
         if not isinstance(node, Return): item.add_out_port("exec", "Далее")
@@ -281,7 +286,80 @@ class NodeGraphController:
         # dblclick -> отдаём наверх
         if self._on_item_double_click:
             item.set_double_click_callback(lambda it, _n=node: self._on_item_double_click(_n))
+
+        # Значок провала: определяем тип LOAD в выражении
+        item.drilldown_type = self._detect_drilldown_type(node)
+
+        # Кнопки провала в нижней части ноды
+        self._attach_drilldown_buttons(item, node)
+
         return item
+
+    _SCRIPT_EXTS = {".script", ".postscript"}
+    _FILE_EXTS   = {".txt", ".text", ".system", ".md"}
+    _LOAD_PATH_RE = re.compile(
+        r"""\bLOAD(?:_REL|REL)?\b(?:\s+[A-Z0-9_]+\s+FROM)?\s+['"](.*?)['"]""",
+        re.IGNORECASE,
+    )
+
+    def _detect_drilldown_type(self, node: AstNode) -> str:
+        """
+        Проверяет expr ноды — есть ли LOAD с файлом.
+        Возвращает: "script" если .script/.postscript, "file" если .txt и др., "" если нет LOAD.
+        """
+        import os
+        expr = ""
+        if isinstance(node, (Set, Log, AddSystemInfo, Return)):
+            expr = node.expr or ""
+        if not expr:
+            return ""
+        has_script = False
+        has_file   = False
+        for m in self._LOAD_PATH_RE.finditer(expr):
+            ext = os.path.splitext(m.group(1))[1].lower()
+            if ext in self._SCRIPT_EXTS:
+                has_script = True
+            elif ext in self._FILE_EXTS or ext == "":
+                has_file = True
+        if has_script:
+            return "script"
+        if has_file:
+            return "file"
+        return ""
+
+    def _attach_drilldown_buttons(self, item: NodeItem, node: AstNode):
+        """Создать кнопки провала в нижней части ноды для каждого LOAD пути."""
+        import os
+        expr = ""
+        if isinstance(node, (Set, Log, AddSystemInfo, Return)):
+            expr = node.expr or ""
+        if not expr:
+            return
+
+        buttons = []
+        seen: set = set()
+        for m in self._LOAD_PATH_RE.finditer(expr):
+            path = m.group(1)
+            if path in seen:
+                continue
+            seen.add(path)
+            ext  = os.path.splitext(path)[1].lower()
+            kind = "script" if ext in self._SCRIPT_EXTS else "file"
+            label = os.path.basename(path)
+            # для тегового LOAD (LOAD TAG FROM "file") добавить тег в label
+            tag_match = re.search(
+                r"""\bLOAD\s+([A-Z0-9_]+)\s+FROM\s+['"]""" + re.escape(path) + r"""['"]""",
+                expr, re.IGNORECASE
+            )
+            if tag_match:
+                label = f"{os.path.basename(path)} #{tag_match.group(1)}"
+
+            cb = (lambda p=path: self._on_drilldown(p)) if callable(self._on_drilldown) else None
+            if cb:
+                buttons.append((label, path, kind, cb))
+
+        if buttons:
+            item.set_drilldown_buttons(buttons)
 
     # ---- подсветки ----
     def clear_all_previews(self):

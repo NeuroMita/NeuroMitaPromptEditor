@@ -24,8 +24,8 @@ TEXT_SECONDARY = QColor("#999999")
 EXEC_EDGE = QColor("#FFFFFF")
 BRANCH_EDGE = QColor("#FFA500")
 
-# Высота шапки ноды
-HEADER_H = 28
+# Высота шапки ноды (компактная)
+HEADER_H = 24
 
 # Стили шапки по типу ноды: тип -> (emoji, dark_color, light_color)
 NODE_TYPE_STYLES: dict = {
@@ -254,10 +254,90 @@ class _PreviewTextItem(QGraphicsTextItem):
         super().mouseDoubleClickEvent(event)
 
 
+BTN_H   = 16   # высота одной кнопки провала
+BTN_GAP = 2    # вертикальный зазор между кнопками
+BTN_PAD = 5    # отступ сверху зоны кнопок от разделителя
+
+# Цвета кнопок провала
+BTN_SCRIPT_BG    = QColor("#1a3a22")
+BTN_SCRIPT_HOVER = QColor("#2a5a35")
+BTN_SCRIPT_BORDER= QColor("#2d7a44")
+BTN_SCRIPT_TEXT  = QColor("#44ee77")
+BTN_FILE_BG      = QColor("#1a2d3a")
+BTN_FILE_HOVER   = QColor("#2a4a5a")
+BTN_FILE_BORDER  = QColor("#2d5a7a")
+BTN_FILE_TEXT    = QColor("#66aadd")
+
+
+class DrilldownButton(QGraphicsRectItem):
+    """Кликабельная кнопка провала внутри NodeItem."""
+
+    def __init__(self, label: str, tooltip: str, kind: str, callback: Callable, owner: "NodeItem"):
+        super().__init__(owner)
+        self._label    = label
+        self._kind     = kind      # "script" | "file"
+        self._callback = callback
+        self._hovered  = False
+        self.setToolTip(tooltip)
+        self.setAcceptHoverEvents(True)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setZValue(8)
+        self._refresh()
+
+    def _refresh(self):
+        if self._kind == "script":
+            bg     = BTN_SCRIPT_HOVER if self._hovered else BTN_SCRIPT_BG
+            border = BTN_SCRIPT_BORDER
+        else:
+            bg     = BTN_FILE_HOVER   if self._hovered else BTN_FILE_BG
+            border = BTN_FILE_BORDER
+        self.setBrush(QBrush(bg))
+        self.setPen(QPen(border, 1.0))
+
+    def hoverEnterEvent(self, event):
+        self._hovered = True
+        self._refresh()
+        super().hoverEnterEvent(event)
+
+    def hoverLeaveEvent(self, event):
+        self._hovered = False
+        self._refresh()
+        super().hoverLeaveEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            try:
+                self._callback()
+            except Exception:
+                pass
+            event.accept()
+        else:
+            super().mousePressEvent(event)
+
+    # Не даём ноде двигаться при клике на кнопку
+    def mouseReleaseEvent(self, event):
+        event.accept()
+
+    def paint(self, painter, option, widget=None):
+        super().paint(painter, option, widget)
+        r = self.rect()
+        icon = "⇒ " if self._kind == "script" else "↗ "
+        text_color = BTN_SCRIPT_TEXT if self._kind == "script" else BTN_FILE_TEXT
+        f = QFont()
+        f.setPointSize(7)
+        painter.setFont(f)
+        painter.setPen(QPen(text_color))
+        painter.drawText(
+            r.adjusted(5, 0, -4, 0),
+            Qt.AlignVCenter | Qt.AlignLeft,
+            icon + self._label,
+        )
+
+
 class NodeItem(QGraphicsRectItem):
     WIDTH = 300
     HEIGHT = 96
-    PADDING = 8
+    PADDING = 6
 
     def __init__(self, title: str, subtitle: str, payload, bg: QColor = NODE_BG,
                  node_type: str = ""):
@@ -282,6 +362,14 @@ class NodeItem(QGraphicsRectItem):
 
         # Подчёркивание ноды как части пути
         self._exec_path_emph: bool = False
+
+        # Кнопки провала в нижней части ноды
+        self._drilldown_btns: List[DrilldownButton] = []
+        self._drilldown_zone_h: int = 0   # зарезервированная высота под кнопки
+        self._base_rect_h: float = 0      # исходная высота без кнопок
+
+        # "Провал" при двойном клике (старый способ): "" / "file" / "script"
+        self.drilldown_type: str = ""
 
         self.setBrush(QBrush(bg))
         self.setPen(QPen(NODE_BORDER, 1.0))
@@ -335,7 +423,7 @@ class NodeItem(QGraphicsRectItem):
         if self._prev_text_item is None:
             self._prev_text_item = _PreviewTextItem(self)
             f = self._prev_text_item.font()
-            f.setPointSize(8)
+            f.setPointSize(7)  # компактнее
             self._prev_text_item.setFont(f)
             self._prev_text_item.setDefaultTextColor(PREV_TEXT)
             self._prev_text_item.setZValue(5)
@@ -344,18 +432,18 @@ class NodeItem(QGraphicsRectItem):
             self._prev_bg_item = _PreviewRectItem(self)
             self._prev_bg_item.setZValue(-0.2)
 
-        # текст
-        max_w = self.rect().width() - 16
+        # текст (сжато)
+        max_w = self.rect().width() - 12
         self._prev_text_item.setTextWidth(max_w)
         self._prev_text_item.setPlainText(text)
 
-        # позиционирование
-        top_y = self.rect().bottom() + 6
-        self._prev_text_item.setPos(self.rect().left() + 8, top_y + 6)
+        # позиционирование (ближе к ноде)
+        top_y = self.rect().bottom() + 4
+        self._prev_text_item.setPos(self.rect().left() + 6, top_y + 4)
 
-        # фон по размеру текста
+        # фон по размеру текста (компактнее)
         br = self._prev_text_item.boundingRect()
-        rect = QRectF(self.rect().left() + 2, top_y, self.rect().width() - 4, br.height() + 12)
+        rect = QRectF(self.rect().left() + 2, top_y, self.rect().width() - 4, br.height() + 8)
         pen = QPen(QColor("#AA3333") if error else PREV_BR, 1.0)
         self._prev_bg_item.setPen(pen)
         self._prev_bg_item.setBrush(QBrush(QColor(48, 48, 48, 230) if error else PREV_BG))
@@ -389,6 +477,53 @@ class NodeItem(QGraphicsRectItem):
         if desc:
             tooltip_parts.append(f"\n{desc}")
         self.setToolTip("\n".join(tooltip_parts))
+
+    # ---------- drilldown buttons ----------
+    def set_drilldown_buttons(self, buttons: List[tuple]):
+        """
+        buttons: список (label, tooltip, kind, callback)
+          label    — короткое имя файла
+          tooltip  — полный путь
+          kind     — "script" | "file"
+          callback — callable()
+        Расширяет ноду снизу под кнопки.
+        """
+        # Удалить старые
+        for btn in self._drilldown_btns:
+            try:
+                if btn.scene():
+                    btn.scene().removeItem(btn)
+            except Exception:
+                pass
+        self._drilldown_btns.clear()
+
+        # Вернуть ноду к базовой высоте
+        r = self.rect()
+        base_h = self._base_rect_h if self._base_rect_h > 0 else r.height()
+        self._base_rect_h = base_h
+        self._drilldown_zone_h = 0
+
+        if not buttons:
+            self.setRect(0, 0, r.width(), base_h)
+            self._layout_ports()
+            return
+
+        n = len(buttons)
+        zone_h = BTN_PAD + n * BTN_H + (n - 1) * BTN_GAP + BTN_PAD
+        self._drilldown_zone_h = zone_h
+        new_h = base_h + zone_h
+        self.setRect(0, 0, r.width(), new_h)
+
+        # Создать кнопки
+        btn_w = r.width() - 10
+        y = base_h + BTN_PAD
+        for label, tip, kind, cb in buttons:
+            btn = DrilldownButton(label, tip, kind, cb, self)
+            btn.setRect(5, y, btn_w, BTN_H)
+            self._drilldown_btns.append(btn)
+            y += BTN_H + BTN_GAP
+
+        self._layout_ports()
 
     def set_custom_color(self, color: Optional[QColor]):
         self.custom_color = color
@@ -561,31 +696,64 @@ class NodeItem(QGraphicsRectItem):
                 int(r.right()), int(r.top() + HEADER_H)
             )
 
-            # Эмодзи в шапке
+            # Эмодзи в шапке (компактно)
             f_emoji = QFont()
-            f_emoji.setPointSize(12)
+            f_emoji.setPointSize(11)
             painter.setFont(f_emoji)
             painter.setPen(QPen(TEXT_FG))
-            emoji_rect = QRectF(r.left() + 6, r.top(), 22, HEADER_H)
+            emoji_rect = QRectF(r.left() + 4, r.top(), 20, HEADER_H)
             painter.drawText(emoji_rect, Qt.AlignVCenter | Qt.AlignLeft, emoji)
 
-            # Заголовок типа в шапке
+            # Заголовок типа в шапке (более компактный)
             f_title = QFont()
             f_title.setBold(True)
-            f_title.setPointSize(8)
+            f_title.setPointSize(7)
             painter.setFont(f_title)
             painter.setPen(QPen(TEXT_FG))
-            title_rect = QRectF(r.left() + 30, r.top(), r.width() - 36, HEADER_H)
+            title_rect = QRectF(r.left() + 24, r.top(), r.width() - 28, HEADER_H)
             painter.drawText(title_rect, Qt.AlignVCenter | Qt.AlignLeft, self.title)
 
-            # Подзаголовок в контентной зоне
+            # Подзаголовок в контентной зоне (сжато)
             if self.subtitle:
                 f_sub = QFont()
-                f_sub.setPointSize(8)
+                f_sub.setPointSize(7)
                 painter.setFont(f_sub)
                 painter.setPen(QPen(TEXT_SECONDARY))
-                sub_rect = r.adjusted(self.PADDING, HEADER_H + 6, -self.PADDING, -self.PADDING)
+                sub_rect = r.adjusted(self.PADDING, HEADER_H + 3, -self.PADDING, -self.PADDING)
                 painter.drawText(sub_rect, Qt.AlignTop | Qt.AlignLeft, self.subtitle)
+
+            # Значок провала в правом нижнем углу
+            if self.drilldown_type == "script":
+                # Скрипт — пульсирующий зелёный значок «⇒ скрипт»
+                badge_color = QColor("#22dd66")
+                badge_text = "⇒"
+            elif self.drilldown_type == "file":
+                # Просто файл — бледно-синий значок «↗»
+                badge_color = QColor("#5599cc")
+                badge_text = "↗"
+            else:
+                badge_color = None
+                badge_text = ""
+
+            if badge_color and badge_text:
+                f_badge = QFont()
+                f_badge.setPointSize(9)
+                f_badge.setBold(True)
+                painter.setFont(f_badge)
+                painter.setPen(QPen(badge_color))
+                # Значок чуть выше зоны кнопок, если кнопки есть
+                badge_y = r.bottom() - self._drilldown_zone_h - 18
+                badge_rect = QRectF(r.right() - 22, badge_y, 18, 16)
+                painter.drawText(badge_rect, Qt.AlignVCenter | Qt.AlignRight, badge_text)
+
+            # Разделитель перед зоной кнопок провала
+            if self._drilldown_zone_h > 0:
+                sep_y = r.bottom() - self._drilldown_zone_h
+                painter.setPen(QPen(QColor("#333333"), 1))
+                painter.drawLine(
+                    int(r.left() + 4), int(sep_y),
+                    int(r.right() - 4), int(sep_y),
+                )
         else:
             # Fallback: старый стиль без шапки
             painter.setPen(QPen(TEXT_FG))
@@ -631,12 +799,13 @@ class NodeItem(QGraphicsRectItem):
                 branch_ports.append(p)
 
         if exec_port is not None:
-            y = r.top() + 20
+            y = r.top() + 18
             exec_port.setPos(r.right(), y)
 
         if branch_ports:
-            top_zone = r.top() + 45
-            bottom = r.bottom() - 10
+            top_zone = r.top() + 40
+            # Не заходим в зону кнопок провала
+            bottom = r.bottom() - 8 - self._drilldown_zone_h
             n = len(branch_ports)
             if n == 1:
                 y = (top_zone + bottom) * 0.5

@@ -32,6 +32,7 @@ log = logging.getLogger("node_graph.editor")
 
 class NodeGraphEditor(QWidget):
     text_updated = Signal(str)
+    open_file_requested = Signal(str, str)  # path, tag
 
     _INLINE_LOAD_RE = re.compile(
         r"""\bLOAD
@@ -62,12 +63,6 @@ class NodeGraphEditor(QWidget):
         self._vars_provider: Optional[Callable[[], Dict[str, Any]]] = None
         self._last_runner_report: Optional[RunnerReport] = None
 
-        # ---- навигация (провал в файлы/скрипты) ----
-        # каждый фрейм: {label, file_path, base_dir, meta_path, mode, ast_text, nav_resolved}
-        self._nav_stack: List[Dict[str, Any]] = []
-        self._nav_mode: str = "graph"           # "graph" | "text"
-        self._nav_resolved_path: Optional[str] = None  # resolved path текущего nav-файла
-
         # дебаунс автосохранения меты
         self._meta_save_timer = QTimer(self)
         self._meta_save_timer.setSingleShot(True)
@@ -90,7 +85,7 @@ class NodeGraphEditor(QWidget):
         self.controller.set_item_double_click_callback(self._on_item_double_clicked)
         # кнопки провала под нодой -> провалиться в файл/скрипт
         def _drilldown_cb(p: str, tag: Optional[str] = None):
-            self._navigate_to(p, tag=tag)
+            self.open_file_requested.emit(p, tag or "")
         self.controller.set_drilldown_callback(_drilldown_cb)
 
         self.scene.node_selected.connect(self._on_node_selected)
@@ -158,31 +153,11 @@ class NodeGraphEditor(QWidget):
         main_split.setSizes([900, 220])
         self._main_split = main_split
 
-        # --- Хлебные крошки навигации (показывается при провале в файл) ---
-        self._breadcrumb_bar = QWidget()
-        self._breadcrumb_bar.setVisible(False)
-        self._breadcrumb_bar.setMaximumHeight(32)
-        self._breadcrumb_bar.setStyleSheet(
-            "background:#252a30; border-bottom:1px solid #333;"
-        )
-        bc_lay = QHBoxLayout(self._breadcrumb_bar)
-        bc_lay.setContentsMargins(6, 2, 6, 2)
-        bc_lay.setSpacing(2)
-
-        # --- Текстовый вид для .txt файлов при навигации ---
-        self._nav_text_view = QPlainTextEdit()
-        self._nav_text_view.setVisible(False)
-        self._nav_text_view.setFont(QFont("Consolas", 10))
-        self._nav_text_view.setStyleSheet("background:#1f2329;color:#e6edf3;")
-        SimplePromptHighlighter(self._nav_text_view.document())
-
         lay = QVBoxLayout(self)
         lay.setSpacing(0)
         lay.setContentsMargins(4, 4, 4, 4)
         lay.addLayout(top_row)
-        lay.addWidget(self._breadcrumb_bar)
         lay.addWidget(main_split, 1)
-        lay.addWidget(self._nav_text_view, 1)
 
         self._del_shortcut = QShortcut(QKeySequence(Qt.Key_Delete), self)
         self._del_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
@@ -904,7 +879,7 @@ class NodeGraphEditor(QWidget):
                 if paths:
                     first_path = paths[0]
             if first_path:
-                self._navigate_to(first_path, tag=tag)
+                self.open_file_requested.emit(first_path, tag or "")
                 return
 
         rep = self._last_runner_report
@@ -971,198 +946,7 @@ class NodeGraphEditor(QWidget):
         v.addLayout(btns_layout)
         dlg.exec()
 
-    # ==================== НАВИГАЦИЯ (провал в файлы) ====================
-
-    def _navigate_to(self, rel_path: str, tag: Optional[str] = None):
-        """
-        Провалиться в файл/скрипт внутри этого же виджета (browser-like навигация).
-        rel_path: путь файла (из LOAD).
-        tag:      имя тега [#tag] в txt-файле — перемотает курсор туда.
-        """
-        resolved = self._resolve_path(rel_path)
-        if not resolved or not os.path.exists(resolved):
-            tried = "\n".join(self._resolve_path_debug(rel_path))
-            QMessageBox.warning(self, "Файл не найден",
-                                f"Файл не найден: {rel_path}\n\nПробовал:\n{tried}")
-            return
-
-        # Сохранить текущее состояние в стек навигации
-        if self._nav_mode == "text" and self._nav_resolved_path:
-            cur_label = os.path.basename(self._nav_resolved_path)
-        elif self._file_path:
-            cur_label = os.path.basename(self._file_path)
-        else:
-            cur_label = "Граф"
-
-        frame: Dict[str, Any] = {
-            "label":        cur_label,
-            "file_path":    self._file_path,
-            "base_dir":     self._base_dir,
-            "meta_path":    self._meta_sidecar_path,
-            "mode":         self._nav_mode,
-            "ast_text":     self.preview.toPlainText() if self._nav_mode == "graph" else None,
-            "nav_resolved": self._nav_resolved_path,
-        }
-        self._nav_stack.append(frame)
-
-        _, ext = os.path.splitext(rel_path.lower())
-
-        if ext in (".script", ".postscript"):
-            # ---- Загрузить скрипт-граф ----
-            content = self._read_file(resolved)
-            self._file_path = resolved
-            self._base_dir  = os.path.dirname(resolved)
-            self._meta_sidecar_path = self._get_sidecar_meta_path()
-            self._load_sidecar_meta()
-            self._nav_resolved_path = None
-            self._set_nav_mode("graph")
-            self.preview.setPlainText(content)
-            self._rebuild_from_preview_text()
-        else:
-            # ---- Загрузить текстовый файл ----
-            content = self._read_file(resolved)
-            self._nav_resolved_path = resolved
-            self._set_nav_mode("text")
-            self._nav_text_view.setPlainText(content)
-            if tag:
-                self._scroll_to_tag(tag)
-
-        self._update_breadcrumb()
-
-    def _navigate_back(self, target_idx: int = -1):
-        """
-        Вернуться на уровень target_idx в стеке.
-        target_idx: индекс фрейма в _nav_stack, на который переходим
-                    (стек обрезается до этого уровня, фрейм восстанавливается).
-        """
-        if not self._nav_stack:
-            return
-
-        if target_idx < 0:
-            target_idx = len(self._nav_stack) - 1
-
-        # Обрезаем стек, восстанавливаем состояние выбранного фрейма
-        frame = self._nav_stack[target_idx]
-        self._nav_stack = self._nav_stack[:target_idx]
-
-        self._file_path         = frame["file_path"]
-        self._base_dir          = frame["base_dir"]
-        self._meta_sidecar_path = frame["meta_path"]
-        self._nav_resolved_path = frame.get("nav_resolved")
-
-        mode = frame.get("mode", "graph")
-        if mode == "graph":
-            ast_text = frame.get("ast_text") or ""
-            self._load_sidecar_meta()
-            self._set_nav_mode("graph")
-            self.preview.setPlainText(ast_text)
-            self._rebuild_from_preview_text()
-        else:
-            # Текстовый вид — перечитываем файл с диска
-            self._set_nav_mode("text")
-            if self._nav_resolved_path and os.path.exists(self._nav_resolved_path):
-                self._nav_text_view.setPlainText(self._read_file(self._nav_resolved_path))
-
-        self._update_breadcrumb()
-
-    def _navigate_root(self):
-        """Вернуться в самый корень (нулевой фрейм стека)."""
-        if self._nav_stack:
-            self._navigate_back(0)
-
-    def _update_breadcrumb(self):
-        """Перестроить виджет хлебных крошек."""
-        bar  = self._breadcrumb_bar
-        blay = bar.layout()
-
-        # Удалить все старые виджеты
-        while blay.count():
-            item = blay.takeAt(0)
-            w = item.widget()
-            if w:
-                w.deleteLater()
-
-        if not self._nav_stack:
-            bar.setVisible(False)
-            return
-
-        bar.setVisible(True)
-        _btn_style   = "font-size:11px; color:#88aacc; padding:1px 4px; border:none; background:transparent; text-decoration:underline;"
-        _sep_style   = "color:#555; padding:0 2px; font-size:12px;"
-        _cur_style   = "font-size:11px; color:#e6edf3; padding:1px 4px;"
-        _action_style = "font-size:10px; padding:1px 6px; margin-left:6px;"
-
-        for i, frame in enumerate(self._nav_stack):
-            if i > 0:
-                sep = QLabel("›")
-                sep.setStyleSheet(_sep_style)
-                blay.addWidget(sep)
-            btn = QPushButton(frame["label"])
-            btn.setFlat(True)
-            btn.setStyleSheet(_btn_style)
-            def _go(idx=i):
-                self._navigate_back(idx)
-            btn.clicked.connect(_go)
-            blay.addWidget(btn)
-
-        # Текущий файл
-        sep = QLabel("›")
-        sep.setStyleSheet(_sep_style)
-        blay.addWidget(sep)
-
-        if self._nav_mode == "text" and self._nav_resolved_path:
-            cur_name = os.path.basename(self._nav_resolved_path)
-        elif self._file_path:
-            cur_name = os.path.basename(self._file_path)
-        else:
-            cur_name = "…"
-
-        cur_label = QLabel(cur_name)
-        cur_label.setStyleSheet(_cur_style)
-        blay.addWidget(cur_label)
-        blay.addStretch()
-
-        # Кнопка сохранения в текстовом режиме
-        if self._nav_mode == "text" and self._nav_resolved_path:
-            btn_save = QPushButton("💾 Сохранить")
-            btn_save.setStyleSheet(_action_style)
-            btn_save.setToolTip(f"Сохранить {os.path.basename(self._nav_resolved_path)}")
-            btn_save.clicked.connect(self._save_nav_text)
-            blay.addWidget(btn_save)
-
-    def _set_nav_mode(self, mode: str):
-        """Переключить отображение: 'graph' или 'text'."""
-        self._nav_mode = mode
-        is_graph = (mode == "graph")
-        self._main_split.setVisible(is_graph)
-        self._nav_text_view.setVisible(not is_graph)
-
-    def _scroll_to_tag(self, tag: str):
-        """Прокрутить _nav_text_view к секции [#tag]."""
-        text  = self._nav_text_view.toPlainText()
-        pattern = re.compile(r"\[#\s*" + re.escape(tag) + r"\s*\]", re.IGNORECASE)
-        m = pattern.search(text)
-        if not m:
-            return
-        cursor = self._nav_text_view.textCursor()
-        cursor.setPosition(m.start())
-        self._nav_text_view.setTextCursor(cursor)
-        self._nav_text_view.ensureCursorVisible()
-
-    def _save_nav_text(self):
-        """Сохранить содержимое _nav_text_view обратно в файл."""
-        path = self._nav_resolved_path
-        if not path:
-            return
-        try:
-            content = self._nav_text_view.toPlainText()
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(content)
-            QMessageBox.information(self, "Сохранено", f"Файл сохранён:\n{path}")
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка сохранения", f"Не удалось сохранить:\n{e}")
-
-    # ==================== конец блока навигации ====================
+    # ==================== конец блока навигации (вынесено в main_window) ====================
 
     # --------- IF variables preview helpers ----------
     def _build_snapshots_before(self, report: RunnerReport) -> Dict[str, Dict[str, Any]]:

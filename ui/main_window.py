@@ -1,10 +1,11 @@
-import os, logging
+import os, logging, re
 from pathlib import Path
 from PySide6.QtWidgets import (
     QMainWindow, QSplitter, QStatusBar, QLabel, QMessageBox, QStackedWidget, QPushButton,
-    QWidget, QVBoxLayout, QHBoxLayout, QFrame,
+    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QPlainTextEdit,
 )
 from PySide6.QtCore import Qt, QSettings, QItemSelectionModel
+from PySide6.QtGui import QFont
 
 # ---------- локальные блоки ----------
 from ui.tree_panel          import FileTreePanel
@@ -30,6 +31,74 @@ from models.characters import (
 )
 
 _log = logging.getLogger(__name__)
+
+
+class FileTextView(QWidget):
+    """Текстовый вид для файлов при drill-down навигации."""
+
+    def __init__(self, path: str, tag: str = "", parent=None):
+        super().__init__(parent)
+        self._path = path
+        self._modified = False
+
+        from ui.node_graph.preview_highlighter import SimplePromptHighlighter
+
+        self._edit = QPlainTextEdit()
+        self._edit.setFont(QFont("Consolas", 10))
+        self._edit.setStyleSheet("background:#1f2329;color:#e6edf3;")
+        SimplePromptHighlighter(self._edit.document())
+        self._edit.textChanged.connect(lambda: setattr(self, "_modified", True))
+
+        btn_save = QPushButton("💾 Сохранить")
+        btn_save.setFixedHeight(24)
+        btn_save.setStyleSheet(
+            "QPushButton{background:#21262d;color:#4a9eff;border:1px solid #30363d;"
+            "border-radius:3px;padding:1px 10px;font-size:11px;}"
+            "QPushButton:hover{background:#1f6feb;color:#fff;}"
+        )
+        btn_save.clicked.connect(self._save)
+
+        top = QHBoxLayout()
+        top.setContentsMargins(4, 4, 4, 2)
+        top.addStretch()
+        top.addWidget(btn_save)
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        lay.addLayout(top)
+        lay.addWidget(self._edit, 1)
+
+        try:
+            with open(path, encoding="utf-8") as f:
+                self._edit.setPlainText(f.read())
+            self._modified = False
+        except Exception as e:
+            self._edit.setPlainText(f"[Ошибка чтения файла: {e}]")
+
+        if tag:
+            self._scroll_to_tag(tag)
+
+    def _scroll_to_tag(self, tag: str):
+        text = self._edit.toPlainText()
+        pattern = re.compile(r"\[#\s*" + re.escape(tag) + r"\s*\]", re.IGNORECASE)
+        m = pattern.search(text)
+        if not m:
+            return
+        cursor = self._edit.textCursor()
+        cursor.setPosition(m.start())
+        self._edit.setTextCursor(cursor)
+        self._edit.ensureCursorVisible()
+
+    def _save(self):
+        try:
+            with open(self._path, "w", encoding="utf-8") as f:
+                f.write(self._edit.toPlainText())
+            self._modified = False
+            QMessageBox.information(self, "Сохранено", f"Файл сохранён:\n{self._path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка сохранения", f"Не удалось сохранить:\n{e}")
+
 
 _LEGACY_CLASSES = [
     CrazyMita, KindMita, ShortHairMita,
@@ -112,29 +181,20 @@ class PromptEditorWindow(QMainWindow):
         # --- Загружаем остальные настройки UI (состояние окна, разделителя) ---
         self._load_window_layout_settings() # Новый метод вместо части старого _load_settings
 
-        # Загружаем и открываем последний открытый файл
-        last_opened_file = self.settings.value("lastOpenedFile")
-        if last_opened_file and os.path.isfile(last_opened_file):
+        # Восстанавливаем последнего персонажа или показываем выбор персонажа
+        last_char = self.settings.value("lastChar", "")
+        last_opened_file = self.settings.value("lastOpenedFile", "")
+        if last_char and self.prompts_root:
+            editor_logger.info(f"Восстанавливаем последнего персонажа: {last_char}")
             self._show_editor()
-            self.tabs.open_file(last_opened_file)
-            editor_logger.info(f"Открыт последний файл: {last_opened_file}")
-            
-            # Программно выбираем файл в дереве, чтобы обновить selected_char и UI
-            file_index = self.tree._model.index(last_opened_file)
-            if file_index.isValid():
-                self.tree.selectionModel().setCurrentIndex(file_index, QItemSelectionModel.ClearAndSelect)
-                editor_logger.info(f"Выбран файл в дереве: {last_opened_file}")
-            else:
-                editor_logger.warning(f"Не удалось найти индекс файла в дереве: {last_opened_file}")
-                self._on_char_selected("") # Сбросить выбор персонажа, если файл не найден в дереве
-
-            self._update_title() # Вызываем _update_title после открытия файла и выбора в дереве
+            self._on_char_selected(last_char)
+            self._select_char_in_tree(last_char)
+            if last_opened_file and os.path.isfile(last_opened_file):
+                self.tabs.open_file(last_opened_file)
         else:
-            if last_opened_file:
-                editor_logger.warning(f"Сохраненный путь к последнему файлу '{last_opened_file}' недействителен.")
-            else:
-                editor_logger.info("Путь к последнему открытому файлу не найден в настройках.")
-            self._update_title() # Вызываем _update_title, чтобы установить заголовок "Нет открытых файлов" и сбросить персонажа
+            editor_logger.info("Нет последнего персонажа — показываем выбор персонажа.")
+            self._stack.setCurrentIndex(0)
+        self._update_title()
 
         if not self.prompts_root:
             QMessageBox.warning(self, "Prompts", "Корневая папка Prompts не выбрана. Функциональность будет ограничена.")
@@ -219,6 +279,7 @@ class PromptEditorWindow(QMainWindow):
         # Навигационный стек (drill-down в скрипты)
         self._drill_pages: list[tuple] = []   # list of (widget, title, file_path)
         self._crumb_btns: list = []
+        self._prompt_sets_view = None
 
         self._nav_bar.setVisible(False)   # виден только когда открыт текстовый редактор / drill-down
         cw_layout.addWidget(self._nav_bar)
@@ -285,7 +346,6 @@ class PromptEditorWindow(QMainWindow):
     def _on_char_chosen_from_selector(self, char_id: str):
         """Пользователь выбрал персонажа на стартовом экране → переходим в редактор."""
         self._show_editor()
-        self._show_graph_view()   # показываем граф, не текстовый редактор
         self._on_char_selected(char_id)
 
     def _show_editor(self):
@@ -358,12 +418,36 @@ class PromptEditorWindow(QMainWindow):
         self.info_dock.load_for_char(self.prompts_root, self.selected_char)
         self.tmpl_dock.load_for_char(self.prompts_root, self.selected_char)
 
-        # Обновляем глобальный граф только если персонаж изменился
-        if self.selected_char and self.prompts_root and char_changed:
+        if not self.selected_char or not self.prompts_root:
+            return
+
+        # Сохраняем последнего персонажа/набор
+        if char_id:
+            self.settings.setValue("lastChar", char_id)
+
+        # Определяем: CharName или CharName/SetName?
+        has_set = "/" in char_id
+        if not has_set:
+            # Только имя персонажа — показываем экран наборов промтов
+            if self._stack.currentIndex() == 1:
+                self._show_prompt_sets(char_id)
+        elif char_changed:
+            # Конкретный набор — загружаем граф шаблона
             self.global_graph.load_character(self.prompts_root, self.selected_char)
-            # Переключаемся на граф только если мы уже на странице редактора
             if self._stack.currentIndex() == 1:
                 self._show_graph_view()
+
+    def _select_char_in_tree(self, char_id: str):
+        """Программно выделяет персонажа/набор в дереве без триггера сигнала."""
+        if not self.prompts_root or not char_id:
+            return
+        path = os.path.join(self.prompts_root, char_id.replace("/", os.sep))
+        model = self.tree._model
+        idx = model.index(path)
+        if idx.isValid():
+            self.tree.selectionModel().blockSignals(True)
+            self.tree.selectionModel().setCurrentIndex(idx, QItemSelectionModel.ClearAndSelect)
+            self.tree.selectionModel().blockSignals(False)
 
     # ---------- переключение центральных видов ----------
 
@@ -377,8 +461,46 @@ class PromptEditorWindow(QMainWindow):
             except Exception:
                 pass
         self._drill_pages.clear()
+        # Убираем экран наборов если был
+        if self._prompt_sets_view is not None:
+            try:
+                self._center_stack.removeWidget(self._prompt_sets_view)
+                self._prompt_sets_view.deleteLater()
+            except Exception:
+                pass
+            self._prompt_sets_view = None
         self._update_breadcrumb()
         self._center_stack.setCurrentIndex(0)
+        self._act_show_graph.setVisible(False)
+        self._nav_bar.setVisible(False)
+
+    def _show_prompt_sets(self, char_name: str):
+        """Показывает экран наборов промтов для персонажа (без конкретного набора)."""
+        from ui.prompt_sets_view import PromptSetsView
+
+        # Убираем старый drill-down если был
+        for widget, _title, _path in list(self._drill_pages):
+            try:
+                self._center_stack.removeWidget(widget)
+                widget.deleteLater()
+            except Exception:
+                pass
+        self._drill_pages.clear()
+
+        # Удаляем старый PromptSetsView если есть
+        if self._prompt_sets_view is not None:
+            try:
+                self._center_stack.removeWidget(self._prompt_sets_view)
+                self._prompt_sets_view.deleteLater()
+            except Exception:
+                pass
+            self._prompt_sets_view = None
+
+        view = PromptSetsView(self.prompts_root, char_name, parent=None)
+        view.set_chosen.connect(self._on_char_selected)
+        self._prompt_sets_view = view
+        self._center_stack.addWidget(view)
+        self._center_stack.setCurrentWidget(view)
         self._act_show_graph.setVisible(False)
         self._nav_bar.setVisible(False)
 
@@ -488,6 +610,53 @@ class PromptEditorWindow(QMainWindow):
         else:
             self._open_file_in_tabs(path)
 
+    def _on_drilldown_requested(self, rel_path: str, tag: str):
+        """Обрабатывает сигнал open_file_requested от NodeGraphEditor."""
+        # Сначала нужно разрешить относительный путь — ищем от текущего drill-уровня
+        resolved = self._resolve_drill_path(rel_path)
+        if not resolved or not os.path.isfile(resolved):
+            # Формируем список кандидатов для удобной ошибки
+            QMessageBox.warning(self, "Файл не найден", f"Файл не найден: {rel_path}")
+            return
+        ext = os.path.splitext(resolved)[1].lower()
+        if ext in (".script", ".postscript"):
+            self._open_nodes_for_path(resolved)
+        else:
+            self._push_text_view(resolved, tag)
+
+    def _resolve_drill_path(self, rel_path: str) -> str | None:
+        """Разрешает путь относительно текущего drill-уровня или prompts_root."""
+        if os.path.isabs(rel_path) and os.path.exists(rel_path):
+            return rel_path
+        # Пытаемся разрешить от base_dir текущего верхнего drill-уровня
+        if self._drill_pages:
+            _, _, top_path = self._drill_pages[-1]
+            if top_path:
+                base = os.path.dirname(top_path)
+                candidate_base = base
+                for _ in range(5):
+                    p = os.path.normpath(os.path.join(candidate_base, rel_path))
+                    if os.path.exists(p):
+                        return p
+                    parent = os.path.dirname(candidate_base)
+                    if parent == candidate_base:
+                        break
+                    candidate_base = parent
+        # Фоллбек: от prompts_root
+        if self.prompts_root:
+            p = os.path.normpath(os.path.join(self.prompts_root, rel_path))
+            if os.path.exists(p):
+                return p
+        return None
+
+    def _push_text_view(self, path: str, tag: str = ""):
+        """Проваливается в текстовый файл как drill-down страница."""
+        title = os.path.basename(path)
+        if tag:
+            title += f" #{tag}"
+        view = FileTextView(path, tag, parent=None)
+        self._push_drill_view(view, title, file_path=path)
+
     def _open_file_in_tabs(self, path: str):
         """Открывает файл в TabManager и переключается на вкладки."""
         if path and os.path.isfile(path):
@@ -536,6 +705,7 @@ class PromptEditorWindow(QMainWindow):
                     editor_logger.error(f"Ошибка автосохранения {path}: {e}")
 
             editor.text_updated.connect(_on_text_updated)
+            editor.open_file_requested.connect(self._on_drilldown_requested)
 
             title = os.path.basename(path)
             self._push_drill_view(editor, title, file_path=path)

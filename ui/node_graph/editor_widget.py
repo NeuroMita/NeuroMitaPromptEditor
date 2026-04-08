@@ -11,7 +11,7 @@ import json
 from PySide6.QtCore import Qt, Signal, QPointF, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QSplitter,
-    QLabel, QPlainTextEdit, QMenu, QMessageBox, QFileDialog, QDialog, QDialogButtonBox
+    QLabel, QPlainTextEdit, QMenu, QMessageBox, QFileDialog, QDialog
 )
 from PySide6.QtGui import QShortcut, QKeySequence, QFont, QColor
 
@@ -28,8 +28,6 @@ from ui.node_graph.runner_result_dialog import RunnerResultDialog
 from ui.node_graph.graph_legend import NodeLegend
 
 log = logging.getLogger("node_graph.editor")
-log.setLevel(logging.DEBUG)
-log.propagate = True
 
 
 class NodeGraphEditor(QWidget):
@@ -64,6 +62,12 @@ class NodeGraphEditor(QWidget):
         self._vars_provider: Optional[Callable[[], Dict[str, Any]]] = None
         self._last_runner_report: Optional[RunnerReport] = None
 
+        # ---- навигация (провал в файлы/скрипты) ----
+        # каждый фрейм: {label, file_path, base_dir, meta_path, mode, ast_text, nav_resolved}
+        self._nav_stack: List[Dict[str, Any]] = []
+        self._nav_mode: str = "graph"           # "graph" | "text"
+        self._nav_resolved_path: Optional[str] = None  # resolved path текущего nav-файла
+
         # дебаунс автосохранения меты
         self._meta_save_timer = QTimer(self)
         self._meta_save_timer.setSingleShot(True)
@@ -84,10 +88,9 @@ class NodeGraphEditor(QWidget):
         self.controller.set_metadata_changed_callback(self._on_metadata_changed)
         # двойной клик по ноде -> открыть полный превью или детали
         self.controller.set_item_double_click_callback(self._on_item_double_clicked)
-        # кнопки провала под нодой -> открыть файл/скрипт
-        def _drilldown_cb(p: str):
-            log.debug("drilldown_callback called: path=%s", p)
-            self._open_file_navigator(p, [])
+        # кнопки провала под нодой -> провалиться в файл/скрипт
+        def _drilldown_cb(p: str, tag: Optional[str] = None):
+            self._navigate_to(p, tag=tag)
         self.controller.set_drilldown_callback(_drilldown_cb)
 
         self.scene.node_selected.connect(self._on_node_selected)
@@ -145,6 +148,7 @@ class NodeGraphEditor(QWidget):
         top_split.setStretchFactor(0, 5)
         top_split.setStretchFactor(1, 1)
         top_split.setSizes([1400, 380])
+        self._top_split = top_split
 
         main_split = QSplitter(Qt.Vertical)
         main_split.addWidget(top_split)
@@ -152,10 +156,33 @@ class NodeGraphEditor(QWidget):
         main_split.setStretchFactor(0, 5)
         main_split.setStretchFactor(1, 1)
         main_split.setSizes([900, 220])
+        self._main_split = main_split
+
+        # --- Хлебные крошки навигации (показывается при провале в файл) ---
+        self._breadcrumb_bar = QWidget()
+        self._breadcrumb_bar.setVisible(False)
+        self._breadcrumb_bar.setMaximumHeight(32)
+        self._breadcrumb_bar.setStyleSheet(
+            "background:#252a30; border-bottom:1px solid #333;"
+        )
+        bc_lay = QHBoxLayout(self._breadcrumb_bar)
+        bc_lay.setContentsMargins(6, 2, 6, 2)
+        bc_lay.setSpacing(2)
+
+        # --- Текстовый вид для .txt файлов при навигации ---
+        self._nav_text_view = QPlainTextEdit()
+        self._nav_text_view.setVisible(False)
+        self._nav_text_view.setFont(QFont("Consolas", 10))
+        self._nav_text_view.setStyleSheet("background:#1f2329;color:#e6edf3;")
+        SimplePromptHighlighter(self._nav_text_view.document())
 
         lay = QVBoxLayout(self)
+        lay.setSpacing(0)
+        lay.setContentsMargins(4, 4, 4, 4)
         lay.addLayout(top_row)
-        lay.addWidget(main_split)
+        lay.addWidget(self._breadcrumb_bar)
+        lay.addWidget(main_split, 1)
+        lay.addWidget(self._nav_text_view, 1)
 
         self._del_shortcut = QShortcut(QKeySequence(Qt.Key_Delete), self)
         self._del_shortcut.setContext(Qt.WidgetWithChildrenShortcut)
@@ -865,9 +892,19 @@ class NodeGraphEditor(QWidget):
         # Проверяем наличие LOAD в выражении — если есть, открываем навигатор
         expr = self._node_expr(node)
         if expr:
-            paths = self._extract_load_paths(expr)
-            if paths:
-                self._open_file_navigator(paths[0], breadcrumb=[])
+            # Ищем первый LOAD с тегом — чтобы передать тег для прокрутки
+            tag: Optional[str] = None
+            first_path: Optional[str] = None
+            m_inline = self._INLINE_LOAD_RE.search(expr)
+            if m_inline:
+                tag       = m_inline.group(1) or None   # может быть None (без тега)
+                first_path = m_inline.group(3)
+            if not first_path:
+                paths = self._extract_load_paths(expr)
+                if paths:
+                    first_path = paths[0]
+            if first_path:
+                self._navigate_to(first_path, tag=tag)
                 return
 
         rep = self._last_runner_report
@@ -934,11 +971,13 @@ class NodeGraphEditor(QWidget):
         v.addLayout(btns_layout)
         dlg.exec()
 
-    def _open_file_navigator(self, rel_path: str, breadcrumb: List[str]):
+    # ==================== НАВИГАЦИЯ (провал в файлы) ====================
+
+    def _navigate_to(self, rel_path: str, tag: Optional[str] = None):
         """
-        Открыть просмотрщик файла с иерархией навигации (хлебные крошки).
-        rel_path: относительный путь файла (из LOAD).
-        breadcrumb: список rel_path всех родителей (от корня до текущего).
+        Провалиться в файл/скрипт внутри этого же виджета (browser-like навигация).
+        rel_path: путь файла (из LOAD).
+        tag:      имя тега [#tag] в txt-файле — перемотает курсор туда.
         """
         resolved = self._resolve_path(rel_path)
         if not resolved or not os.path.exists(resolved):
@@ -947,163 +986,183 @@ class NodeGraphEditor(QWidget):
                                 f"Файл не найден: {rel_path}\n\nПробовал:\n{tried}")
             return
 
-        # Если это скрипт — открываем как граф нод
+        # Сохранить текущее состояние в стек навигации
+        if self._nav_mode == "text" and self._nav_resolved_path:
+            cur_label = os.path.basename(self._nav_resolved_path)
+        elif self._file_path:
+            cur_label = os.path.basename(self._file_path)
+        else:
+            cur_label = "Граф"
+
+        frame: Dict[str, Any] = {
+            "label":        cur_label,
+            "file_path":    self._file_path,
+            "base_dir":     self._base_dir,
+            "meta_path":    self._meta_sidecar_path,
+            "mode":         self._nav_mode,
+            "ast_text":     self.preview.toPlainText() if self._nav_mode == "graph" else None,
+            "nav_resolved": self._nav_resolved_path,
+        }
+        self._nav_stack.append(frame)
+
         _, ext = os.path.splitext(rel_path.lower())
+
         if ext in (".script", ".postscript"):
-            self._open_script_graph(rel_path, resolved, breadcrumb)
+            # ---- Загрузить скрипт-граф ----
+            content = self._read_file(resolved)
+            self._file_path = resolved
+            self._base_dir  = os.path.dirname(resolved)
+            self._meta_sidecar_path = self._get_sidecar_meta_path()
+            self._load_sidecar_meta()
+            self._nav_resolved_path = None
+            self._set_nav_mode("graph")
+            self.preview.setPlainText(content)
+            self._rebuild_from_preview_text()
+        else:
+            # ---- Загрузить текстовый файл ----
+            content = self._read_file(resolved)
+            self._nav_resolved_path = resolved
+            self._set_nav_mode("text")
+            self._nav_text_view.setPlainText(content)
+            if tag:
+                self._scroll_to_tag(tag)
+
+        self._update_breadcrumb()
+
+    def _navigate_back(self, target_idx: int = -1):
+        """
+        Вернуться на уровень target_idx в стеке.
+        target_idx: индекс фрейма в _nav_stack, на который переходим
+                    (стек обрезается до этого уровня, фрейм восстанавливается).
+        """
+        if not self._nav_stack:
             return
 
-        content = self._read_file(resolved)
-        # LOAD команды внутри самого файла — для рекурсивного провала
-        child_paths = self._extract_load_paths(content)
+        if target_idx < 0:
+            target_idx = len(self._nav_stack) - 1
 
-        dlg = QDialog(self)
-        dlg.setWindowTitle(f"📄 {rel_path}")
-        dlg.setMinimumSize(820, 640)
-        layout = QVBoxLayout(dlg)
-        layout.setSpacing(4)
+        # Обрезаем стек, восстанавливаем состояние выбранного фрейма
+        frame = self._nav_stack[target_idx]
+        self._nav_stack = self._nav_stack[:target_idx]
 
-        # ---- Хлебные крошки ----
-        nav_layout = QHBoxLayout()
-        nav_layout.setSpacing(2)
+        self._file_path         = frame["file_path"]
+        self._base_dir          = frame["base_dir"]
+        self._meta_sidecar_path = frame["meta_path"]
+        self._nav_resolved_path = frame.get("nav_resolved")
 
-        # Кнопка «← Граф» всегда первая
-        btn_root = QPushButton("← Граф")
-        btn_root.setMaximumWidth(80)
-        btn_root.setStyleSheet("font-size:11px;")
-        btn_root.clicked.connect(dlg.close)
-        nav_layout.addWidget(btn_root)
+        mode = frame.get("mode", "graph")
+        if mode == "graph":
+            ast_text = frame.get("ast_text") or ""
+            self._load_sidecar_meta()
+            self._set_nav_mode("graph")
+            self.preview.setPlainText(ast_text)
+            self._rebuild_from_preview_text()
+        else:
+            # Текстовый вид — перечитываем файл с диска
+            self._set_nav_mode("text")
+            if self._nav_resolved_path and os.path.exists(self._nav_resolved_path):
+                self._nav_text_view.setPlainText(self._read_file(self._nav_resolved_path))
 
-        # Кнопки родительских файлов
-        for i, parent_path in enumerate(breadcrumb):
-            sep = QLabel("›")
-            sep.setStyleSheet("color:#666; padding:0 2px;")
-            nav_layout.addWidget(sep)
-            btn = QPushButton(os.path.basename(parent_path))
-            btn.setMaximumWidth(160)
-            btn.setStyleSheet("font-size:11px;")
-            # при клике переоткрыть на этом уровне
-            def _go_parent(p=parent_path, bc=breadcrumb[:i]):
-                dlg.close()
-                self._open_file_navigator(p, bc)
-            btn.clicked.connect(_go_parent)
-            nav_layout.addWidget(btn)
+        self._update_breadcrumb()
 
-        # Текущий файл (не кнопка)
-        sep_cur = QLabel("›")
-        sep_cur.setStyleSheet("color:#666; padding:0 2px;")
-        nav_layout.addWidget(sep_cur)
-        cur_label = QLabel(f"<b>{os.path.basename(rel_path)}</b>")
-        cur_label.setStyleSheet("font-size:11px;")
-        nav_layout.addWidget(cur_label)
-        nav_layout.addStretch()
-        layout.addLayout(nav_layout)
+    def _navigate_root(self):
+        """Вернуться в самый корень (нулевой фрейм стека)."""
+        if self._nav_stack:
+            self._navigate_back(0)
 
-        # ---- Кнопки провала в дочерние файлы (если есть LOAD внутри) ----
-        if child_paths:
-            child_layout = QHBoxLayout()
-            child_layout.setSpacing(4)
-            child_label = QLabel("Внутри:")
-            child_label.setStyleSheet("color:#888; font-size:10px;")
-            child_layout.addWidget(child_label)
-            for cp in child_paths[:8]:  # не более 8 кнопок
-                btn_child = QPushButton(f"↓ {os.path.basename(cp)}")
-                btn_child.setToolTip(cp)
-                btn_child.setStyleSheet("font-size:10px; padding:2px 6px;")
-                def _go_child(child=cp):
-                    dlg.close()
-                    self._open_file_navigator(child, breadcrumb + [rel_path])
-                btn_child.clicked.connect(_go_child)
-                child_layout.addWidget(btn_child)
-            child_layout.addStretch()
-            layout.addLayout(child_layout)
+    def _update_breadcrumb(self):
+        """Перестроить виджет хлебных крошек."""
+        bar  = self._breadcrumb_bar
+        blay = bar.layout()
 
-        # ---- Содержимое файла ----
-        txt = QPlainTextEdit()
-        txt.setReadOnly(True)
-        txt.setFont(QFont("Consolas", 9))
-        txt.setPlainText(content)
-        txt.setStyleSheet("background:#1f2329;color:#e6edf3;border:1px solid #333;")
-        layout.addWidget(txt)
+        # Удалить все старые виджеты
+        while blay.count():
+            item = blay.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
 
-        # ---- Кнопки ----
-        btns_layout = QHBoxLayout()
-        btn_copy = QPushButton("📋 Копировать")
-        btn_ok   = QPushButton("OK")
-        btn_ok.setDefault(True)
-        def _copy():
-            from PySide6.QtWidgets import QApplication
-            QApplication.clipboard().setText(txt.toPlainText() or "")
-        btn_copy.clicked.connect(_copy)
-        btn_ok.clicked.connect(dlg.accept)
-        btns_layout.addWidget(btn_copy)
-        btns_layout.addStretch()
-        btns_layout.addWidget(btn_ok)
-        layout.addLayout(btns_layout)
+        if not self._nav_stack:
+            bar.setVisible(False)
+            return
 
-        dlg.exec()
+        bar.setVisible(True)
+        _btn_style   = "font-size:11px; color:#88aacc; padding:1px 4px; border:none; background:transparent; text-decoration:underline;"
+        _sep_style   = "color:#555; padding:0 2px; font-size:12px;"
+        _cur_style   = "font-size:11px; color:#e6edf3; padding:1px 4px;"
+        _action_style = "font-size:10px; padding:1px 6px; margin-left:6px;"
 
-    def _open_script_graph(self, rel_path: str, resolved: str, breadcrumb: List[str]):
-        """
-        Открыть .script файл как полноценный граф нод в диалоге.
-        """
-        content = self._read_file(resolved)
-        script_base_dir = os.path.dirname(resolved)
+        for i, frame in enumerate(self._nav_stack):
+            if i > 0:
+                sep = QLabel("›")
+                sep.setStyleSheet(_sep_style)
+                blay.addWidget(sep)
+            btn = QPushButton(frame["label"])
+            btn.setFlat(True)
+            btn.setStyleSheet(_btn_style)
+            def _go(idx=i):
+                self._navigate_back(idx)
+            btn.clicked.connect(_go)
+            blay.addWidget(btn)
 
-        dlg = QDialog(self)
-        dlg.setWindowTitle(f"📜 {rel_path}")
-        dlg.setMinimumSize(1100, 750)
-        layout = QVBoxLayout(dlg)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(4)
+        # Текущий файл
+        sep = QLabel("›")
+        sep.setStyleSheet(_sep_style)
+        blay.addWidget(sep)
 
-        # ---- Хлебные крошки ----
-        nav_layout = QHBoxLayout()
-        nav_layout.setSpacing(2)
-        btn_root = QPushButton("← Граф")
-        btn_root.setMaximumWidth(80)
-        btn_root.setStyleSheet("font-size:11px;")
-        btn_root.clicked.connect(dlg.close)
-        nav_layout.addWidget(btn_root)
+        if self._nav_mode == "text" and self._nav_resolved_path:
+            cur_name = os.path.basename(self._nav_resolved_path)
+        elif self._file_path:
+            cur_name = os.path.basename(self._file_path)
+        else:
+            cur_name = "…"
 
-        for i, parent_path in enumerate(breadcrumb):
-            sep = QLabel("›")
-            sep.setStyleSheet("color:#666; padding:0 2px;")
-            nav_layout.addWidget(sep)
-            btn = QPushButton(os.path.basename(parent_path))
-            btn.setMaximumWidth(160)
-            btn.setStyleSheet("font-size:11px;")
-            def _go_parent(p=parent_path, bc=breadcrumb[:i]):
-                dlg.close()
-                self._open_file_navigator(p, bc)
-            btn.clicked.connect(_go_parent)
-            nav_layout.addWidget(btn)
+        cur_label = QLabel(cur_name)
+        cur_label.setStyleSheet(_cur_style)
+        blay.addWidget(cur_label)
+        blay.addStretch()
 
-        sep_cur = QLabel("›")
-        sep_cur.setStyleSheet("color:#666; padding:0 2px;")
-        nav_layout.addWidget(sep_cur)
-        cur_label = QLabel(f"<b>📜 {os.path.basename(rel_path)}</b>")
-        cur_label.setStyleSheet("font-size:11px; color:#22dd66;")
-        nav_layout.addWidget(cur_label)
-        nav_layout.addStretch()
-        layout.addLayout(nav_layout)
+        # Кнопка сохранения в текстовом режиме
+        if self._nav_mode == "text" and self._nav_resolved_path:
+            btn_save = QPushButton("💾 Сохранить")
+            btn_save.setStyleSheet(_action_style)
+            btn_save.setToolTip(f"Сохранить {os.path.basename(self._nav_resolved_path)}")
+            btn_save.clicked.connect(self._save_nav_text)
+            blay.addWidget(btn_save)
 
-        # ---- Встроенный NodeGraphEditor ----
-        child_editor = NodeGraphEditor(
-            base_dir=script_base_dir,
-            prompts_root=self._prompts_root,
-            file_path=resolved,
-            parent=dlg,
-        )
-        # Прокидываем провал дальше — через тот же механизм, но с расширенным breadcrumb
-        def _child_drilldown(child_rel: str, child_breadcrumb: List[str]):
-            self._open_file_navigator(child_rel, breadcrumb + [rel_path] + child_breadcrumb)
+    def _set_nav_mode(self, mode: str):
+        """Переключить отображение: 'graph' или 'text'."""
+        self._nav_mode = mode
+        is_graph = (mode == "graph")
+        self._main_split.setVisible(is_graph)
+        self._nav_text_view.setVisible(not is_graph)
 
-        child_editor._open_file_navigator = lambda rp, bc: _child_drilldown(rp, bc)
-        child_editor.load_text(content)
-        layout.addWidget(child_editor)
+    def _scroll_to_tag(self, tag: str):
+        """Прокрутить _nav_text_view к секции [#tag]."""
+        text  = self._nav_text_view.toPlainText()
+        pattern = re.compile(r"\[#\s*" + re.escape(tag) + r"\s*\]", re.IGNORECASE)
+        m = pattern.search(text)
+        if not m:
+            return
+        cursor = self._nav_text_view.textCursor()
+        cursor.setPosition(m.start())
+        self._nav_text_view.setTextCursor(cursor)
+        self._nav_text_view.ensureCursorVisible()
 
-        dlg.exec()
+    def _save_nav_text(self):
+        """Сохранить содержимое _nav_text_view обратно в файл."""
+        path = self._nav_resolved_path
+        if not path:
+            return
+        try:
+            content = self._nav_text_view.toPlainText()
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            QMessageBox.information(self, "Сохранено", f"Файл сохранён:\n{path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка сохранения", f"Не удалось сохранить:\n{e}")
+
+    # ==================== конец блока навигации ====================
 
     # --------- IF variables preview helpers ----------
     def _build_snapshots_before(self, report: RunnerReport) -> Dict[str, Dict[str, Any]]:

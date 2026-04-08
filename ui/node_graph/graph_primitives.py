@@ -306,16 +306,14 @@ class DrilldownButton(QGraphicsRectItem):
 
     def trigger(self):
         """Вызвать callback провала (вызывается из NodeItem.mousePressEvent)."""
-        import logging as _log
-        _log.getLogger("node_graph").debug("DrilldownButton.trigger label=%s cb=%s", self._label, self._callback)
-        try:
-            if callable(self._callback):
+        if callable(self._callback):
+            try:
                 self._callback()
-            else:
-                _log.getLogger("node_graph").warning("DrilldownButton.trigger: callback is None!")
-        except Exception as e:
-            import traceback
-            _log.getLogger("node_graph").error("DrilldownButton.trigger error: %s\n%s", e, traceback.format_exc())
+            except Exception as e:
+                import traceback, logging as _log
+                _log.getLogger("node_graph").error(
+                    "DrilldownButton.trigger error: %s\n%s", e, traceback.format_exc()
+                )
 
     def paint(self, painter, option, widget=None):
         super().paint(painter, option, widget)
@@ -837,19 +835,8 @@ class NodeItem(QGraphicsRectItem):
             # DrilldownButton.pos()=(0,0) внутри ноды, поэтому btn.rect()
             # тоже в локальных координатах ноды — сравниваем напрямую.
             local = event.pos()
-            import logging as _log
-            _log.getLogger("node_graph").debug(
-                "NodeItem click local=(%s,%s)  btns=%d",
-                local.x(), local.y(), len(self._drilldown_btns)
-            )
             for btn in self._drilldown_btns:
-                r = btn.rect()
-                _log.getLogger("node_graph").debug(
-                    "  btn rect=(%s,%s,%s,%s) cb=%s",
-                    r.x(), r.y(), r.width(), r.height(), btn._callback
-                )
-                if r.contains(local):
-                    _log.getLogger("node_graph").debug("  → HIT, triggering")
+                if btn.rect().contains(local):
                     btn.trigger()
                     event.accept()
                     return

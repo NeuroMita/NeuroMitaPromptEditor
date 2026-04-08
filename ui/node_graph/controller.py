@@ -31,12 +31,13 @@ class NodeGraphController:
         self.node_colors: Dict[str, QColor] = {}
         self._on_metadata_changed: Optional[callable] = None
         self._on_item_double_click: Optional[Callable[[AstNode], None]] = None
-        self._on_drilldown: Optional[Callable[[str], None]] = None   # (rel_path) -> None
+        self._on_drilldown: Optional[Callable] = None   # (rel_path, tag=None) -> None
 
     def set_metadata_changed_callback(self, cb: callable):
         self._on_metadata_changed = cb
 
-    def set_drilldown_callback(self, cb: Optional[Callable[[str], None]]):
+    def set_drilldown_callback(self, cb: Optional[Callable]):
+        """cb(rel_path: str, tag: Optional[str] = None)"""
         self._on_drilldown = cb
 
     def set_item_double_click_callback(self, cb: Callable[[AstNode], None]):
@@ -372,12 +373,11 @@ class NodeGraphController:
             if tag_match:
                 label = f"{os.path.basename(path)} #{tag_match.group(1)}"
 
-            cb = (lambda p=path: self._on_drilldown(p)) if callable(self._on_drilldown) else None
+            tag = tag_match.group(1) if tag_match else None
+            cb = (lambda p=path, t=tag: self._on_drilldown(p, t)) if callable(self._on_drilldown) else None
             if cb:
                 buttons.append((label, path, kind, cb))
 
-        log.debug("_attach_drilldown_buttons: node=%s buttons=%s on_drilldown=%s",
-                  type(node).__name__, [(b[0], b[2]) for b in buttons], self._on_drilldown)
         if buttons:
             item.set_drilldown_buttons(buttons)
 

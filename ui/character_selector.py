@@ -15,13 +15,16 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import Qt, Signal, QSize, QSettings
 from PySide6.QtGui import QFont, QColor, QPalette, QIcon
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QScrollArea, QFrame,
     QSizePolicy, QSpacerItem,
 )
+
+SETTINGS_ORG_NAME = "NeuroMita"
+SETTINGS_APP_NAME = "PromptEditor"
 
 
 # Цвета карточек персонажей (циклически)
@@ -38,32 +41,34 @@ class _CharacterCard(QFrame):
     clicked = Signal(str)   # char_id (e.g. "Crazy/DefaultJson")
 
     def __init__(self, char_id: str, name: str, set_name: str | None,
-                 version: str, file_count: int, color: str, parent=None):
+                 version: str, file_count: int, color: str, author: str = "", parent=None):
         super().__init__(parent)
         self._char_id = char_id
         self._name = name
         self._set_name = set_name
         self._active = False
 
-        self.setFixedSize(160, 120)
+        self.setFixedSize(170, 130)
         self.setCursor(Qt.PointingHandCursor)
         self._base_color = color
         self._update_style(False)
 
-        self._build(name, set_name, version, file_count)
+        self._build(name, set_name, version, file_count, author)
 
-    def _build(self, name: str, set_name: str | None, version: str, file_count: int):
+    def _build(self, name: str, set_name: str | None, version: str, file_count: int, author: str = ""):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 10, 12, 10)
         lay.setSpacing(3)
 
-        # Иконка + имя
+        # Иконка + имя набора (primary, bold)
         ico = QLabel("🎭")
         ico.setStyleSheet("font-size: 22px; background: transparent;")
         ico.setAlignment(Qt.AlignCenter)
         lay.addWidget(ico)
 
-        name_lbl = QLabel(name)
+        # set_name — primary (bold, 13px)
+        display_name = set_name if set_name else name
+        name_lbl = QLabel(display_name)
         name_lbl.setStyleSheet(
             "font-weight: bold; font-size: 13px; color: #e6edf3; background: transparent;"
         )
@@ -71,13 +76,23 @@ class _CharacterCard(QFrame):
         name_lbl.setWordWrap(True)
         lay.addWidget(name_lbl)
 
+        # char_name — secondary (10px), только если отличается от set_name
         if set_name and set_name != name:
-            set_lbl = QLabel(set_name)
-            set_lbl.setStyleSheet(
+            char_lbl = QLabel(name)
+            char_lbl.setStyleSheet(
                 "font-size: 10px; color: #8b949e; background: transparent;"
             )
-            set_lbl.setAlignment(Qt.AlignCenter)
-            lay.addWidget(set_lbl)
+            char_lbl.setAlignment(Qt.AlignCenter)
+            lay.addWidget(char_lbl)
+
+        # author (9px, italic)
+        if author:
+            author_lbl = QLabel(author)
+            author_lbl.setStyleSheet(
+                "font-size: 9px; color: #6e7681; font-style: italic; background: transparent;"
+            )
+            author_lbl.setAlignment(Qt.AlignCenter)
+            lay.addWidget(author_lbl)
 
         lay.addStretch()
 
@@ -145,6 +160,8 @@ class CharacterSelector(QWidget):
         self._prompts_root = prompts_root
         self._cards: dict[str, _CharacterCard] = {}
         self._selected: str | None = None
+        self._settings = QSettings(SETTINGS_ORG_NAME, SETTINGS_APP_NAME)
+        self._group_by_char: bool = self._settings.value("start_panel/group_by_char", False, type=bool)
 
         self._build_ui()
         if prompts_root:
@@ -190,6 +207,22 @@ class CharacterSelector(QWidget):
         """)
         self._btn_open_folder.clicked.connect(self.open_folder_requested)
         header_row.addWidget(self._btn_open_folder)
+
+        self._btn_group = QPushButton("Группировка")
+        self._btn_group.setCheckable(True)
+        self._btn_group.setChecked(self._group_by_char)
+        self._btn_group.setStyleSheet("""
+            QPushButton {
+                background: #21262d; color: #8b949e;
+                border: 1px solid #30363d; border-radius: 6px;
+                padding: 5px 14px;
+            }
+            QPushButton:hover { background: #30363d; color: #e6edf3; }
+            QPushButton:checked { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+        """)
+        self._btn_group.clicked.connect(self._on_toggle_grouping)
+        header_row.addWidget(self._btn_group)
+
         outer.addLayout(header_row)
 
         # Прокручиваемая область карточек
@@ -232,10 +265,9 @@ class CharacterSelector(QWidget):
         entries = _scan_prompts(self._prompts_root)
         col_count = 5
         color_idx = 0
+        grid_row = 0
 
-        for idx, entry in enumerate(entries):
-            color = _CARD_COLORS[color_idx % len(_CARD_COLORS)]
-            color_idx += 1
+        def _make_card(entry: dict, color: str) -> _CharacterCard:
             card = _CharacterCard(
                 char_id=entry["id"],
                 name=entry["name"],
@@ -243,17 +275,64 @@ class CharacterSelector(QWidget):
                 version=entry.get("version", ""),
                 file_count=entry.get("file_count", 0),
                 color=color,
+                author=entry.get("author", ""),
             )
             card.clicked.connect(self._on_card_clicked)
             self._cards[entry["id"]] = card
-            row, col = divmod(idx, col_count)
-            self._grid_layout.addWidget(card, row, col)
+            return card
+
+        if self._group_by_char:
+            # Группируем по имени персонажа
+            from collections import OrderedDict
+            groups: OrderedDict[str, list] = OrderedDict()
+            for entry in entries:
+                groups.setdefault(entry["name"], []).append(entry)
+
+            for char_name, group_entries in groups.items():
+                # Заголовок группы: QLabel, spanning all columns
+                sep_widget = QWidget()
+                sep_widget.setStyleSheet("background: transparent;")
+                sep_layout = QHBoxLayout(sep_widget)
+                sep_layout.setContentsMargins(0, 8, 0, 4)
+                sep_layout.setSpacing(8)
+                hdr_lbl = QLabel(char_name)
+                hdr_lbl.setStyleSheet("font-weight: bold; font-size: 12px; color: #e6edf3; background: transparent;")
+                sep_layout.addWidget(hdr_lbl)
+                line = QFrame()
+                line.setFrameShape(QFrame.HLine)
+                line.setStyleSheet("color: #30363d;")
+                sep_layout.addWidget(line, 1)
+                self._grid_layout.addWidget(sep_widget, grid_row, 0, 1, col_count)
+                grid_row += 1
+
+                # Карточки группы
+                for col_idx, entry in enumerate(group_entries):
+                    color = _CARD_COLORS[color_idx % len(_CARD_COLORS)]
+                    color_idx += 1
+                    card = _make_card(entry, color)
+                    self._grid_layout.addWidget(card, grid_row, col_idx % col_count)
+                    if (col_idx + 1) % col_count == 0:
+                        grid_row += 1
+                if len(group_entries) % col_count != 0:
+                    grid_row += 1
+        else:
+            for idx, entry in enumerate(entries):
+                color = _CARD_COLORS[color_idx % len(_CARD_COLORS)]
+                color_idx += 1
+                card = _make_card(entry, color)
+                row, col = divmod(idx, col_count)
+                self._grid_layout.addWidget(card, row, col)
+            grid_row = (len(entries) // col_count) + (1 if len(entries) % col_count else 0)
 
         # Кнопка «Создать нового персонажа»
         new_btn = self._make_new_card()
+        # Найдём следующую свободную позицию
         total = len(entries)
-        row, col = divmod(total, col_count)
-        self._grid_layout.addWidget(new_btn, row, col)
+        if self._group_by_char:
+            self._grid_layout.addWidget(new_btn, grid_row, 0)
+        else:
+            row, col = divmod(total, col_count)
+            self._grid_layout.addWidget(new_btn, row, col)
 
         count = len(entries)
         self._status_lbl.setText(f"{count} персонаж{'а' if 2 <= count <= 4 else 'ей' if count >= 5 else ''}" if count else "Персонажей не найдено")
@@ -282,6 +361,11 @@ class CharacterSelector(QWidget):
         inner.addWidget(lbl)
         # TODO: подключить создание нового персонажа
         return card
+
+    def _on_toggle_grouping(self, checked: bool):
+        self._group_by_char = checked
+        self._settings.setValue("start_panel/group_by_char", checked)
+        self._populate()
 
     def _on_card_clicked(self, char_id: str):
         self.set_active_char(char_id)
@@ -332,12 +416,14 @@ def _scan_prompts(root: str) -> list[dict]:
 
 def _make_entry(char_id: str, name: str, set_name: str | None, folder: Path) -> dict:
     version = ""
+    author = ""
     info_path = folder / "info.json"
     if info_path.exists():
         try:
             import json
             data = json.loads(info_path.read_text(encoding="utf-8"))
             version = data.get("version", "")
+            author = data.get("author", "")
         except Exception:
             pass
 
@@ -348,5 +434,6 @@ def _make_entry(char_id: str, name: str, set_name: str | None, folder: Path) -> 
         "name": name,
         "set": set_name,
         "version": str(version),
+        "author": str(author),
         "file_count": file_count,
     }

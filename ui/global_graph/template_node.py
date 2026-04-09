@@ -119,6 +119,7 @@ class TemplateNode(QGraphicsObject):
         self._exists   = spec.get("exists", False)
         self._is_common = spec.get("is_common", False)
         self._hovered  = False
+        self._order: int = spec.get("order", -1)  # порядковый номер в шаблоне
 
         self.signals = TemplateNodeSignals()
 
@@ -185,6 +186,18 @@ class TemplateNode(QGraphicsObject):
         painter.setFont(emoji_font)
         painter.drawText(QRectF(0, 6, NODE_W, 26), Qt.AlignHCenter, icon)
 
+        # Бейдж с порядковым номером (#N) в правом верхнем углу
+        if self._order >= 0:
+            badge_rect = QRectF(NODE_W - 28, 4, 24, 16)
+            painter.setBrush(QBrush(QColor(0, 0, 0, 100)))
+            painter.setPen(QPen(QColor("#5a8fbe"), 0.8))
+            painter.drawRoundedRect(badge_rect, 4, 4)
+            badge_num_font = QFont("Segoe UI", 7)
+            badge_num_font.setBold(True)
+            painter.setFont(badge_num_font)
+            painter.setPen(QColor("#79b8ff"))
+            painter.drawText(badge_rect, Qt.AlignCenter, f"#{self._order + 1}")
+
         # Метка файла (ASCII-безопасный шрифт)
         label_font = QFont("Segoe UI", 9)
         label_font.setBold(True)
@@ -206,6 +219,12 @@ class TemplateNode(QGraphicsObject):
             painter.setFont(badge_font)
             painter.setPen(QColor("#f0883e"))
             painter.drawText(QRectF(6, 52, NODE_W - 12, 14), Qt.AlignHCenter, "! Файл не найден")
+
+    def set_order(self, order: int):
+        """Обновить порядковый номер ноды (вызывается при перестановке)."""
+        self._order = order
+        self._spec["order"] = order
+        self.update()
 
     def hoverEnterEvent(self, e):
         self._hovered = True

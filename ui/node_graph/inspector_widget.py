@@ -11,10 +11,44 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QFrame, QAbstractItemView, QTabWidget, QSizePolicy, QComboBox,
     QScrollArea,
 )
-from PySide6.QtGui import QTextOption
+from PySide6.QtGui import QTextOption, QSyntaxHighlighter, QTextCharFormat, QColor, QFont
 
 from logic.dsl_ast import AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory
 from ui.node_graph.tag_text_edit import TagTextEdit
+
+
+class ExpressionHighlighter(QSyntaxHighlighter):
+    """Подсветка выражений в полях редактирования инспектора."""
+
+    _RULES: list = []  # заполняется при первом вызове
+
+    @classmethod
+    def _build_rules(cls):
+        if cls._RULES:
+            return
+        def fmt(color: str, bold: bool = False) -> QTextCharFormat:
+            f = QTextCharFormat()
+            f.setForeground(QColor(color))
+            if bold:
+                f.setFontWeight(QFont.Bold)
+            return f
+
+        cls._RULES = [
+            # строки
+            (re.compile(r'"[^"]*"|\'[^\']*\''), fmt("#98C379")),
+            # числа
+            (re.compile(r'\b\d+(?:\.\d+)?\b'), fmt("#D19A66")),
+            # Python-ключевые слова
+            (re.compile(r'\b(and|or|not|in|True|False|None|if|else)\b'), fmt("#C678DD", bold=True)),
+            # DSL-ключевые слова
+            (re.compile(r'\b(LOAD|FROM|TAG|LOAD_REL|LOADREL)\b', re.IGNORECASE), fmt("#569CD6", bold=True)),
+        ]
+
+    def highlightBlock(self, text: str):
+        self._build_rules()
+        for pattern, fmt in self._RULES:
+            for m in pattern.finditer(text):
+                self.setFormat(m.start(), m.end() - m.start(), fmt)
 
 
 class FileChipWidget(QWidget):
@@ -160,6 +194,7 @@ class Inspector(QWidget):
         self.set_tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.expr_edit = AutoResizingTextEdit(min_lines=3, max_lines=20)
+        ExpressionHighlighter(self.expr_edit.document())
         self.expr_edit.heightChanged.connect(self._sync_tabs_height)
 
         self.set_preview = TagTextEdit()
@@ -183,6 +218,7 @@ class Inspector(QWidget):
         self.ret_tabs.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.ret_expr_edit = AutoResizingTextEdit(min_lines=3, max_lines=20)
+        ExpressionHighlighter(self.ret_expr_edit.document())
         self.ret_expr_edit.heightChanged.connect(self._sync_ret_tabs_height)
 
         self.ret_preview = TagTextEdit()
@@ -266,6 +302,7 @@ class Inspector(QWidget):
         )
         self.seed_content_lbl = QLabel("Контент:")
         self.seed_content_edit = AutoResizingTextEdit(min_lines=3, max_lines=15)
+        ExpressionHighlighter(self.seed_content_edit.document())
 
         self.form.addRow(self.seed_priority_lbl, self.seed_priority_combo)
         self.form.addRow(self.seed_content_lbl, self.seed_content_edit)

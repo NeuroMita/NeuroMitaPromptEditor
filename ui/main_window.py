@@ -4,8 +4,8 @@ from PySide6.QtWidgets import (
     QMainWindow, QSplitter, QStatusBar, QLabel, QMessageBox, QStackedWidget, QPushButton,
     QWidget, QVBoxLayout, QHBoxLayout, QFrame, QPlainTextEdit,
 )
-from PySide6.QtCore import Qt, QSettings, QItemSelectionModel
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QSettings, QItemSelectionModel, QTimer
+from PySide6.QtGui import QFont, QTextCharFormat, QColor, QTextCursor
 
 # ---------- локальные блоки ----------
 from ui.tree_panel          import FileTreePanel
@@ -85,10 +85,43 @@ class FileTextView(QWidget):
         m = pattern.search(text)
         if not m:
             return
+
+        # Ищем закрывающий маркер [/TAG]
+        end_pat = re.compile(r"\[/\s*" + re.escape(tag) + r"\s*\]", re.IGNORECASE)
+        m_end = end_pat.search(text, m.end())
+        if m_end:
+            hl_end = m_end.end()
+        else:
+            nl = text.find('\n', m.start())
+            hl_end = nl + 1 if nl >= 0 else m.end()
+
+        # Применяем подсветку
+        fmt = QTextCharFormat()
+        fmt.setBackground(QColor("#2a3a2a"))
         cursor = self._edit.textCursor()
         cursor.setPosition(m.start())
-        self._edit.setTextCursor(cursor)
+        cursor.setPosition(hl_end, QTextCursor.KeepAnchor)
+        cursor.mergeCharFormat(fmt)
+
+        # Перемещаем курсор к тегу (без выделения)
+        cursor2 = self._edit.textCursor()
+        cursor2.setPosition(m.start())
+        self._edit.setTextCursor(cursor2)
         self._edit.ensureCursorVisible()
+
+        # Снимаем подсветку через 3 секунды
+        QTimer.singleShot(3000, lambda: self._clear_tag_highlight(m.start(), hl_end))
+
+    def _clear_tag_highlight(self, start: int, end: int):
+        try:
+            fmt = QTextCharFormat()
+            fmt.setBackground(QColor("transparent"))
+            cursor = self._edit.textCursor()
+            cursor.setPosition(start)
+            cursor.setPosition(end, QTextCursor.KeepAnchor)
+            cursor.mergeCharFormat(fmt)
+        except Exception:
+            pass
 
     def _save(self):
         try:

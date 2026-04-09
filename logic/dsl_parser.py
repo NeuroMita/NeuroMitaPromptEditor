@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import List, Tuple
 import re
 
-from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory
+from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory, Run, LinkEntities
 
 @dataclass
 class ParseError:
@@ -144,8 +144,27 @@ def parse_script(text: str) -> Tuple[Script, List[ParseError]]:
         if command == "SEED_MEMORY":
             if not args.strip() or "|" not in args:
                 errors.append(ParseError("SEED_MEMORY требует формат: 'priority | content'", num, raw)); continue
-            parts = args.split("|", 1)
-            add_node(SeedMemory(priority=parts[0].strip(), content=parts[1].strip(), line=num)); continue
+            # Проверяем наличие опциональных ENTITIES
+            entities: list[str] = []
+            args_for_seed = args
+            ent_match = re.search(r'\s+ENTITIES\s+(.+)$', args_for_seed, re.IGNORECASE)
+            if ent_match:
+                entities = [e.strip() for e in ent_match.group(1).split(",") if e.strip()]
+                args_for_seed = args_for_seed[:ent_match.start()]
+            parts = args_for_seed.split("|", 1)
+            add_node(SeedMemory(priority=parts[0].strip(), content=parts[1].strip(), entities=entities, line=num)); continue
+
+        if command == "RUN":
+            path = args.strip().strip('"').strip("'")
+            if not path:
+                errors.append(ParseError("RUN требует путь к скрипту", num, raw)); continue
+            add_node(Run(path=path, line=num)); continue
+
+        if command == "LINK_ENTITIES":
+            link_parts = [p.strip() for p in args.split("->")]
+            if len(link_parts) != 3 or not all(link_parts):
+                errors.append(ParseError("LINK_ENTITIES требует формат: entity1 -> relation -> entity2", num, raw)); continue
+            add_node(LinkEntities(entity1=link_parts[0], relation=link_parts[1], entity2=link_parts[2], line=num)); continue
 
         errors.append(ParseError(f"Unknown DSL command '{command}'", num, raw))
 

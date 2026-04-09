@@ -518,6 +518,7 @@ class GlobalGraphWidget(QWidget):
             x = _MARGIN_X + col * _COL_STEP
             y = _MARGIN_Y + row * _ROW_STEP
             node.setPos(x, y)
+            node.set_order(i)  # обновить порядковый номер
 
     def _on_move_node_up(self, path: str):
         node = next((n for n in self._nodes if n._resolved == path), None)

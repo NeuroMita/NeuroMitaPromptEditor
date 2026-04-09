@@ -8,7 +8,7 @@ from PySide6.QtCore import QPointF
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QMessageBox
 
-from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, SeedMemory
+from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, SeedMemory, Run, LinkEntities
 from ui.node_graph.graph_primitives import NodeItem, PortItem
 from ui.node_graph.graph_scene import GraphScene
 
@@ -292,8 +292,22 @@ class NodeGraphController:
             base_h = 56; per_row = 22
             h = base_h + max(1, branches_count) * per_row + 8; w = 280
             item.setRect(0, 0, w, h); item.set_description(desc)
+        elif isinstance(node, Run):
+            title = "Запустить скрипт"
+            subtitle = node.path
+            desc = "Запускает другой скрипт. В редакторе исполняется как заглушка."
+            w = 240; h = self._node_h(subtitle, w)
+            item = NodeItem(title, subtitle, node, node_type="RUN"); item.setRect(0, 0, w, h); item.set_description(desc)
+        elif isinstance(node, LinkEntities):
+            title = "Связать сущности"
+            subtitle = f"{node.entity1} → {node.relation} → {node.entity2}"
+            desc = "Создаёт связь между двумя сущностями в графе знаний."
+            w = 280; h = self._node_h(subtitle, w)
+            item = NodeItem(title, subtitle, node, node_type="LINK_ENTITIES"); item.setRect(0, 0, w, h); item.set_description(desc)
         else:
             item = NodeItem(type(node).__name__, "", node); item.setRect(0, 0, 240, 60); item.set_description("")
+        # Запомним полную высоту для collapse/expand
+        item._full_height = item.rect().height()
         item.add_in_port("exec", "Выполнение")
         from logic.dsl_ast import If as IfNode
         if not isinstance(node, Return): item.add_out_port("exec", "Далее")

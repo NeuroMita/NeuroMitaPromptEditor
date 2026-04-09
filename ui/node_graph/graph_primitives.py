@@ -35,6 +35,8 @@ NODE_TYPE_STYLES: dict = {
     "RETURN":          ("✅", "#1a4a2a", "#2a7a4a"),
     "IF":              ("⚡", "#4a3a1a", "#8a6a2a"),
     "SEED_MEMORY":     ("🧠", "#4a1a3a", "#7a2a5a"),
+    "RUN":             ("▶", "#1a3a4a", "#2a5a6a"),
+    "LINK_ENTITIES":   ("🔗", "#3a2a1a", "#6a4a2a"),
 }
 
 # Подсветка (hover/selection IF-веток)
@@ -368,6 +370,13 @@ class NodeItem(QGraphicsRectItem):
         # "Провал" при двойном клике (старый способ): "" / "file" / "script"
         self.drilldown_type: str = ""
 
+        # Порядковый номер ноды (для бейджа #N)
+        self.node_index: int = -1
+
+        # Свернуть/развернуть ноду
+        self._collapsed: bool = False
+        self._full_height: float = NodeItem.HEIGHT
+
         self.setBrush(QBrush(bg))
         self.setPen(QPen(NODE_BORDER, 1.0))
         self.setFlags(
@@ -464,6 +473,26 @@ class NodeItem(QGraphicsRectItem):
     def set_exec_path_emphasis(self, on: bool):
         self._exec_path_emph = on
         self.update()
+
+    # ---- collapse/expand ----
+    def toggle_collapse(self):
+        self._collapsed = not self._collapsed
+        if self._collapsed:
+            new_h = HEADER_H + 4
+        else:
+            new_h = self._full_height
+        r = self.rect()
+        self.setRect(0, 0, r.width(), new_h)
+        for btn in self._drilldown_btns:
+            btn.setVisible(not self._collapsed)
+        if self._prev_text_item:
+            self._prev_text_item.setVisible(not self._collapsed)
+        if self._prev_bg_item:
+            self._prev_bg_item.setVisible(not self._collapsed)
+        self._layout_ports()
+        sc = self.scene()
+        if sc:
+            sc.update()
 
     # ---- meta ----
     def set_description(self, desc: str):
@@ -707,11 +736,20 @@ class NodeItem(QGraphicsRectItem):
             f_title.setPointSize(7)
             painter.setFont(f_title)
             painter.setPen(QPen(TEXT_FG))
-            title_rect = QRectF(r.left() + 24, r.top(), r.width() - 28, HEADER_H)
+            title_rect = QRectF(r.left() + 24, r.top(), r.width() - 42, HEADER_H)
             painter.drawText(title_rect, Qt.AlignVCenter | Qt.AlignLeft, self.title)
 
+            # Иконка сворачивания ▼/▶ в правом верхнем углу
+            collapse_rect = QRectF(r.right() - 18, r.top(), 14, HEADER_H)
+            f_col = QFont()
+            f_col.setPointSize(6)
+            painter.setFont(f_col)
+            painter.setPen(QPen(QColor("#888888")))
+            painter.drawText(collapse_rect, Qt.AlignVCenter | Qt.AlignLeft,
+                             "▶" if self._collapsed else "▼")
+
             # Подзаголовок в контентной зоне — перенос слов
-            if self.subtitle:
+            if self.subtitle and not self._collapsed:
                 f_sub = QFont()
                 f_sub.setPointSize(7)
                 painter.setFont(f_sub)
@@ -829,12 +867,24 @@ class NodeItem(QGraphicsRectItem):
             for e in list(p.edges):
                 e.update_path()
 
+    def _collapse_btn_rect(self) -> QRectF:
+        """Rect кнопки сворачивания в локальных координатах ноды."""
+        r = self.rect()
+        style = NODE_TYPE_STYLES.get(self.node_type)
+        if not style:
+            return QRectF()
+        return QRectF(r.right() - 20, r.top(), 18, HEADER_H)
+
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            # event.pos() — уже в локальных координатах этой ноды.
+            local = event.pos()
+            # Проверяем клик на иконку сворачивания
+            if self._collapse_btn_rect().contains(local):
+                self.toggle_collapse()
+                event.accept()
+                return
             # DrilldownButton.pos()=(0,0) внутри ноды, поэтому btn.rect()
             # тоже в локальных координатах ноды — сравниваем напрямую.
-            local = event.pos()
             for btn in self._drilldown_btns:
                 if btn.rect().contains(local):
                     btn.trigger()

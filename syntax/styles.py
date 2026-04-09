@@ -35,8 +35,8 @@ HIGHLIGHTING_RULES_DARK_TUPLES = [
     # Matches: "string" or 'string'
     (r"(\"[^\"]*\"|'[^']*')", SyntaxStyleDark.get_format(SyntaxStyleDark.String), False),
     
-    # Matches: IF, THEN, ELSEIF, ELSE, ENDIF, SET, RETURN, LOAD, LOG, ADD_SYSTEM_INFO, AND, OR, TRUE, FALSE, NONE, LOCAL
-    (r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|ADD_SYSTEM_INFO|AND|OR|TRUE|FALSE|NONE|LOCAL)\b",
+    # Matches: IF, THEN, ELSEIF, ELSE, ENDIF, SET, RETURN, LOAD, LOG, ADD_SYSTEM_INFO, AND, OR, TRUE, FALSE, NONE, LOCAL, RUN, LINK_ENTITIES, SEED_MEMORY, ENTITIES
+    (r"\b(IF|THEN|ELSEIF|ELSE|ENDIF|SET|RETURN|LOAD|LOG|ADD_SYSTEM_INFO|AND|OR|TRUE|FALSE|NONE|LOCAL|RUN|LINK_ENTITIES|SEED_MEMORY|ENTITIES)\b",
      SyntaxStyleDark.get_format(SyntaxStyleDark.Keyword), False),
     
     # Matches: <tag>, </tag>, <!tag>

@@ -52,3 +52,14 @@ class If(AstNode):
 class SeedMemory(AstNode):
     priority: str = ""   # "high" | "medium" | "low" или произвольное выражение
     content: str = ""    # текст или выражение
+    entities: List[str] = field(default_factory=list)  # опциональный список сущностей
+
+@dataclass
+class Run(AstNode):
+    path: str = ""       # путь к скрипту для запуска
+
+@dataclass
+class LinkEntities(AstNode):
+    entity1: str = ""
+    relation: str = ""
+    entity2: str = ""

@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, SeedMemory
+from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If, SeedMemory, Run, LinkEntities
 
 _INLINE_LOAD_RE = re.compile(
     r"""\bLOAD
@@ -234,6 +234,22 @@ class DslAstRunner:
                 except Exception as e:
                     info.error = self._humanize_exception(e, "")
                     info.preview = info.error
+                self.node_results[n.id] = info
+
+            # RUN (заглушка — в визуальном раннере не исполняется)
+            elif isinstance(n, Run):
+                info = NodeRunInfo(node_id=n.id, node_type="RUN", expr=n.path, line_num=(n.line or None))
+                self.exec_trace.append(n.id)
+                info.preview = "[not executed in editor]"
+                self.node_results[n.id] = info
+
+            # LINK_ENTITIES (заглушка)
+            elif isinstance(n, LinkEntities):
+                info = NodeRunInfo(node_id=n.id, node_type="LINK_ENTITIES",
+                                   expr=f"{n.entity1} -> {n.relation} -> {n.entity2}",
+                                   line_num=(n.line or None))
+                self.exec_trace.append(n.id)
+                info.preview = "[not executed in editor]"
                 self.node_results[n.id] = info
 
             # RETURN

@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QShortcut, QKeySequence, QFont, QColor
 
-from logic.dsl_ast import Script, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory, AstNode
+from logic.dsl_ast import Script, Set, Log, AddSystemInfo, Return, If, IfBranch, SeedMemory, Run, LinkEntities, AstNode
 from logic.dsl_parser import parse_script, ParseError
 from logic.dsl_codegen import generate_script
 from logic.dsl_runner import DslAstRunner, RunnerReport, NodeRunInfo
@@ -882,69 +882,45 @@ class NodeGraphEditor(QWidget):
                 self.open_file_requested.emit(first_path, tag or "")
                 return
 
-        rep = self._last_runner_report
-        if not rep:
-            QMessageBox.information(self, "Превью узла", "Нет данных выполнения. Нажмите «Запустить воркфлоу».")
+        # Для редактируемых нод — показываем мини диалог редактирования
+        if isinstance(node, (Set, Log, AddSystemInfo, Return)):
+            field_name = "var" if isinstance(node, Set) else None
+            current_text = node.expr if isinstance(node, (Set, Log, AddSystemInfo, Return)) else ""
+            self._show_inline_edit_dialog(node, current_text)
             return
-        info = rep.node_results.get(node.id) if hasattr(node, "id") else None
+        if isinstance(node, SeedMemory):
+            self._show_inline_edit_dialog(node, node.content)
+            return
 
-        title = "Детали узла"
-        body_lines: List[str] = []
-        if isinstance(node, Return):
-            title = "RETURN — полный результат"
-            body_lines.append(rep.final_text or "")
-        else:
-            body_lines.append(f"Тип: {type(node).__name__}")
-            if info and info.line_num:
-                body_lines.append(f"Строка: {info.line_num}")
-            if getattr(info, "expr", None):
-                body_lines.append(f"\nВыражение:\n{info.expr}")
-            if info and info.error:
-                body_lines.append(f"\nОШИБКА:\n{info.error}")
-            if info and info.preview:
-                body_lines.append(f"\nПревью:\n{info.preview}")
-            if info and info.vars_delta:
-                body_lines.append("\nИзменения переменных:")
-                for k, (old, new) in info.vars_delta.items():
-                    body_lines.append(f"  {k}: {repr(old)} -> {repr(new)}")
-            if info and info.sys_info_added:
-                body_lines.append("\nADD_SYSTEM_INFO (полный фрагмент):")
-                body_lines.append(info.sys_info_added)
-
+    def _show_inline_edit_dialog(self, node: AstNode, current_text: str):
+        """Маленький диалог инлайн-редактирования выражения ноды."""
+        from PySide6.QtWidgets import QDialogButtonBox
         dlg = QDialog(self)
-        dlg.setWindowTitle(title)
-        dlg.setMinimumSize(720, 520)
+        dlg.setWindowTitle(f"Редактор: {type(node).__name__}")
+        dlg.setMinimumSize(500, 200)
+        dlg.resize(600, 240)
         v = QVBoxLayout(dlg)
-        txt = QPlainTextEdit()
-        txt.setReadOnly(True)
-        txt.setFont(QFont("Consolas", 10))
-        txt.setPlainText("\n".join(body_lines))
-        v.addWidget(txt)
-        btns_layout = QHBoxLayout()
-        btn_copy = QPushButton("📋 Копировать")
-        btn_save = QPushButton("💾 Сохранить")
-        btn_ok   = QPushButton("OK")
-        btn_ok.setDefault(True)
-        def _copy():
-            from PySide6.QtWidgets import QApplication
-            QApplication.clipboard().setText(txt.toPlainText() or "")
-        def _save():
-            path, _ = QFileDialog.getSaveFileName(self, "Сохранить текст", os.getcwd(), "Текст (*.txt)")
-            if path:
-                try:
-                    with open(path, "w", encoding="utf-8") as f:
-                        f.write(txt.toPlainText())
-                except Exception as e:
-                    QMessageBox.critical(self, "Сохранение", f"Ошибка: {e}")
-        btn_copy.clicked.connect(_copy)
-        btn_save.clicked.connect(_save)
-        btn_ok.clicked.connect(dlg.accept)
-        btns_layout.addWidget(btn_copy)
-        btns_layout.addWidget(btn_save)
-        btns_layout.addStretch()
-        btns_layout.addWidget(btn_ok)
-        v.addLayout(btns_layout)
-        dlg.exec()
+        v.setSpacing(8)
+
+        editor = QPlainTextEdit()
+        editor.setFont(QFont("Consolas", 10))
+        editor.setPlainText(current_text)
+        SimplePromptHighlighter(editor.document())
+        v.addWidget(editor, 1)
+
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        v.addWidget(btns)
+
+        if dlg.exec() == QDialog.Accepted:
+            new_text = editor.toPlainText()
+            if isinstance(node, SeedMemory):
+                node.content = new_text
+            else:
+                node.expr = new_text
+            self._rebuild_text()
+            self.controller.rebuild()
 
     # ==================== конец блока навигации (вынесено в main_window) ====================
 

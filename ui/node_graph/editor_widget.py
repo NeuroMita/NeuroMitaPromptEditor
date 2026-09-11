@@ -5,7 +5,6 @@ from typing import Optional, List, Dict, Any, Tuple, Callable, Set
 import os
 import re
 import logging
-import traceback
 import json
 from pathlib import Path
 
@@ -361,7 +360,8 @@ class NodeGraphEditor(QWidget):
             self._apply_sidecar_positions_colors()
             self._draw_start_edge()
         except Exception as e:
-            QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка rebuild:\n{e}\n{traceback.format_exc()}")
+            log.exception("NodeGraphEditor rebuild failed")
+            QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка rebuild:\n{e}")
         self._fit_scene_rect()
 
     # -------- inspector / preview --------
@@ -377,7 +377,8 @@ class NodeGraphEditor(QWidget):
             self._fit_scene_rect()
             self._refresh_preview()
         except Exception as e:
-            QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка обновления AST:\n{e}\n{traceback.format_exc()}")
+            log.exception("NodeGraphEditor AST update failed")
+            QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка обновления AST:\n{e}")
 
     def _refresh_preview(self):
         self.preview.blockSignals(True)
@@ -440,7 +441,8 @@ class NodeGraphEditor(QWidget):
             self._refresh_preview()
             self._save_sidecar_meta(silent=True)
         except Exception as e:
-            QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка соединения:\n{e}\n{traceback.format_exc()}")
+            log.exception("NodeGraphEditor connection failed")
+            QMessageBox.critical(self, "NodeGraphEditor", f"Ошибка соединения:\n{e}")
 
     # -------- creation menu --------
     def _on_request_create_menu(self, source_port: Optional[PortItem], scene_pos):
@@ -673,7 +675,8 @@ class NodeGraphEditor(QWidget):
             dlg.show()
 
         except Exception as e:
-            QMessageBox.critical(self, "Запуск воркфлоу", f"Ошибка выполнения:\n{e}\n{traceback.format_exc()}")
+            log.exception("NodeGraphEditor workflow execution failed")
+            QMessageBox.critical(self, "Запуск воркфлоу", f"Ошибка выполнения:\n{e}")
 
     # -------- vars provider / DSL Dock integration --------
     def _fetch_initial_vars(self) -> Dict[str, Any]:

@@ -2,8 +2,6 @@
 import logging
 import os
 import datetime
-import sys
-import traceback
 from typing import Dict, Any, List, Tuple
 
 from logic.path_resolver import LocalPathResolver
@@ -88,8 +86,8 @@ class Character:
             content_blocks, system_infos = interpreter.process_main_template(self.main_template_path_relative)
             vars_after = dict(self.variables)
             return content_blocks or [], system_infos or [], vars_before, vars_after
-        except Exception as e:
-            print(f"{RED_COLOR}Critical error in run_dsl for {self.char_id}: {e}{RESET_COLOR}\n{traceback.format_exc()}", file=sys.stderr)
+        except Exception:
+            logger.exception("Critical error in run_dsl for %s", self.char_id)
             return [f"[CRITICAL ERROR GETTING BLOCKS FOR {self.char_id}]"], [], dict(self.variables), dict(self.variables)
 
     def get_full_prompt(self, tags: dict[str, object] | None = None) -> str:

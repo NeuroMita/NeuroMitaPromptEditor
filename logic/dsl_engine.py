@@ -4,7 +4,6 @@ from logging.handlers import RotatingFileHandler
 import os
 import re
 import sys
-import traceback
 from typing import List, Any, Dict, Optional, Tuple
 from contextlib import contextmanager
 
@@ -64,7 +63,7 @@ if not dsl_execution_logger.handlers:
 
     except Exception as e:
         print(f"{RED}CRITICAL: cannot init DSL loggers: {e}{RST}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
+        dsl_script_logger.exception("Cannot initialize DSL loggers")
 
 class CharacterContextFilter(logging.Filter):
     def __init__(self):
@@ -590,11 +589,9 @@ class DslInterpreter:
             print(f"{RED}{str(e)}{RST}", file=sys.stderr)
             return (f"[DSL ERROR IN {os.path.basename(e.script_path or resolved_script_id or rel_script_path)}]", sys_msgs)
         except Exception as e:
-            dsl_execution_logger.error(
+            dsl_execution_logger.exception(
                 f"Unexpected Python error during execution of {rel_script_path} (resolved: {resolved_script_id}): {e}",
-                exc_info=True,
             )
-            print(f"{RED}Unexpected Python error in {rel_script_path}: {e}{RST}\n{traceback.format_exc()}", file=sys.stderr)
             return (f"[PY ERROR IN {os.path.basename(resolved_script_id or rel_script_path)}]", sys_msgs)
         finally:
             dsl_execution_logger.info(
@@ -630,8 +627,7 @@ class DslInterpreter:
                     print(f"{RED}Error processing placeholder {rel_path_placeholder}: {de}{RST}", file=sys.stderr)
                     return f"[DSL ERROR {rel_path_placeholder}]"
                 except Exception as exc:
-                    dsl_execution_logger.error(f"Unexpected Python error processing placeholder {rel_path_placeholder} in {ctx}: {exc}", exc_info=True)
-                    print(f"{RED}Unexpected Python error in placeholder {rel_path_placeholder}: {exc}{RST}\n{traceback.format_exc()}", file=sys.stderr)
+                    dsl_execution_logger.exception(f"Unexpected Python error processing placeholder {rel_path_placeholder} in {ctx}: {exc}")
                     return f"[PY ERROR {rel_path_placeholder}]"
 
             processed_text = self.placeholder_pattern.sub(repl, text)
@@ -754,8 +750,7 @@ class DslInterpreter:
             print(f"{RED}{str(e)}{RST}", file=sys.stderr)
             return ([f"[DSL ERROR IN MAIN TEMPLATE {os.path.basename(e.script_path or resolved_main_template_id or rel_path_main_template)}]"], sys_msgs)
         except Exception as e:
-            dsl_execution_logger.error(f"Unexpected Python error processing main template '{rel_path_main_template}' (resolved: {resolved_main_template_id}): {e}", exc_info=True)
-            print(f"{RED}Unexpected Python error in main template {rel_path_main_template}: {e}{RST}\n{traceback.format_exc()}", file=sys.stderr)
+            dsl_execution_logger.exception(f"Unexpected Python error processing main template '{rel_path_main_template}' (resolved: {resolved_main_template_id}): {e}")
             return ([f"[PY ERROR IN MAIN TEMPLATE {os.path.basename(resolved_main_template_id or rel_path_main_template)}]"], sys_msgs)
 
     def process_file(self, rel_file_path: str, sys_msgs: Optional[List[str]] = None) -> tuple[str, List[str]]:
@@ -798,8 +793,7 @@ class DslInterpreter:
             print(f"{RED}{str(e)}{RST}", file=sys.stderr)
             return (f"[DSL ERROR IN FILE {os.path.basename(e.script_path or resolved_file_id or rel_file_path)}]", sys_msgs)
         except Exception as e:
-            dsl_execution_logger.error(f"Unexpected Python error processing individual file '{rel_file_path}' (resolved: {resolved_file_id}): {e}", exc_info=True)
-            print(f"{RED}Unexpected Python error in file {rel_file_path}: {e}{RST}\n{traceback.format_exc()}", file=sys.stderr)
+            dsl_execution_logger.exception(f"Unexpected Python error processing individual file '{rel_file_path}' (resolved: {resolved_file_id}): {e}")
             return (f"[PY ERROR IN FILE {os.path.basename(resolved_file_id or rel_file_path)}]", sys_msgs)
 
     def process_txt(self, rel_txt_path: str, sys_msgs: Optional[List[str]] = None) -> tuple[str, List[str]]:

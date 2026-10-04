@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from logic.dsl_ast import Script, AstNode, Set, Log, AddSystemInfo, Return, If
+from logic.dsl_primitives import random
 
 # Используем штатный резолвер путей
 try:
@@ -98,6 +99,7 @@ class DslAstRunner:
                 "abs": abs,
                 "max": max,
                 "min": min,
+                "random": random,
                 "True": True,
                 "False": False,
                 "None": None,

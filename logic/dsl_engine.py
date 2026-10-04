@@ -7,6 +7,8 @@ import sys
 from typing import List, Any, Dict, Optional, Tuple
 from contextlib import contextmanager
 
+from logic.dsl_primitives import random
+
 LOG_DIR = "Logs"
 RED = "\033[91m"
 YEL = "\033[93m"
@@ -198,6 +200,7 @@ class DslInterpreter:
                 "abs": abs,
                 "max": max,
                 "min": min,
+                "random": random,
                 "True": True,
                 "False": False,
                 "None": None,
